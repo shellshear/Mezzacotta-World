@@ -787,27 +787,6 @@ function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
     this.baseSummary = baseSummary;
     
     this.itemTemplates = itemTemplates;
-    /*
-    this.templates = [];
-    for (var i in templateSummary)
-    {
-        var currElement = {};
-       
-        currElement.buttonName = templateSummary[i].itemName + "Button";
-        currElement.itemId = prefix + "MapView.svg#" + prefix + templateSummary[i].itemName;
-        currElement.localItemId = prefix + templateSummary[i].itemName;
-
-        currElement.itemShadowId = prefix + "MapView.svg#" + prefix + templateSummary[i].itemName + "Shadow";
-        currElement.itemSelectId = prefix + "MapView.svg#" + prefix + templateSummary[i].itemName + "Select";
-
-        // Copy param values
-        currElement.params = {};
-        for (var j in templateSummary[i])
-            currElement.params[j] = templateSummary[i][j];
-            
-        this.templates[templateSummary[i].itemCode] = currElement;
-    }
-    */
 }
 
 KevLinDev.extend(PerspectiveItemFactory, LitContentFactory);

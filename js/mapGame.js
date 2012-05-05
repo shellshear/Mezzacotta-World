@@ -61,10 +61,10 @@ function makeDefaultIdMap(prefix)
     result.editArea = prefix + "EditArea";
     result.templateArea = prefix + "TemplateArea";
     result.buttonName = prefix + "View";
-    result.buttonOutline = prefix + "MapView.svg#" + prefix + "Outline";
-    result.buttonMouseover = prefix + "MapView.svg#" + prefix + "Mouseover";
-    result.buttonSelect = prefix + "MapView.svg#" + prefix + "Select";
-    result.buttonCover = prefix + "MapView.svg#" + prefix + "Cover";
+    result.buttonOutline = "images/" + prefix + "MapView.svg#" + prefix + "Outline";
+    result.buttonMouseover = "images/" + prefix + "MapView.svg#" + prefix + "Mouseover";
+    result.buttonSelect = "images/" + prefix + "MapView.svg#" + prefix + "Select";
+    result.buttonCover = "images/" + prefix + "MapView.svg#" + prefix + "Cover";
     result.coverLayer = prefix + "CoverLayer";
     result.objectLayer = prefix + "ObjectLayer";
    

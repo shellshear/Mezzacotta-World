@@ -1188,8 +1188,6 @@ GameController.prototype.setEditMode = function(editMode)
         // Remove the avatar
         this.removeAvatar();
         
-        this.view.updateView(null);
-
         var bgrect = document.getElementById("baseBG");
         bgrect.setAttribute("fill", "white");
 
@@ -1197,7 +1195,7 @@ GameController.prototype.setEditMode = function(editMode)
 
         // Initialise the level from the xml
         this.initialiseMapFromXML(this.currentMap);
-
+        this.view.updateView(null);
         this.view.setLighting();
         this.editLayer.show();
     }
