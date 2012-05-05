@@ -7,6 +7,8 @@ function TurnClock()
 
 function GameController(background, itemFactory, model, view, idMap)
 {
+    GameController.baseConstructor.call(this);
+	
     this.current_map_id = -1; // Current map is not set
     
     this.background = background;
@@ -76,6 +78,8 @@ function GameController(background, itemFactory, model, view, idMap)
     
     this.clearPlayerData();
 }
+
+KevLinDev.extend(GameController, ActionObject);
 
 GameController.prototype.clearPlayerData = function()
 {
@@ -163,6 +167,35 @@ GameController.prototype.setupEditArea = function()
 	this.editLayer.appendChild(this.editWindow);
 }
 
+GameController.prototype.renameWorld = function(newWorldName)
+{
+    var http_string = "update.php";
+    var params = "changemapname=" + escape(newWorldName) + "&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password) + "&map_id=" + this.current_map_id;
+    
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveRenameWorldResultFromServer(xml);
+            }, 
+            params
+        );
+}
+
+GameController.prototype.receiveRenameWorldResultFromServer = function(xml)
+{
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+		var map_id = xml.getAttribute("map_id");
+		var map_name = xml.getAttribute("map_name");
+        this.tellActionListeners(this, {type:"serverWorldRenamed", map_id:map_id, map_name:map_name});
+    }
+    else
+    {
+        alert(xml.textContent);
+    }
+}
 
 GameController.prototype.saveMap = function()
 {

@@ -5,6 +5,8 @@ function AdminWindow(controller, logoutButton)
     AdminWindow.baseConstructor.call(this, "Admin", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:183, height:104, storePrefix:"MW_AdminWindow", contentsSpacing:3});
 
 	this.controller = controller;
+	this.controller.addActionListener(this); // We want to know when a world has been renamed on the server
+	
 	this.contents.appendChild(logoutButton);
 	
 	this.worldLabelGroup = new FlowLayout(0, 0, {minSpacing:5});
@@ -29,6 +31,11 @@ function AdminWindow(controller, logoutButton)
 }
 
 KevLinDev.extend(AdminWindow, SVGWindow);
+
+AdminWindow.prototype.setMapName = function(mapName)
+{
+	this.worldLabel.setValue(mapName);
+}
 
 AdminWindow.prototype.doAction = function(src, evt)
 {
@@ -70,8 +77,7 @@ AdminWindow.prototype.doAction = function(src, evt)
 	else if (evt.type == "renameWorld")
 	{
 		// World renamer has returned a new name
-		//this.controller.renameWorld(evt.newWorldName);
-		alert(evt.newWorldName);
+		this.controller.renameWorld(evt.newWorldName);
 		
 		this.setAble(true);
 		this.removeChild(src);
@@ -81,5 +87,9 @@ AdminWindow.prototype.doAction = function(src, evt)
 		this.setAble(true);
 		this.removeChild(src);
  	}
+	else if (evt.type == "serverWorldRenamed")
+	{
+		this.setMapName(evt.map_name);
+	}
 }
 

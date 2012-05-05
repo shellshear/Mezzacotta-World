@@ -10,6 +10,7 @@ function WorldChooserWindow(controller, params)
     WorldChooserWindow.baseConstructor.call(this, this.params.windowName, 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:150, storePrefix:"MW_WorldChooserWindow", contentsSpacing:3});
 
 	this.controller = controller;
+	this.controller.addActionListener(this); // Listen to the server for changes to world names
 	
 	for (var i in this.controller.visitedWorlds)
 	{
@@ -40,6 +41,19 @@ WorldChooserWindow.prototype.doAction = function(src, evt)
 	else if (evt.type == "clear")
 	{
 	    this.clear();
+	}
+	else if (evt.type == "serverWorldRenamed")
+	{
+		// The server has renamed one of the worlds. Find the appropriate one
+		// if it is in our list, and rename it.
+		for (var i in this.contents.childNodes)
+		{
+			var currButton = this.contents.childNodes[i].firstChild;
+			if (currButton.src == "world_" + evt.map_id)
+			{
+				currButton.bgElement.setContents(new SVGElement("text", {y:12, "font-size":12}, evt.map_name));
+			}
+		}
 	}
 }
 

@@ -38,7 +38,7 @@ TextEditWindow.prototype.doAction = function(src, evt)
 
     if (evt.type == "closeWindow")
     {
-        src.hide();
+		this.tellActionListeners(this, {type:"cancelRenameWorld"});
     }
     else if (evt.type == "click")
 	{

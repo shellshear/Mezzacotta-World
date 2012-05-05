@@ -123,14 +123,14 @@ if (isset($_REQUEST['addworld']))
 else if (isset($_REQUEST['changemapname']))
 {
 	$newmapname = mysql_real_escape_string($_REQUEST['changemapname']);
-	$old_id = mysql_real_escape_string($_REQUEST['old_id']);
+	$map_id = mysql_real_escape_string($_REQUEST['map_id']);
 
-	$query = "SELECT owner_id FROM map WHERE map_id='$old_id'";
+	$query = "SELECT owner_id FROM map WHERE map_id='$map_id'";
     $result = mysql_query($query);
 
     if (!$result)
     {
-        set_error_status($xmlOutput, "Couldn't find world with id $old_id");
+        set_error_status($xmlOutput, "Couldn't find world with id $map_id");
         echo $xmlOutput->saveXML();
         return;
     }
@@ -138,7 +138,7 @@ else if (isset($_REQUEST['changemapname']))
 	$owner_id = mysql_result($result, 0, "owner_id");
     if ($owner_id == $mtg_access->user_id || $mtg_access->user_status > 0)
     {
-		$query = "UPDATE map SET mapname='$newmapname' WHERE map_id='$old_id'";
+		$query = "UPDATE map SET mapname='$newmapname' WHERE map_id='$map_id'";
 	    $result = mysql_query($query);
 		
         if (!$result)
@@ -149,6 +149,8 @@ else if (isset($_REQUEST['changemapname']))
         }
         
 		$xmlOutput->firstChild->setAttribute("status", "1");
+		$xmlOutput->firstChild->setAttribute("map_id", $map_id);
+		$xmlOutput->firstChild->setAttribute("map_name", $newmapname);
         echo $xmlOutput->saveXML();  
         return;
 	}
