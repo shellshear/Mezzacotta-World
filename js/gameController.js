@@ -86,6 +86,9 @@ GameController.prototype.clearPlayerData = function()
     // The xml for the map is stored here.
     this.currentMap = null;
     this.isMapSaved = true;
+
+	// The xml for any unsaved map is stored here.
+	this.unsavedMap = null;
     
     // part of the map that is currently selected
     this.mapSelect = null;    
@@ -384,11 +387,38 @@ GameController.prototype.receiveMapFromServer = function(xml)
 
     if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
     {
-        this.currentMap = xml;
+        this.currentMap = xml.firstChild;
         this.setMapSavedStatus(true);
+
         this.getVisitedWorldsFromXML(xml);
-        this.initialiseMapFromXML(xml);
-    }
+        
+		// Get map info
+	    if (xml.hasAttribute("map_id"))
+	    {
+	        this.current_map_id = xml.getAttribute("map_id");
+	    }
+
+	    if (xml.hasAttribute("map_name"))
+	    {
+	        this.setMapName(xml.getAttribute("map_name"));
+	    }
+
+		// List of items that the user has saved
+	    this.getSavedItemsFromXML(xml);	
+		
+		// Load the map
+		this.initialiseModelFromXML(this.currentMap);
+		
+		// Kick the user out of edit mode if the world isn't editable
+		if (xml.hasAttribute("editable") && xml.getAttribute("editable") == "1")
+		{
+		    this.enableEditMode(true);
+		}
+		else
+		{
+		    this.enableEditMode(false);
+    	}
+	}
     else
     {
         alert(xml.textContent);
@@ -417,25 +447,8 @@ GameController.prototype.getVisitedWorldsFromXML = function(xml)
 }
 
 // Reset the game from the XML 
-GameController.prototype.initialiseMapFromXML = function(xml)
+GameController.prototype.initialiseModelFromXML = function(xml)
 {
-    if (xml.hasAttribute("map_id"))
-    {
-        this.current_map_id = xml.getAttribute("map_id");
-    }
-    
-    if (xml.hasAttribute("map_name"))
-    {
-        this.setMapName(xml.getAttribute("map_name"));
-    }
-    
-    if (xml.hasAttribute("editable") && xml.getAttribute("editable") == "1")
-    {
-        this.enableEditMode(true);
-    }
-    else
-        this.enableEditMode(false);
-
 	this.newItems = [];
     this.model.clear();
     this.actionController.clear();
@@ -444,16 +457,12 @@ GameController.prototype.initialiseMapFromXML = function(xml)
     gItemCount = 0;
     this.gameState = "normal";
     this.turnClock.currentTime = 0;
-    this.model.fromXML(xml.firstChild);
-    this.actionController.fromXML(xml.firstChild);
-    //this.updateItemsRemainingText();
-    //this.view.setViewport(0, 0);
+    this.model.fromXML(xml);
+    this.actionController.fromXML(xml);
 
     if (!this.editMode)
     {
-        this.getSavedItemsFromXML(xml);
         this.removeSavedItemsFromMap();
-
         this.currentChar.setItemParam('speech', null, false);
         this.placeAvatar();
     
@@ -489,6 +498,7 @@ GameController.prototype.sendMapToServer = function(xml)
     if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
     {
         this.setMapSavedStatus(true);
+		this.unsavedMap = null;
         alert('sent map OK');
         if (xml.hasAttribute("map_id"))
         {
@@ -641,7 +651,7 @@ GameController.prototype.parseGameAction = function(src, evt)
         {
             // The user has been notified that they are dead, so
             // restart the map.
-            this.initialiseMapFromXML(this.currentMap);
+            this.initialiseModelFromXML(this.currentMap);
         }
         return;
     }
@@ -1193,15 +1203,27 @@ GameController.prototype.setEditMode = function(editMode)
 
         gOpacityScaleFactor = 0.6;
 
-        // Initialise the level from the xml
-        this.initialiseMapFromXML(this.currentMap);
-        this.view.updateView(null);
+        // Initialise the level from the xml, so that all the actions are reset
+		if (this.unsavedMap != null)
+		{
+    		this.initialiseModelFromXML(this.unsavedMap);
+		}
+		else
+        {
+			this.initialiseModelFromXML(this.currentMap);
+        }
+
+		this.view.updateView(null);
         this.view.setLighting();
         this.editLayer.show();
     }
     else
     {
         this.adminWindow.editMapButton.setContents(this.adminWindow.editMapButtonEditText);
+
+		// Save any unsaved map data
+		if (!this.isMapSaved)
+	   		this.unsavedMap = this.model.toXML();
 
         this.editLayer.hide();
         

@@ -207,11 +207,11 @@ else if (isset($_REQUEST['load']))
 			if ($mtg_access->user_status > 0)
 			{
 				// Admin can visit any world
-				$query = "SELECT map_id, owner_id, mapname FROM map";
+				$query = "SELECT map.map_id, map.owner_id, map.mapname, user.username FROM map INNER JOIN user ON map.owner_id=user.id";
 			}
 			else
 			{
-				$query = "SELECT user_maps.map_id, user_maps.owner_id, user_maps.mapname, user_maps.public FROM (SELECT map_id FROM visited_map WHERE user_id='" . $mtg_access->user_id . "') AS visited INNER JOIN map ON visited.map_id=user_maps.map_id";
+				$query = "SELECT map.map_id, map.owner_id, map.mapname, map.public, user.username FROM (SELECT map_id FROM visited_map WHERE user_id='" . $mtg_access->user_id . "') AS visited INNER JOIN map ON visited.map_id=map.map_id INNER JOIN user ON map.owner_id=user.id";
 			}
 			$visit_result = mysql_query($query);
 		}
@@ -220,6 +220,7 @@ else if (isset($_REQUEST['load']))
 
 		if ($items_result)
 		{
+			echo "<items>";
 			for ($i = 0; $i < mysql_num_rows($items_result); $i++)
 			{
 				$item_id = mysql_result($items_result, $i, "item_id");
@@ -228,23 +229,27 @@ else if (isset($_REQUEST['load']))
 				
 				echo "<item item_id='$item_id' item_name='$item_name' map_id='$map_id'/>";
 			}
+			echo "</items>";
 		}
 
 		if ($visit_result)
 		{
+			echo "<worlds>";
 			for ($i = 0; $i < mysql_num_rows($visit_result); $i++)
 			{
 				$map_id = mysql_result($visit_result, $i, "map_id");
 				$mapname = mysql_result($visit_result, $i, "mapname");
 				$owner_id = mysql_result($visit_result, $i, "owner_id");
+				$owner_name = mysql_result($visit_result, $i, "user.username");
 				$is_accessable = mysql_result($visit_result, $i, "public");
 				if ($owner_id == $mtg_access->user_id)
 				{
 					$is_accessable = "1";
 				}
 				
-				echo "<visit map_id='$map_id' map_name='$mapname' owner_id='$owner_id' access='$is_accessable'/>";
+				echo "<visit map_id='$map_id' map_name='$mapname' owner_id='$owner_id' owner_name='$owner_name' access='$is_accessable'/>";
 			}
+			echo "</worlds>";
 		}
 
 		echo "</result>";  
