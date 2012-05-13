@@ -2646,6 +2646,7 @@ Scrollbar.prototype.doAction = function(src, evt)
         {            
             this.setScrollbarPosition(this.position + this.dragbarLength / 2);
         }
+		evt.stopPropagation();
     }
 }
 

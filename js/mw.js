@@ -2652,6 +2652,7 @@ Scrollbar.prototype.doAction = function(src, evt)
         {            
             this.setScrollbarPosition(this.position + this.dragbarLength / 2);
         }
+		evt.stopPropagation();
     }
 }
 
@@ -5440,7 +5441,7 @@ ShadowElement.prototype.setBaseElement = function(base)
 
     this.base = base;
     if (this.base != null)
-        this.prependChild(this.base);
+        this.appendChild(this.base);
 }
 
 ShadowElement.prototype.setShadowElement = function(shadow)
@@ -5451,7 +5452,7 @@ ShadowElement.prototype.setShadowElement = function(shadow)
     this.shadow = shadow;
     if (this.shadow != null)
     {
-        this.appendChild(this.shadow);
+        this.prependChild(this.shadow);
     }
 }
 
@@ -5489,9 +5490,9 @@ ShadowElement.prototype.setOpacity = function(opacity)
 {
     opacity *= gOpacityScaleFactor;
     
-    if (this.shadow != null)
+    if (this.base != null)
     {
-        this.shadow.setAttribute("opacity", opacity);
+        this.base.setAttribute("opacity", 1.0 - opacity);
     }
     if (this.base != null)
     {
@@ -5701,9 +5702,9 @@ function PerspectiveGridViewItem(modelItem, viewItemFactory, elements)
     PerspectiveGridViewItem.baseConstructor.call
        (this, modelItem, viewItemFactory, this.elements["bottom"]);   
 
+    this.appendItemContents(this.elements["top"]);
     this.appendItemContents(this.elements["left"]);
     this.appendItemContents(this.elements["front"]);
-    this.appendItemContents(this.elements["top"]);
 	
 	if (this.elements["highlight"])
 	{	
@@ -6315,10 +6316,12 @@ function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
     // The rectangles may also have visible sides, depending on the
     // height of adjacent squares.
     // 
+	this.delta = 0.5;
+	this.slope = y / x;
     this.x = x;
     this.y = y;
 
-    this.baseRectTemplate = "M -x,0 L 0,-y x,0 0,y -x,0 z";
+    this.baseRectTemplate = "M -x,0 L 0,-y x,0 x,f 0,g -x,f -x,0 z";
     
     // The vertical templates for the perspective model are
     //               0,-y
@@ -6328,9 +6331,9 @@ function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
     //               \|/ 
     //               0,f
     // where d is the block height and f=d+y
-    this.verticalTemplate = ["M -x,0 0,y 0,f -x,d z", "M x,0 x,d 0,f 0,y z", "M -x,0 L-x,-d 0,-f 0,-y z", "M x,0 0,-y 0,-f x,-d z"];
+    this.verticalTemplate = ["M -x,0 0,y g,h g,j 0,f -x,d z", "M x,0 x,d 0,f p,q p,r 0,y z", "M -x,0 L-x,-d 0,-f 0,-y z", "M x,0 0,-y 0,-f x,-d z"];
 
-    this.baseRect = this.baseRectTemplate.replace(/x/gi, x + 0.5).replace(/y/gi, y + 0.5);
+    this.baseRect = this.baseRectTemplate.replace(/x/gi, x).replace(/y/gi, y).replace(/f/gi, this.delta).replace(/g/gi, this.delta + y);
 
     this.baseSummary = baseSummary;
     
@@ -6410,7 +6413,7 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // top of the block
         var top = new ShadowElement(
             new SVGElement("path", {d:this.baseRect, fill:this.baseSummary[modelItem.params.itemCode][1], stroke:"none"}),
-            new SVGElement("path", {d:this.baseRect, fill:"black", stroke:"none", opacity:"0"}),
+            new SVGElement("path", {d:this.baseRect, fill:"black", stroke:"none"}),
             true
             );
 
@@ -6419,14 +6422,15 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // path for the verticals gets filled out later by setHeight
         var left = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][2], stroke:"none"}),
-            new SVGElement("path", {fill:"black", stroke:"none", opacity:"0"}),
+            new SVGElement("path", {fill:"black", stroke:"none"}),
             true
             );        
         var front = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][3], stroke:"none"}),
-            new SVGElement("path", {fill:"black", stroke:"none", opacity:"0"}),
+            new SVGElement("path", {fill:"black", stroke:"none"}),
             true
             );
+		
         left.hide();
         front.hide();
         
@@ -6469,7 +6473,17 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
 
 PerspectiveItemFactory.prototype.getVerticalPath = function(deltaY, side)
 {
-    return this.verticalTemplate[side].replace(/x/gi, this.x + 0.5).replace(/y/gi, this.y + 0.5).replace(/d/gi, deltaY).replace(/f/gi, this.y + deltaY + 0.5);
+    return this.verticalTemplate[side]
+		.replace(/x/gi, this.x)
+		.replace(/y/gi, this.y)
+		.replace(/d/gi, deltaY)
+		.replace(/f/gi, this.y + deltaY)
+		.replace(/g/gi, this.delta)
+		.replace(/h/gi, this.y - this.slope * this.delta)
+		.replace(/j/gi, this.y + deltaY - this.slope * this.delta)
+		.replace(/p/gi, -this.delta)
+		.replace(/q/gi, this.y + deltaY - this.slope * this.delta)
+		.replace(/r/gi, this.y - this.slope * this.delta);
 }
 
 PerspectiveItemFactory.prototype.createSpeechBubble = function(textVal)

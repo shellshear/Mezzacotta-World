@@ -277,7 +277,7 @@ ShadowElement.prototype.setBaseElement = function(base)
 
     this.base = base;
     if (this.base != null)
-        this.prependChild(this.base);
+        this.appendChild(this.base);
 }
 
 ShadowElement.prototype.setShadowElement = function(shadow)
@@ -288,7 +288,7 @@ ShadowElement.prototype.setShadowElement = function(shadow)
     this.shadow = shadow;
     if (this.shadow != null)
     {
-        this.appendChild(this.shadow);
+        this.prependChild(this.shadow);
     }
 }
 
@@ -326,9 +326,9 @@ ShadowElement.prototype.setOpacity = function(opacity)
 {
     opacity *= gOpacityScaleFactor;
     
-    if (this.shadow != null)
+    if (this.base != null)
     {
-        this.shadow.setAttribute("opacity", opacity);
+        this.base.setAttribute("opacity", 1.0 - opacity);
     }
     if (this.base != null)
     {
