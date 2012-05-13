@@ -1,6 +1,7 @@
 #!/bin/sh
 cat \
-    widgets/widgets.js \
+    config.js \
+    widgets.js \
 	itemContainer.js \
 	ajax.js \
 	LoginController.js \

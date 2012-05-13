@@ -175,6 +175,11 @@ GameController.prototype.renameWorld = function(newWorldName)
     var http_string = "update.php";
     var params = "changemapname=" + escape(newWorldName) + "&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password) + "&map_id=" + this.current_map_id;
     
+	if (g_config.showServerTransactions)
+	{
+		this.addInfo(params + '\n');
+	}
+
     var me = this;
     ajax_post(
             http_string, 
@@ -217,6 +222,11 @@ GameController.prototype.saveMap = function()
 GameController.prototype.setInfo = function(info)
 {
     this.editWindow.infoWindowContents.setValue(info);
+}
+
+GameController.prototype.addInfo = function(info)
+{
+    this.editWindow.infoWindowContents.setValue(this.editWindow.infoWindowContents.getValue() + info);
 }
 
 GameController.prototype.submitLoadArtworkAndMap = function(artFile)
@@ -283,6 +293,11 @@ GameController.prototype.submitSaveItemsAndTeleport = function(teleportDestinati
         }
     }
 
+	if (g_config.showServerTransactions)
+	{
+		this.addInfo(params + '\n');
+	}
+	
     var me = this;
     ajax_post(
             http_string, 
@@ -369,6 +384,11 @@ GameController.prototype.submitLoadMap = function(map_id, doGetItems)
     if (doGetItems)
         params += "&get_items=1";
     
+	if (g_config.showServerTransactions)
+	{
+		this.addInfo(params + '\n');
+	}
+
     var me = this;
     ajax_post(
             http_string, 
@@ -475,7 +495,12 @@ GameController.prototype.submitSaveMap = function(map)
 {
     var http_string = "update.php";
     var params = "save=" + escape(this.current_map_id) + "&map=" + escape(map) + "&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password);
-    
+
+	if (g_config.showServerTransactions)
+	{
+		this.addInfo(params + '\n');
+	}
+	    
     var me = this;
     ajax_post(
             http_string, 
