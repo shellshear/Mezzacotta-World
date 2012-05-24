@@ -71,7 +71,6 @@ if ($mtg_access->login_status <= 0)
         if (!$mtg_access->check())
         {
             set_error_status($xmlOutput, "Login incorrect");
-		    //$xmlOutput->firstChild->setAttribute("password", $mtg_access->passwordhash);
             echo $xmlOutput->saveXML();
             return;
         }
