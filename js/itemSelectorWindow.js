@@ -18,8 +18,18 @@ function ItemSelectorWindow(controller)
     this.selectionArea = new SVGElement("g");
     this.selectionArea.appendChild(this.defaultSelection);
     
-    this.contents.appendChild(this.selectionArea);
+    var selectionBar = new FlowLayout(0, 0, {minSpacing:3});
+
+	var selectionText = new TextLabel("Current Item: ", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
+	
+    selectionBar.appendChild(selectionText)
+    selectionBar.appendChild(this.selectionArea);
+    this.contents.appendChild(selectionBar);
+
     
+	this.explanationText = new TextLabel("Select an item in the grid", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
+    this.contents.appendChild(this.explanationText)
+
     // Allow the avatar to be selected
     var avatarElement = this.controller.model.itemFactory.makeSimpleViewItem(this.controller.currentChar);
 
@@ -114,6 +124,13 @@ ItemSelectorWindow.prototype.setItem = function(item)
         this.selectionArea.removeChildren();
         this.selectionArea.appendChild(this.defaultSelection);
     }
+
+	// Exit once the user has chosen the item.
+	// TODO: This is pretty hacky - should refactor to have ItemSelectorWindow listening for model item selections,
+	// and have clients listen to this.
+	this.hide();
+    if (this.client != null)
+		this.client.userHasSelectedItem(this.selectedItem, this.itemTag);
 }
 
 // Set the client of the item selection - this is who we tell what item was 
@@ -129,10 +146,13 @@ ItemSelectorWindow.prototype.setClient = function(client, item, itemType, itemTa
 	{
 		// Hide the extra items
 		this.avatarButton.hide();
+		this.explanationText.setValue("Select a point in the grid.");
 	}
 	else
 	{
 		// Show the extra items
 		this.avatarButton.show();
+		this.explanationText.setValue("Select an item in the grid, or the avatar icon below.");
 	}
+	
 }

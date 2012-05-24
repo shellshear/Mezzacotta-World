@@ -366,7 +366,7 @@ SVGElement.prototype.insertBefore = function(newnode, existingnode)
     
     // Need to find the element in our childNodes list too
     var index = 0;
-    for (var i in this.childNodes)
+    for (var i = 0; i < this.childNodes.length; ++i)
     {
         if (this.childNodes[i] == existingnode)
         {
@@ -397,7 +397,7 @@ SVGElement.prototype.removeChild = function(child)
         
     this.svg.removeChild(child.svg);
 
-    for (var i in this.childNodes)
+    for (var i = 0; i < this.childNodes.length; ++i)
     {
      	if (this.childNodes[i] == child)
      	{
@@ -441,6 +441,46 @@ SVGElement.prototype.addEventListener = function(eventListener, target, useCaptu
 {
     this.svg.addEventListener(eventListener, target, useCapture);
 };
+
+// Get the bounding box, taking into account svg bounding windows 
+SVGElement.prototype.getVisualBBox = function()
+{
+	var result = null;
+	if (this.svg.nodeName == "g" || this.svg.nodeName == "svg")
+	{
+		// Need to recurse, because there might be a child with an svg bounding window.
+		// The SVGRoot.getVisualBBox() will catch it if there is.
+		//
+		// TODO: Cope with clip-paths, masks, e.g.:
+		// <defs>
+		//  <clipPath id="clipPath">
+		//    <path id="path" ...>
+		//  </clipPath>
+		// </defs>
+        //
+		// <use id="clipPathBounds" visibility="hidden" xlink:href="path"/>
+		result = {x:0, y:0, width:0, height:0};
+		for (var i = 0; i < this.childNodes.length; ++i)
+		{
+			var currBBox = this.childNodes[i].getVisualBBox();
+			if (currBBox == null)
+				continue;
+				
+			if (result.x > currBBox.x)
+				result.x = currBBox.x;
+			if (result.y > currBBox.y)
+				result.y = currBBox.y;
+			if (result.x + result.width < currBBox.x + currBBox.width)
+				result.width = currBBox.x + currBBox.width - result.x;
+			if (result.y + result.height < currBBox.y + currBBox.height)
+				result.height = currBBox.y + currBBox.height - result.y;
+		}
+	}
+	else 
+		result = this.getBBox();
+
+	return result;
+}
 
 // getBBox
 SVGElement.prototype.getBBox = function()
@@ -504,6 +544,7 @@ SVGElement.prototype.getBBox = function()
     return bbox;
 };
 
+// A root SVG element that has a clipping bounding box
 function SVGRoot(x, y, width, height)
 {
     SVGComponent.baseConstructor.call(this, "svg", {x:x, y:y, width:width, height:height});
@@ -523,6 +564,27 @@ SVGRoot.prototype.setPosition = function(x, y)
     this.svg.setAttribute("y", y);
 }
 
+SVGRoot.prototype.getVisualBBox = function()
+{
+	var result = SVGRoot.superClass.getVisualBBox.call(this);
+    var x = this.getAttribute("x");
+    var y = this.getAttribute("y");
+    var width = this.getAttribute("width");
+    var height = this.getAttribute("height");
+
+	// Restrict the bbox to the contents here.
+	if (result.x < x)
+		result.x = x;
+	if (result.y < y)
+		result.y = y;
+	if (result.x + result.width > x + width)
+		result.width = x + width - result.x;
+	if (result.y + result.height > y + height)
+		result.height = y + height - result.y;
+	
+	return result;
+}
+// An SVG container (actually a group element). Has focus handling.
 function SVGComponent(x, y)
 {
     SVGComponent.baseConstructor.call(this, "g");
@@ -2704,7 +2766,7 @@ KevLinDev.extend(ScrollbarRegion, SVGComponent);
 
 ScrollbarRegion.prototype.refreshLayout = function()
 {
-    var bbox = this.contents.getBBox();
+    var bbox = this.contents.getVisualBBox();
     this.xExtent = bbox.x + bbox.width;
     this.yExtent = bbox.y + bbox.height;
    
@@ -2776,9 +2838,9 @@ ScrollbarRegion.prototype.notifyResize = function(src)
 	this.refreshLayout();
 }
 
-// We need to override the getBBox, because as far as other elements are concerned, we're
+// We need to override the getVisualBBox, because as far as other elements are concerned, we're
 // always the same size.
-ScrollbarRegion.prototype.getBBox = function()
+ScrollbarRegion.prototype.getVisualBBox = function()
 {
 	return {x:this.x, y:this.y, width:this.params.width, height:this.params.height};
 }
@@ -3136,10 +3198,7 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
     
     this.myItems.splice(itemIndex, 1);
 
-    var evt = new Object();
-    evt.type = "removeItem";
-    evt.itemIndex = itemIndex;
-    this.tellActionListeners(this, evt);
+    this.tellActionListeners(this, {type:"removeItem", itemIndex:itemIndex});
     
     gItemCount--;
 }
@@ -4182,7 +4241,7 @@ GridItem.prototype.cleanup = function()
 {
     GridItem.superClass.cleanup.call(this);   
     this.clearSeenBy();
-	this.tellActionListeners(this, {type:"ItemBeingDeleted"});
+	this.tellActionListeners(this, {type:"ItemBeingDeleted", item:this});
 }
 
 // Update the item and its children regarding the contents that
@@ -6629,7 +6688,7 @@ ACItemHandler.prototype.setItem = function(item)
         	this.model.registerItem(item);
 		}
     }
-	this.tellActionListeners(this, {type:"itemUpdated"});
+	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
 ACItemHandler.prototype.setItemByType = function(isItemByType)
@@ -6638,12 +6697,16 @@ ACItemHandler.prototype.setItemByType = function(isItemByType)
 		return;
 		
 	this.isItemByType = isItemByType;
-	this.tellActionListeners(this, {type:"itemUpdated"});
+	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
 ACItemHandler.prototype.matchesItem = function(item)
 {
-	if (this.isItemByType)
+	if (item == null || this.item == null)
+	{
+		return (item == this.item);
+	}
+	else if (this.isItemByType)
 	{
 		if (item.params.itemCode == this.item.params.itemCode)
 			return true;
@@ -6699,7 +6762,7 @@ ACItemHandler.prototype.fromXML = function(xml)
 
 ACItemHandler.prototype.doAction = function(src, evt)
 {
-	if (evt.type == "ItemBeingDeleted")
+	if (evt.type == "ItemBeingDeleted" && this.item.markedForDeath)
 	{
 		// A GridItem is politely letting us know it's being deleted.
 		this.setItem(null);
@@ -7570,7 +7633,12 @@ ItemViewSelector.prototype.doAction = function(src, evt)
      	// Update the item using the item selector window
     	this.controller.editWindow.itemSelectorWindow.setClient(this, this.selectedItem, this.itemChoiceSet, this.tag);
 		this.controller.editWindow.itemSelectorWindow.show();
-	}		
+	}
+	else if (evt.type == "itemUpdated")
+	{
+		// The item has been updated by something, so update the appearance
+		this.setSelectedItem(evt.item);
+	}	
 
     ItemViewSelector.superClass.doAction.call(this, src, evt);
 }
@@ -9065,8 +9133,18 @@ function ItemSelectorWindow(controller)
     this.selectionArea = new SVGElement("g");
     this.selectionArea.appendChild(this.defaultSelection);
     
-    this.contents.appendChild(this.selectionArea);
+    var selectionBar = new FlowLayout(0, 0, {minSpacing:3});
+
+	var selectionText = new TextLabel("Current Item: ", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
+	
+    selectionBar.appendChild(selectionText)
+    selectionBar.appendChild(this.selectionArea);
+    this.contents.appendChild(selectionBar);
+
     
+	this.explanationText = new TextLabel("Select an item in the grid", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
+    this.contents.appendChild(this.explanationText)
+
     // Allow the avatar to be selected
     var avatarElement = this.controller.model.itemFactory.makeSimpleViewItem(this.controller.currentChar);
 
@@ -9161,6 +9239,13 @@ ItemSelectorWindow.prototype.setItem = function(item)
         this.selectionArea.removeChildren();
         this.selectionArea.appendChild(this.defaultSelection);
     }
+
+	// Exit once the user has chosen the item.
+	// TODO: This is pretty hacky - should refactor to have ItemSelectorWindow listening for model item selections,
+	// and have clients listen to this.
+	this.hide();
+    if (this.client != null)
+		this.client.userHasSelectedItem(this.selectedItem, this.itemTag);
 }
 
 // Set the client of the item selection - this is who we tell what item was 
@@ -9176,12 +9261,15 @@ ItemSelectorWindow.prototype.setClient = function(client, item, itemType, itemTa
 	{
 		// Hide the extra items
 		this.avatarButton.hide();
+		this.explanationText.setValue("Select a point in the grid.");
 	}
 	else
 	{
 		// Show the extra items
 		this.avatarButton.show();
+		this.explanationText.setValue("Select an item in the grid, or the avatar icon below.");
 	}
+	
 }
 // BlockItemWindow is used for setting block appearance and params
 function BlockItemWindow(controller)
@@ -10778,6 +10866,7 @@ GameController.prototype.contentSelected = function(src, evt)
         {
             // Delete the last thing
             var topData = currData.getTopItem();
+			topData.markedForDeath = true; // We need to mark this so that actions and conditions know this is an actual delete rather than just moving the item
             
             // First remove from moveable item list (if present)
             this.model.removeFromMoveableItems(topData);

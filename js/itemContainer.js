@@ -68,10 +68,7 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
     
     this.myItems.splice(itemIndex, 1);
 
-    var evt = new Object();
-    evt.type = "removeItem";
-    evt.itemIndex = itemIndex;
-    this.tellActionListeners(this, evt);
+    this.tellActionListeners(this, {type:"removeItem", itemIndex:itemIndex});
     
     gItemCount--;
 }

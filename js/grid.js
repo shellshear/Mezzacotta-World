@@ -630,7 +630,7 @@ GridItem.prototype.cleanup = function()
 {
     GridItem.superClass.cleanup.call(this);   
     this.clearSeenBy();
-	this.tellActionListeners(this, {type:"ItemBeingDeleted"});
+	this.tellActionListeners(this, {type:"ItemBeingDeleted", item:this});
 }
 
 // Update the item and its children regarding the contents that

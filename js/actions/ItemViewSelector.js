@@ -21,7 +21,12 @@ ItemViewSelector.prototype.doAction = function(src, evt)
      	// Update the item using the item selector window
     	this.controller.editWindow.itemSelectorWindow.setClient(this, this.selectedItem, this.itemChoiceSet, this.tag);
 		this.controller.editWindow.itemSelectorWindow.show();
-	}		
+	}
+	else if (evt.type == "itemUpdated")
+	{
+		// The item has been updated by something, so update the appearance
+		this.setSelectedItem(evt.item);
+	}	
 
     ItemViewSelector.superClass.doAction.call(this, src, evt);
 }

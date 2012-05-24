@@ -861,6 +861,7 @@ GameController.prototype.contentSelected = function(src, evt)
         {
             // Delete the last thing
             var topData = currData.getTopItem();
+			topData.markedForDeath = true; // We need to mark this so that actions and conditions know this is an actual delete rather than just moving the item
             
             // First remove from moveable item list (if present)
             this.model.removeFromMoveableItems(topData);

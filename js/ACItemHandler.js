@@ -34,7 +34,7 @@ ACItemHandler.prototype.setItem = function(item)
         	this.model.registerItem(item);
 		}
     }
-	this.tellActionListeners(this, {type:"itemUpdated"});
+	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
 ACItemHandler.prototype.setItemByType = function(isItemByType)
@@ -43,12 +43,16 @@ ACItemHandler.prototype.setItemByType = function(isItemByType)
 		return;
 		
 	this.isItemByType = isItemByType;
-	this.tellActionListeners(this, {type:"itemUpdated"});
+	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
 ACItemHandler.prototype.matchesItem = function(item)
 {
-	if (this.isItemByType)
+	if (item == null || this.item == null)
+	{
+		return (item == this.item);
+	}
+	else if (this.isItemByType)
 	{
 		if (item.params.itemCode == this.item.params.itemCode)
 			return true;
@@ -104,7 +108,7 @@ ACItemHandler.prototype.fromXML = function(xml)
 
 ACItemHandler.prototype.doAction = function(src, evt)
 {
-	if (evt.type == "ItemBeingDeleted")
+	if (evt.type == "ItemBeingDeleted" && this.item.markedForDeath)
 	{
 		// A GridItem is politely letting us know it's being deleted.
 		this.setItem(null);

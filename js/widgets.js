@@ -360,7 +360,7 @@ SVGElement.prototype.insertBefore = function(newnode, existingnode)
     
     // Need to find the element in our childNodes list too
     var index = 0;
-    for (var i in this.childNodes)
+    for (var i = 0; i < this.childNodes.length; ++i)
     {
         if (this.childNodes[i] == existingnode)
         {
@@ -391,7 +391,7 @@ SVGElement.prototype.removeChild = function(child)
         
     this.svg.removeChild(child.svg);
 
-    for (var i in this.childNodes)
+    for (var i = 0; i < this.childNodes.length; ++i)
     {
      	if (this.childNodes[i] == child)
      	{
@@ -435,6 +435,46 @@ SVGElement.prototype.addEventListener = function(eventListener, target, useCaptu
 {
     this.svg.addEventListener(eventListener, target, useCapture);
 };
+
+// Get the bounding box, taking into account svg bounding windows 
+SVGElement.prototype.getVisualBBox = function()
+{
+	var result = null;
+	if (this.svg.nodeName == "g" || this.svg.nodeName == "svg")
+	{
+		// Need to recurse, because there might be a child with an svg bounding window.
+		// The SVGRoot.getVisualBBox() will catch it if there is.
+		//
+		// TODO: Cope with clip-paths, masks, e.g.:
+		// <defs>
+		//  <clipPath id="clipPath">
+		//    <path id="path" ...>
+		//  </clipPath>
+		// </defs>
+        //
+		// <use id="clipPathBounds" visibility="hidden" xlink:href="path"/>
+		result = {x:0, y:0, width:0, height:0};
+		for (var i = 0; i < this.childNodes.length; ++i)
+		{
+			var currBBox = this.childNodes[i].getVisualBBox();
+			if (currBBox == null)
+				continue;
+				
+			if (result.x > currBBox.x)
+				result.x = currBBox.x;
+			if (result.y > currBBox.y)
+				result.y = currBBox.y;
+			if (result.x + result.width < currBBox.x + currBBox.width)
+				result.width = currBBox.x + currBBox.width - result.x;
+			if (result.y + result.height < currBBox.y + currBBox.height)
+				result.height = currBBox.y + currBBox.height - result.y;
+		}
+	}
+	else 
+		result = this.getBBox();
+
+	return result;
+}
 
 // getBBox
 SVGElement.prototype.getBBox = function()
@@ -498,6 +538,7 @@ SVGElement.prototype.getBBox = function()
     return bbox;
 };
 
+// A root SVG element that has a clipping bounding box
 function SVGRoot(x, y, width, height)
 {
     SVGComponent.baseConstructor.call(this, "svg", {x:x, y:y, width:width, height:height});
@@ -517,6 +558,27 @@ SVGRoot.prototype.setPosition = function(x, y)
     this.svg.setAttribute("y", y);
 }
 
+SVGRoot.prototype.getVisualBBox = function()
+{
+	var result = SVGRoot.superClass.getVisualBBox.call(this);
+    var x = this.getAttribute("x");
+    var y = this.getAttribute("y");
+    var width = this.getAttribute("width");
+    var height = this.getAttribute("height");
+
+	// Restrict the bbox to the contents here.
+	if (result.x < x)
+		result.x = x;
+	if (result.y < y)
+		result.y = y;
+	if (result.x + result.width > x + width)
+		result.width = x + width - result.x;
+	if (result.y + result.height > y + height)
+		result.height = y + height - result.y;
+	
+	return result;
+}
+// An SVG container (actually a group element). Has focus handling.
 function SVGComponent(x, y)
 {
     SVGComponent.baseConstructor.call(this, "g");
@@ -2698,7 +2760,7 @@ KevLinDev.extend(ScrollbarRegion, SVGComponent);
 
 ScrollbarRegion.prototype.refreshLayout = function()
 {
-    var bbox = this.contents.getBBox();
+    var bbox = this.contents.getVisualBBox();
     this.xExtent = bbox.x + bbox.width;
     this.yExtent = bbox.y + bbox.height;
    
@@ -2770,9 +2832,9 @@ ScrollbarRegion.prototype.notifyResize = function(src)
 	this.refreshLayout();
 }
 
-// We need to override the getBBox, because as far as other elements are concerned, we're
+// We need to override the getVisualBBox, because as far as other elements are concerned, we're
 // always the same size.
-ScrollbarRegion.prototype.getBBox = function()
+ScrollbarRegion.prototype.getVisualBBox = function()
 {
 	return {x:this.x, y:this.y, width:this.params.width, height:this.params.height};
 }
