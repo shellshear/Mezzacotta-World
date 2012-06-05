@@ -10,7 +10,7 @@ echo "<?xml version='1.0' encoding='UTF-8'?>";
 	by Andrew Shellshear
 </desc>
 
-<script type="text/ecmascript" xlink:href="js/mw.js"/>
+<script type="text/ecmascript" xlink:href="js/mw_small.js"/>
 
 <defs id="defs_external">
 	<circle id="radioCover" cx="20" cy="20" r="20" fill="white" stroke="none" opacity="0"/>

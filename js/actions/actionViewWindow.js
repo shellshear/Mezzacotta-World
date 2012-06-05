@@ -4,7 +4,7 @@ function ActionViewWindow(controller)
 {
 	this.controller = controller;
 	
-    ActionViewWindow.baseConstructor.call(this, "Actions", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:217, height:309, storePrefix:"MW_ActionViewWindow", contentsSpacing:3});
+    ActionViewWindow.baseConstructor.call(this, "Actions", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:240, height:280, storePrefix:"MW_ActionViewWindow", contentsSpacing:3});
 
     // The actions view window allows the user to create and edit actions.
     this.newActionButtons = new FlowLayout(0, 0, {minSpacing:3});
@@ -26,7 +26,7 @@ function ActionViewWindow(controller)
     
     // List of action summaries
     this.actionSummaries = new FlowLayout(0, 0, {direction:"down", minSpacing:3});
-	this.actionScrollbarRegion = new ScrollbarRegion({width:240, height:200, scrollbarWidth:20}, this.actionSummaries);
+	this.actionScrollbarRegion = new ScrollbarRegion({width:240, height:200, scrollbarWidth:20, rectBorder:{stroke:"black", "stroke-width":"2", fill:"none"}}, this.actionSummaries);
     this.actionSummaries.addResizeListener(this.actionScrollbarRegion);
 	this.contents.appendChild(this.actionScrollbarRegion);
 
@@ -91,7 +91,6 @@ ActionViewWindow.prototype.doAction = function(src, evt)
 		{
 			this.controller.actionController.appendAction(action); // add the action
 			this.appendActionEditor(action); // create an editor widget
-	        this.addActionSummary(action); // also create a summary widget
 			
 			this.controller.setMapSavedStatus(false);
 		}

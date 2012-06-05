@@ -427,7 +427,8 @@ GameController.prototype.receiveMapFromServer = function(xml)
 	    this.getSavedItemsFromXML(xml);	
 		
 		// Load the map
-		this.initialiseModelFromXML(this.currentMap);
+		this.unsavedMap = null;
+		this.initialiseModelFromXML();
 		
 		// Kick the user out of edit mode if the world isn't editable
 		if (xml.hasAttribute("editable") && xml.getAttribute("editable") == "1")
@@ -467,8 +468,14 @@ GameController.prototype.getVisitedWorldsFromXML = function(xml)
 }
 
 // Reset the game from the XML 
-GameController.prototype.initialiseModelFromXML = function(xml)
+GameController.prototype.initialiseModelFromXML = function()
 {
+	var xml = this.unsavedMap;
+	if (xml == null)
+	{
+		xml = this.currentMap;
+    }
+
 	this.newItems = [];
     this.model.clear();
     this.actionController.clear();
@@ -676,7 +683,7 @@ GameController.prototype.parseGameAction = function(src, evt)
         {
             // The user has been notified that they are dead, so
             // restart the map.
-            this.initialiseModelFromXML(this.currentMap);
+            this.initialiseModelFromXML();
         }
         return;
     }
@@ -1168,7 +1175,7 @@ GameController.prototype.changeItems = function()
         if (i == this.currentChar.contents)
         {
             // The item wishes to move into the current character's contents
-            this.endGame("Death by zombie! Press space to restart.");
+            this.endGame("Death by " + destinationList[i][0].item.params.fullname + "! Press space to restart.");
         }
         else if (destinationList[i].length == 1)
         {
@@ -1230,14 +1237,7 @@ GameController.prototype.setEditMode = function(editMode)
         gOpacityScaleFactor = 0.6;
 
         // Initialise the level from the xml, so that all the actions are reset
-		if (this.unsavedMap != null)
-		{
-    		this.initialiseModelFromXML(this.unsavedMap);
-		}
-		else
-        {
-			this.initialiseModelFromXML(this.currentMap);
-        }
+		this.initialiseModelFromXML();
 
 		this.view.updateView(null);
         this.view.setLighting();
