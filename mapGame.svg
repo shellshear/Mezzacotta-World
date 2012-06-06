@@ -5,6 +5,7 @@
     Map game
 </desc>
 
+<script type="text/ecmascript" xlink:href="js/version.js"/>
 <script type="text/ecmascript" xlink:href="js/config.js"/>
 <script type="text/ecmascript" xlink:href="js/widgets.js"/>
 <script type="text/ecmascript" xlink:href="js/itemContainer.js"/>

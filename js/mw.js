@@ -1,4 +1,5 @@
-var g_config = new MW_Config();
+// Version of Mezzacotta World
+g_mwVersion = "0.31";var g_config = new MW_Config();
 
 function MW_Config()
 {
@@ -3231,7 +3232,7 @@ ItemContainer.prototype.moveItem = function(target)
 
 ItemContainer.prototype.removeItem = function(item)
 {
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (this.myItems[i] == item)
         {
@@ -3245,7 +3246,7 @@ ItemContainer.prototype.removeItem = function(item)
 ItemContainer.prototype.getFlattenedTree = function()
 {
     var result = [this];
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         result = result.concat(this.myItems[i].getFlattenedTree());
     }
@@ -3258,7 +3259,7 @@ ItemContainer.prototype.find = function(name, value)
     if (this.params != null && this.params[name] === value)
         return this;
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var result = this.myItems[i].find(name, value);
         if (result != null)
@@ -3284,7 +3285,7 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
 ItemContainer.prototype.cleanup = function()
 {
     this.owner = null;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         this.myItems[i].cleanup();
     }
@@ -3355,7 +3356,7 @@ ViewItemContainer.prototype.doAction = function(src, evt)
 
 ViewItemContainer.prototype.updateChildrenFromModel = function()
 {
-    for (var i in this.modelItem.myItems)
+    for (var i = 0; i < this.modelItem.myItems.length; ++i)
     {
         var viewItem = this.appendViewItem(this.modelItem.myItems[i]);
         if (viewItem != null)    
@@ -3390,7 +3391,7 @@ ViewItemContainer.prototype.onBeingAdded = function()
 
 ViewItemContainer.prototype.removeActionListeners = function()
 {
-    for (var i in this.containedItems.childNodes)
+    for (var i = 0; i < this.containedItems.childNodes.length; ++i)
     {
         this.containedItems.childNodes[i].removeActionListeners();
     }
@@ -3706,7 +3707,7 @@ function GridModel(itemFactory)
     }
     this.xmlModel = this.xmlDoc.firstChild;
     
-    this.gridData = [];
+    this.gridData = {};
 
 	// Keep track of the moveable items in the model
 	this.moveableItems = [];
@@ -3782,7 +3783,7 @@ GridModel.prototype.getItemById = function(itemId)
 GridModel.prototype.addToMoveableItems = function(item)
 {
     // Check that it's not already here.
-    for (var i in this.moveableItems)
+    for (var i = 0; i < this.moveableItems.length; ++i)
     {
      	if (this.moveableItems[i] == item)
      	{
@@ -3795,7 +3796,7 @@ GridModel.prototype.addToMoveableItems = function(item)
 
 GridModel.prototype.removeFromMoveableItems = function(item)
 {
-    for (var i in this.moveableItems)
+    for (var i = 0; i < this.moveableItems.length; ++i)
     {
      	if (this.moveableItems[i] == item)
      	{
@@ -3966,7 +3967,7 @@ GridContents.prototype.toString = function()
 {
     var result = "";
     var isFirst = true;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (this.myItems[i] != null)
         {
@@ -3983,6 +3984,11 @@ GridContents.prototype.toString = function()
         return null;
        
     return result;
+}
+
+GridContents.prototype.getLocationString = function()
+{
+	return this.x + "," + this.y;
 }
 
 // String is of the form a;b;c;...
@@ -4011,7 +4017,7 @@ GridContents.prototype.toXML = function(xmlDoc, showAll)
     xmlContents.setAttribute("x", this.x);
     xmlContents.setAttribute("y", this.y);
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var xmlItem = this.myItems[i].toXML(xmlDoc, showAll);
         if (xmlItem != null)
@@ -4084,7 +4090,7 @@ GridContents.prototype.removeSeenBy = function(item)
 GridContents.prototype.getBlockingHeight = function()
 {
     var result = 0;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var currHt = this.myItems[i].getBlockingHeight();
         if (currHt > result)
@@ -4229,7 +4235,7 @@ GridItem.prototype.toString = function()
     if (this.myItems.length > 0)
         result += "(";
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (i != 0)
             result += " ";
@@ -4267,7 +4273,7 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
         xmlItem.setAttribute("e", this.params.elev);
     }
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var xmlChildItem = this.myItems[i].toXML(xmlDoc);
         if (xmlChildItem != null)
@@ -4333,7 +4339,7 @@ GridItem.prototype.updateOwnerContents = function()
             this.contents = this.owner.contents;
     }
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         this.myItems[i].updateOwnerContents();
     }
@@ -4581,7 +4587,7 @@ GridItem.prototype.getBlockingHeight = function()
     if (this.params.blockView)
         result = this.params.elev + this.params.ht;
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var currHt = this.myItems[i].getBlockingHeight();
         if (currHt > result)
@@ -6907,7 +6913,7 @@ GameAction.prototype.attemptAction = function()
     var result = true;
 
     // Ensure all our conditions are met
-    for (var i in this.conditions)
+    for (var i = 0; i < this.conditions.length; ++i)
     {
         if (!this.conditions[i].isMet())
         {
@@ -6934,7 +6940,7 @@ GameAction.prototype.toXML = function()
 
 	xmlAction.setAttribute("type", this.type);
     
-    for (var i in this.conditions)
+    for (var i = 0; i < this.conditions.length; ++i)
     {
         var xmlCondRef = this.model.xmlDoc.createElement("condRef");
         xmlCondRef.setAttribute("condId", this.conditions[i].id);
@@ -7213,7 +7219,7 @@ function ActionController(model, parentController, turnClock)
     // Conditions need ids so actions and other conditions can refer 
     // to them for serialisation purposes.
     this.conditionIdIndex = 0;
-    this.condIdList = [];
+    this.condIdList = {};
     
     // Some items speak. We keep track of these here.
     this.speakingItems = [];
@@ -7235,7 +7241,7 @@ ActionController.prototype.clear = function()
 
 ActionController.prototype.clearSpeakingItems = function()
 {
-    for (var i in this.speakingItems)
+    for (var i = 0; i < this.speakingItems.length; ++i)
     {
         this.speakingItems[i].setItemParam('speech', null, false);
     }
@@ -7260,9 +7266,9 @@ ActionController.prototype.toXML = function(parentXML)
     for (var i in this.condIdList)
     {
 		var conditionUsed = false;
-		for (var j in this.itemActionList)
+		for (var j = 0; j < this.itemActionList.length; ++j)
 		{
-			for (var k in this.itemActionList[j].conditions)
+			for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 			{
 				if (this.itemActionList[j].conditions[k] == this.condIdList[i])
 				{
@@ -7283,7 +7289,7 @@ ActionController.prototype.toXML = function(parentXML)
     }
             
     // Export actions
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
         var actionXML = this.itemActionList[i].toXML();
         parentXML.appendChild(actionXML);
@@ -7349,7 +7355,7 @@ ActionController.prototype.appendAction = function(action)
 ActionController.prototype.removeAction = function(action)
 {
 	// Remove the action
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
      	if (this.itemActionList[i] == action)
      	{
@@ -7361,12 +7367,12 @@ ActionController.prototype.removeAction = function(action)
     }
 
 	// remove all conditions that refer only to this action
-	for (var i in action.conditions)
+	for (var i = 0; i < action.conditions.length; ++i)
 	{
 		var isUsed = false;
-		for (var j in this.itemActionList)
+		for (var j = 0; j < this.itemActionList.length; ++j)
 		{
-			for (var k in this.itemActionList[j].conditions)
+			for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 			{
 				if (this.itemActionList[j].conditions[k] == action.conditions[i])
 				{
@@ -7383,9 +7389,9 @@ ActionController.prototype.removeAction = function(action)
 
 ActionController.prototype.removeCondition = function(condition)
 {
-	for (var j in this.itemActionList)
+	for (var j = 0; j < this.itemActionList.length; ++j)
 	{
-		for (var k in this.itemActionList[j].conditions)
+		for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 		{
 			var currCondition = this.itemActionList[j].conditions[k];
 			if (currCondition == condition)
@@ -7401,7 +7407,7 @@ ActionController.prototype.removeCondition = function(condition)
 // Go through all the actions in order and attempt to execute them.
 ActionController.prototype.attemptActions = function()
 {
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
         var result = this.itemActionList[i].attemptAction();
         if (!result)
@@ -9913,7 +9919,7 @@ TextEditWindow.prototype.setFocus = function()
 // Allows the user to logout, to change worlds to ones they've visited, and to edit worlds.
 function AdminWindow(controller, logoutButton)
 {
-    AdminWindow.baseConstructor.call(this, "Admin", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:183, height:104, storePrefix:"MW_AdminWindow", contentsSpacing:3});
+    AdminWindow.baseConstructor.call(this, "Mezzacotta World v" + g_mwVersion, 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:183, height:104, storePrefix:"MW_AdminWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.controller.addActionListener(this); // We want to know when a world has been renamed on the server
@@ -9939,6 +9945,12 @@ function AdminWindow(controller, logoutButton)
     this.newWorldButton = new RectButton("newworld", 0, 0, new SVGElement("text", {y:12, "font-size":12}, "Change World"), {fill:"lightblue", stroke:"black", rx:2}, {fill:"orange"}, {fill:"red"}, 2, false);
     this.newWorldButton.addActionListener(this);    
 	this.contents.appendChild(this.newWorldButton);
+
+	this.isDebugging = false;
+    this.debugText = new SVGElement("text", {y:12, "font-size":12}, "Debug");
+	this.debugButton = new RectButton("debug", 0, 0, this.debugText, {fill:"lightblue", stroke:"black", rx:2}, {fill:"orange"}, {fill:"red"}, 2, false);
+    this.debugButton.addActionListener(this);    
+	this.contents.appendChild(this.debugButton);
 }
 
 KevLinDev.extend(AdminWindow, SVGWindow);
@@ -9983,6 +9995,16 @@ AdminWindow.prototype.doAction = function(src, evt)
                 this.controller.setEditMode(true);
 	        }
 	    }
+		else if (src.src == "debug")
+		{
+			// Go into or out of debug mode
+			this.isDebugging = !this.isDebugging;
+			this.controller.setDebugMode(this.isDebugging);
+			if (this.isDebugging)
+				this.debugText.setValue("Play");
+			else
+				this.debugText.setValue("Debug");
+		}
 		evt.stopPropagation();
 	}
 	else if (evt.type == "renameWorld")
@@ -10189,11 +10211,11 @@ GameController.prototype.clearPlayerData = function()
 
 GameController.prototype.clearHighlightedItems = function()
 {
-	for (var i in this.highlightedItems)
+	for (var i = 0; i < this.highlightedItems.length; ++i)
 	{
 		this.highlightedItems[i].setItemParam("isHighlighted", false, false);
 	}
-	this.highlightedItem = [];
+	this.highlightedItems = [];
 }
 
 GameController.prototype.addVisitedWorld = function(visitedWorld)
@@ -10423,7 +10445,7 @@ GameController.prototype.getSavedItemsFromXML = function(xml)
 
 GameController.prototype.removeSavedItemsFromMap = function()
 {
-    for (var i in this.savedItems)
+    for (var i = 0; i < this.savedItems.length; ++i)
     {
         if (this.savedItems[i].map_id == this.current_map_id)
         {
@@ -11235,25 +11257,25 @@ GameController.prototype.stepTime = function()
 GameController.prototype.changeItems = function()
 {
     // Make a list of the items that want to change (including movement), sorted by where they want to move to.
-    var destinationList = [];
-    for (var i in this.model.moveableItems)
+    var destinationList = {};
+    for (var i = 0; i < this.model.moveableItems.length; ++i)
     {
         var currRequest = this.model.moveableItems[i].requestChange();
         
         if (currRequest == null)
             continue;
         
-        if (destinationList[currRequest.contents] == null)
+        if (destinationList[currRequest.contents.getLocationString()] == null)
         {
-            destinationList[currRequest.contents] = [];
+            destinationList[currRequest.contents.getLocationString()] = [];
         }
         
-        destinationList[currRequest.contents].push({item:this.model.moveableItems[i], dest:currRequest});
+        destinationList[currRequest.contents.getLocationString()].push({item:this.model.moveableItems[i], dest:currRequest});
     }
     
     for (var i in destinationList)
     {
-        if (i == this.currentChar.contents)
+        if (i == this.currentChar.contents.getLocationString())
         {
             // The item wishes to move into the current character's contents
             this.endGame("Death by " + destinationList[i][0].item.params.fullname + "! Press space to restart.");
@@ -11290,6 +11312,46 @@ GameController.prototype.enableEditMode = function(doEnable)
 GameController.prototype.setActive = function(isActive)
 {
     this.isActive = isActive;
+}
+
+// Go into debug mode - it's like edit mode, except it doesn't load or save the level
+// or remove the avatar
+GameController.prototype.setDebugMode = function(debugMode)
+{
+    // Clear any "in the way" squares that might be left over
+    this.model.clearInTheWay();
+
+    this.editMode = debugMode; // Emulate editMode for the purposes of handling move events
+
+    if (debugMode)
+    {        
+        this.model.showInvisible = true;
+
+        var bgrect = document.getElementById("baseBG");
+        bgrect.setAttribute("fill", "white");
+
+        gOpacityScaleFactor = 0.6;
+
+		this.view.updateView(null);
+        this.view.setLighting();
+        this.editLayer.show();
+    }
+    else
+    {
+        this.editLayer.hide();
+
+		this.clearHighlightedItems();
+        this.model.showInvisible = false;
+
+        gOpacityScaleFactor = 1.0;
+        this.view.setLighting();
+
+        var bgrect = document.getElementById("baseBG");
+        bgrect.setAttribute("fill", "black");
+
+        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
+        this.view.updateView([this.currentChar]);
+    }
 }
 
 GameController.prototype.setEditMode = function(editMode)

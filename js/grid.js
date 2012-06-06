@@ -18,7 +18,7 @@ function GridModel(itemFactory)
     }
     this.xmlModel = this.xmlDoc.firstChild;
     
-    this.gridData = [];
+    this.gridData = {};
 
 	// Keep track of the moveable items in the model
 	this.moveableItems = [];
@@ -94,7 +94,7 @@ GridModel.prototype.getItemById = function(itemId)
 GridModel.prototype.addToMoveableItems = function(item)
 {
     // Check that it's not already here.
-    for (var i in this.moveableItems)
+    for (var i = 0; i < this.moveableItems.length; ++i)
     {
      	if (this.moveableItems[i] == item)
      	{
@@ -107,7 +107,7 @@ GridModel.prototype.addToMoveableItems = function(item)
 
 GridModel.prototype.removeFromMoveableItems = function(item)
 {
-    for (var i in this.moveableItems)
+    for (var i = 0; i < this.moveableItems.length; ++i)
     {
      	if (this.moveableItems[i] == item)
      	{
@@ -278,7 +278,7 @@ GridContents.prototype.toString = function()
 {
     var result = "";
     var isFirst = true;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (this.myItems[i] != null)
         {
@@ -295,6 +295,11 @@ GridContents.prototype.toString = function()
         return null;
        
     return result;
+}
+
+GridContents.prototype.getLocationString = function()
+{
+	return this.x + "," + this.y;
 }
 
 // String is of the form a;b;c;...
@@ -323,7 +328,7 @@ GridContents.prototype.toXML = function(xmlDoc, showAll)
     xmlContents.setAttribute("x", this.x);
     xmlContents.setAttribute("y", this.y);
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var xmlItem = this.myItems[i].toXML(xmlDoc, showAll);
         if (xmlItem != null)
@@ -396,7 +401,7 @@ GridContents.prototype.removeSeenBy = function(item)
 GridContents.prototype.getBlockingHeight = function()
 {
     var result = 0;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var currHt = this.myItems[i].getBlockingHeight();
         if (currHt > result)
@@ -541,7 +546,7 @@ GridItem.prototype.toString = function()
     if (this.myItems.length > 0)
         result += "(";
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (i != 0)
             result += " ";
@@ -579,7 +584,7 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
         xmlItem.setAttribute("e", this.params.elev);
     }
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var xmlChildItem = this.myItems[i].toXML(xmlDoc);
         if (xmlChildItem != null)
@@ -645,7 +650,7 @@ GridItem.prototype.updateOwnerContents = function()
             this.contents = this.owner.contents;
     }
     
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         this.myItems[i].updateOwnerContents();
     }
@@ -893,7 +898,7 @@ GridItem.prototype.getBlockingHeight = function()
     if (this.params.blockView)
         result = this.params.elev + this.params.ht;
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var currHt = this.myItems[i].getBlockingHeight();
         if (currHt > result)

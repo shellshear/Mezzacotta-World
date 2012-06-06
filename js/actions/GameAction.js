@@ -59,7 +59,7 @@ GameAction.prototype.attemptAction = function()
     var result = true;
 
     // Ensure all our conditions are met
-    for (var i in this.conditions)
+    for (var i = 0; i < this.conditions.length; ++i)
     {
         if (!this.conditions[i].isMet())
         {
@@ -86,7 +86,7 @@ GameAction.prototype.toXML = function()
 
 	xmlAction.setAttribute("type", this.type);
     
-    for (var i in this.conditions)
+    for (var i = 0; i < this.conditions.length; ++i)
     {
         var xmlCondRef = this.model.xmlDoc.createElement("condRef");
         xmlCondRef.setAttribute("condId", this.conditions[i].id);

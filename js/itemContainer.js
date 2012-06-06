@@ -24,7 +24,7 @@ ItemContainer.prototype.moveItem = function(target)
 
 ItemContainer.prototype.removeItem = function(item)
 {
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         if (this.myItems[i] == item)
         {
@@ -38,7 +38,7 @@ ItemContainer.prototype.removeItem = function(item)
 ItemContainer.prototype.getFlattenedTree = function()
 {
     var result = [this];
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         result = result.concat(this.myItems[i].getFlattenedTree());
     }
@@ -51,7 +51,7 @@ ItemContainer.prototype.find = function(name, value)
     if (this.params != null && this.params[name] === value)
         return this;
         
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         var result = this.myItems[i].find(name, value);
         if (result != null)
@@ -77,7 +77,7 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
 ItemContainer.prototype.cleanup = function()
 {
     this.owner = null;
-    for (var i in this.myItems)
+    for (var i = 0; i < this.myItems.length; ++i)
     {
         this.myItems[i].cleanup();
     }
@@ -148,7 +148,7 @@ ViewItemContainer.prototype.doAction = function(src, evt)
 
 ViewItemContainer.prototype.updateChildrenFromModel = function()
 {
-    for (var i in this.modelItem.myItems)
+    for (var i = 0; i < this.modelItem.myItems.length; ++i)
     {
         var viewItem = this.appendViewItem(this.modelItem.myItems[i]);
         if (viewItem != null)    
@@ -183,7 +183,7 @@ ViewItemContainer.prototype.onBeingAdded = function()
 
 ViewItemContainer.prototype.removeActionListeners = function()
 {
-    for (var i in this.containedItems.childNodes)
+    for (var i = 0; i < this.containedItems.childNodes.length; ++i)
     {
         this.containedItems.childNodes[i].removeActionListeners();
     }

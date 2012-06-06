@@ -7,4 +7,4 @@ cp ./images/persMapView.svg ./release/images/
 cd js/
 . ./mw_concat.sh
 cd ..
-cp ./js/mw.js ./release/js/
+cp ./js/mw_small.js ./release/js/

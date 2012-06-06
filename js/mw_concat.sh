@@ -1,5 +1,6 @@
 #!/bin/sh
 cat \
+    version.js \
     config.js \
     widgets.js \
 	itemContainer.js \

@@ -19,7 +19,7 @@ function ActionController(model, parentController, turnClock)
     // Conditions need ids so actions and other conditions can refer 
     // to them for serialisation purposes.
     this.conditionIdIndex = 0;
-    this.condIdList = [];
+    this.condIdList = {};
     
     // Some items speak. We keep track of these here.
     this.speakingItems = [];
@@ -41,7 +41,7 @@ ActionController.prototype.clear = function()
 
 ActionController.prototype.clearSpeakingItems = function()
 {
-    for (var i in this.speakingItems)
+    for (var i = 0; i < this.speakingItems.length; ++i)
     {
         this.speakingItems[i].setItemParam('speech', null, false);
     }
@@ -66,9 +66,9 @@ ActionController.prototype.toXML = function(parentXML)
     for (var i in this.condIdList)
     {
 		var conditionUsed = false;
-		for (var j in this.itemActionList)
+		for (var j = 0; j < this.itemActionList.length; ++j)
 		{
-			for (var k in this.itemActionList[j].conditions)
+			for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 			{
 				if (this.itemActionList[j].conditions[k] == this.condIdList[i])
 				{
@@ -89,7 +89,7 @@ ActionController.prototype.toXML = function(parentXML)
     }
             
     // Export actions
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
         var actionXML = this.itemActionList[i].toXML();
         parentXML.appendChild(actionXML);
@@ -155,7 +155,7 @@ ActionController.prototype.appendAction = function(action)
 ActionController.prototype.removeAction = function(action)
 {
 	// Remove the action
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
      	if (this.itemActionList[i] == action)
      	{
@@ -167,12 +167,12 @@ ActionController.prototype.removeAction = function(action)
     }
 
 	// remove all conditions that refer only to this action
-	for (var i in action.conditions)
+	for (var i = 0; i < action.conditions.length; ++i)
 	{
 		var isUsed = false;
-		for (var j in this.itemActionList)
+		for (var j = 0; j < this.itemActionList.length; ++j)
 		{
-			for (var k in this.itemActionList[j].conditions)
+			for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 			{
 				if (this.itemActionList[j].conditions[k] == action.conditions[i])
 				{
@@ -189,9 +189,9 @@ ActionController.prototype.removeAction = function(action)
 
 ActionController.prototype.removeCondition = function(condition)
 {
-	for (var j in this.itemActionList)
+	for (var j = 0; j < this.itemActionList.length; ++j)
 	{
-		for (var k in this.itemActionList[j].conditions)
+		for (var k = 0; k < this.itemActionList[j].conditions.length; ++k)
 		{
 			var currCondition = this.itemActionList[j].conditions[k];
 			if (currCondition == condition)
@@ -207,7 +207,7 @@ ActionController.prototype.removeCondition = function(condition)
 // Go through all the actions in order and attempt to execute them.
 ActionController.prototype.attemptActions = function()
 {
-    for (var i in this.itemActionList)
+    for (var i = 0; i < this.itemActionList.length; ++i)
     {
         var result = this.itemActionList[i].attemptAction();
         if (!result)

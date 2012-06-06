@@ -108,11 +108,11 @@ GameController.prototype.clearPlayerData = function()
 
 GameController.prototype.clearHighlightedItems = function()
 {
-	for (var i in this.highlightedItems)
+	for (var i = 0; i < this.highlightedItems.length; ++i)
 	{
 		this.highlightedItems[i].setItemParam("isHighlighted", false, false);
 	}
-	this.highlightedItem = [];
+	this.highlightedItems = [];
 }
 
 GameController.prototype.addVisitedWorld = function(visitedWorld)
@@ -342,7 +342,7 @@ GameController.prototype.getSavedItemsFromXML = function(xml)
 
 GameController.prototype.removeSavedItemsFromMap = function()
 {
-    for (var i in this.savedItems)
+    for (var i = 0; i < this.savedItems.length; ++i)
     {
         if (this.savedItems[i].map_id == this.current_map_id)
         {
@@ -1154,25 +1154,25 @@ GameController.prototype.stepTime = function()
 GameController.prototype.changeItems = function()
 {
     // Make a list of the items that want to change (including movement), sorted by where they want to move to.
-    var destinationList = [];
-    for (var i in this.model.moveableItems)
+    var destinationList = {};
+    for (var i = 0; i < this.model.moveableItems.length; ++i)
     {
         var currRequest = this.model.moveableItems[i].requestChange();
         
         if (currRequest == null)
             continue;
         
-        if (destinationList[currRequest.contents] == null)
+        if (destinationList[currRequest.contents.getLocationString()] == null)
         {
-            destinationList[currRequest.contents] = [];
+            destinationList[currRequest.contents.getLocationString()] = [];
         }
         
-        destinationList[currRequest.contents].push({item:this.model.moveableItems[i], dest:currRequest});
+        destinationList[currRequest.contents.getLocationString()].push({item:this.model.moveableItems[i], dest:currRequest});
     }
     
     for (var i in destinationList)
     {
-        if (i == this.currentChar.contents)
+        if (i == this.currentChar.contents.getLocationString())
         {
             // The item wishes to move into the current character's contents
             this.endGame("Death by " + destinationList[i][0].item.params.fullname + "! Press space to restart.");
@@ -1209,6 +1209,46 @@ GameController.prototype.enableEditMode = function(doEnable)
 GameController.prototype.setActive = function(isActive)
 {
     this.isActive = isActive;
+}
+
+// Go into debug mode - it's like edit mode, except it doesn't load or save the level
+// or remove the avatar
+GameController.prototype.setDebugMode = function(debugMode)
+{
+    // Clear any "in the way" squares that might be left over
+    this.model.clearInTheWay();
+
+    this.editMode = debugMode; // Emulate editMode for the purposes of handling move events
+
+    if (debugMode)
+    {        
+        this.model.showInvisible = true;
+
+        var bgrect = document.getElementById("baseBG");
+        bgrect.setAttribute("fill", "white");
+
+        gOpacityScaleFactor = 0.6;
+
+		this.view.updateView(null);
+        this.view.setLighting();
+        this.editLayer.show();
+    }
+    else
+    {
+        this.editLayer.hide();
+
+		this.clearHighlightedItems();
+        this.model.showInvisible = false;
+
+        gOpacityScaleFactor = 1.0;
+        this.view.setLighting();
+
+        var bgrect = document.getElementById("baseBG");
+        bgrect.setAttribute("fill", "black");
+
+        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
+        this.view.updateView([this.currentChar]);
+    }
 }
 
 GameController.prototype.setEditMode = function(editMode)
