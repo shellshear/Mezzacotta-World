@@ -1,9 +1,76 @@
 // Version of Mezzacotta World
-g_mwVersion = "0.31";var g_config = new MW_Config();
+g_mwVersion = "0.31";// Global configuration parameters
+var g_config = new MW_Config();
 
 function MW_Config()
 {
     this.showServerTransations = true;
+}
+// Ajax functions.
+function ajax_get(myurl, myCallback) 
+{
+    var xmlRequest = null;
+    
+    if (window.XMLHttpRequest) 
+    {
+        xmlRequest = new XMLHttpRequest();
+    }
+    else
+    {
+        xmlRequest = new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    
+    if (xmlRequest != null)
+    {
+        function XMLHttpRequestCallback() 
+        {
+            if (xmlRequest.readyState == 4) 
+            {
+                if (xmlRequest.status == 200) 
+                {
+                    myCallback(xmlRequest.responseXML.documentElement, xmlRequest.responseXML);
+                }
+            }
+        }
+        
+        xmlRequest.open("GET", myurl, true);
+        xmlRequest.onreadystatechange = XMLHttpRequestCallback;
+        xmlRequest.send(null);
+
+    }
+}
+
+
+function ajax_post(myurl, myCallback, params) 
+{ 
+    if (window.XMLHttpRequest) 
+    {
+        var xmlRequest = new XMLHttpRequest();
+
+        function XMLHttpRequestCallback() 
+        {
+            if (xmlRequest.readyState == 4) 
+            {
+                if (xmlRequest.status == 200) 
+                {
+                    myCallback(xmlRequest.responseXML.documentElement, xmlRequest.responseXML);
+                }
+            }
+        }        
+
+        xmlRequest.open("POST", myurl, true);
+
+        //Send the proper header information along with the request
+        xmlRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        
+        if (params != null)
+            xmlRequest.setRequestHeader("Content-length", params.length);
+        xmlRequest.setRequestHeader("Connection", "close");
+
+        xmlRequest.onreadystatechange = XMLHttpRequestCallback;
+        xmlRequest.send(params);
+
+    }
 }
 var svgns = "http://www.w3.org/2000/svg";
 var xmlns = "http://www.w3.org/XML/1998/namespace";
@@ -3396,296 +3463,6 @@ ViewItemContainer.prototype.removeActionListeners = function()
         this.containedItems.childNodes[i].removeActionListeners();
     }
     this.modelItem.removeActionListener(this);
-}// Ajax functions.
-function ajax_get(myurl, myCallback) 
-{
-    var xmlRequest = null;
-    
-    if (window.XMLHttpRequest) 
-    {
-        xmlRequest = new XMLHttpRequest();
-    }
-    else
-    {
-        xmlRequest = new ActiveXObject("Microsoft.XMLHTTP");
-    }
-    
-    if (xmlRequest != null)
-    {
-        function XMLHttpRequestCallback() 
-        {
-            if (xmlRequest.readyState == 4) 
-            {
-                if (xmlRequest.status == 200) 
-                {
-                    myCallback(xmlRequest.responseXML.documentElement, xmlRequest.responseXML);
-                }
-            }
-        }
-        
-        xmlRequest.open("GET", myurl, true);
-        xmlRequest.onreadystatechange = XMLHttpRequestCallback;
-        xmlRequest.send(null);
-
-    }
-}
-
-
-function ajax_post(myurl, myCallback, params) 
-{ 
-    if (window.XMLHttpRequest) 
-    {
-        var xmlRequest = new XMLHttpRequest();
-
-        function XMLHttpRequestCallback() 
-        {
-            if (xmlRequest.readyState == 4) 
-            {
-                if (xmlRequest.status == 200) 
-                {
-                    myCallback(xmlRequest.responseXML.documentElement, xmlRequest.responseXML);
-                }
-            }
-        }        
-
-        xmlRequest.open("POST", myurl, true);
-
-        //Send the proper header information along with the request
-        xmlRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        
-        if (params != null)
-            xmlRequest.setRequestHeader("Content-length", params.length);
-        xmlRequest.setRequestHeader("Connection", "close");
-
-        xmlRequest.onreadystatechange = XMLHttpRequestCallback;
-        xmlRequest.send(params);
-
-    }
-}
-// SVG Login controller.
-// Checks update.php to see if user has cookies set for login.
-// If not, brings up login box.
-// Once logged in, replaces login boxes with login status and button to logout.
-function LoginController(background, loginArea, username, password)
-{
-    LoginController.baseConstructor.call(this);
-
-    this.background = background;
-
-    this.listeningForResponse = false;
-    this.loggedIn = false;
-    this.loginArea = loginArea;
-    
-    // login textbox
-    this.loginGroup = new SVGComponent(50, 50);
-    
-    var loginLabel = new SVGElement("text", {"font-size":20, fill:"white", y:20}, "username");
-    this.loginGroup.appendChild(loginLabel);
-    this.loginTextbox = new TextArea("login", this.background, {width:200, height:30, fill:"black", "stroke-width":3}, {"font-size":20, fill:"red", x:5, y:20}, 90, 0, {normal:{stroke:"white"}, focus:{stroke:"red"}});
-    this.loginGroup.appendChild(this.loginTextbox);
-
-    // password textbox
-    var passwordLabel = new SVGElement("text", {"font-size":20, fill:"white", y:70}, "password");
-    this.loginGroup.appendChild(passwordLabel);
-    this.passwordTextbox = new TextArea("password", this.background, {width:200, height:30, fill:"black", "stroke-width":3}, {"font-size":20, fill:"red", x:5, y:20}, 90, 50, {normal:{stroke:"white"}, focus:{stroke:"red"}});
-    this.passwordTextbox.setSecret();
-    this.loginGroup.appendChild(this.passwordTextbox);
-    
-    // Login button
-    this.loginButton = new SimpleButton("login", "rect", {width:70, height:30, rx:10, fill:"black", "stroke-width":3}, 30, 100, {normal:{stroke:"white"}, over:{stroke:"red"}, focus:{stroke:"red"}});
-    this.loginButton.addSVG("text", {"font-size":20, fill:"white", x:15, y:20}, "login");
-    this.loginButton.addActionListener(this);
-    this.loginButton.setBackground(this.background);
-    this.loginGroup.appendChild(this.loginButton);
-
-    // "or" label
-    var orLabel = new SVGElement("text", {"font-size":20, fill:"white", x:115, y:120}, "or");
-    this.loginGroup.appendChild(orLabel);
-
-    // Guest login button
-    this.guestLoginButton = new SimpleButton("guestLogin", "rect", {width:140, height:30, rx:10, fill:"black", "stroke-width":3}, 150, 100, {normal:{stroke:"white"}, over:{stroke:"red"}, focus:{stroke:"red"}});
-    this.guestLoginButton.addSVG("text", {"font-size":20, fill:"white", x:15, y:20}, "login as guest");
-    this.guestLoginButton.addActionListener(this);
-    this.guestLoginButton.setBackground(this.background);
-    this.loginGroup.appendChild(this.guestLoginButton);
-    
-
-    // Status message
-    this.statusLabel = new SVGElement("text", {"font-size":20, fill:"white", x:20, y:160}, "");
-    this.loginGroup.appendChild(this.statusLabel);
-
-    // Set focus listeners
-    this.loginTextbox.addFocusListener(this.passwordTextbox);
-    this.passwordTextbox.addFocusListener(this.loginTextbox);
-    this.passwordTextbox.addFocusListener(this.loginButton);
-    this.loginButton.addFocusListener(this.passwordTextbox);
-    
-    // Set focus ring
-    this.loginTextbox.setNextFocus(this.passwordTextbox);
-    this.passwordTextbox.setPreviousFocus(this.loginTextbox);
-    this.passwordTextbox.setNextFocus(this.loginButton);
-    this.loginButton.setPreviousFocus(this.passwordTextbox);
-    
-    this.loginArea.appendChild(this.loginGroup);
-
-    // Logout group holds info on user, and a logout button
-    this.logoutGroup = new FlowLayout(0, 0, {minSpacing:5});
-    this.logoutGroup.appendChild(new SVGElement("text", {y:12, "font-size":12, fill:"black"}, "Logged in as:"));
-
-    this.usernameLabel = new SVGElement("text", {y:12, "font-size":12, fill:"black"}, "");
-    this.logoutGroup.appendChild(this.usernameLabel);
-
-    this.logoutButton = new RectButton("logout", 0, 0, new SVGElement("text", {y:12, "font-size":12}, "Logout"), {fill:"lightblue", stroke:"black", rx:2}, {fill:"orange"}, {fill:"red"}, 2, false);
-    this.logoutButton.addActionListener(this);
-    this.logoutButton.setBackground(this.background);
-    this.logoutGroup.appendChild(this.logoutButton);
-    
-    // Check whether we've got stored username and password
-    this.login = null;
-    this.password = null;
-    if (window.localStorage)
-    {
-        this.login = localStorage.getItem('MW_Login');
-        this.password = localStorage.getItem('MW_Password');
-    }
-    
-    if (this.login != null && this.password != null)
-    {
-        this.submitLogin(this.login, this.password);
-    }
-    else
-    {
-        // The login and password may have been set externally by cookies,
-        // so check that.
-        this.checkLogin();
-    }
-}
-
-KevLinDev.extend(LoginController, ActionObject);
-
-LoginController.prototype.submitLogin = function(login, password)
-{
-    var http_string = "update.php";
-    var params = "login=" + login + "&password=" + password;
-    
-    if (!this.listeningForResponse)
-    {
-        this.listeningForResponse = true;
-    }
-    
-    // Give an updating message
-    this.statusLabel.setValue("logging in...");
-    
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.receiveLoginFromServer(xml);
-            }, 
-            params
-        );
-}
-
-LoginController.prototype.checkLogin = function()
-{
-    var http_string = "update.php";
-    var params = "loginStatus=1";
-    
-    // Give an updating message
-    this.statusLabel.setValue("checking login status...");
-    
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.receiveLoginFromServer(xml);
-            }, 
-            params
-        );
-}
-
-LoginController.prototype.receiveLoginFromServer = function(xml)
-{    
-    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
-    {
-        this.user_id = xml.getAttribute("user_id");
-        this.curr_map = xml.getAttribute("curr_map");
-        this.usernameLabel.setValue(xml.getAttribute("login"));
-        this.logoutGroup.refreshLayout();
-        
-        this.setLoginStatus(true);
-    }
-    else
-    {
-        // Not logged in
-        this.statusLabel.setValue(xml.textContent);
-        this.setLoginStatus(false);
-    }
-    
-    this.listeningForResponse = false;
-}
-
-LoginController.prototype.doAction = function(src, evt)
-{
-    if (src.src == "login" && (evt.type == "click" || evt.type == "keypress"))
-    {
-        // Store login and password
-        this.login = this.loginTextbox.textVal;
-        this.password = this.passwordTextbox.secretVal;
-        
-        if (window.localStorage)
-        {
-            localStorage.setItem('MW_Login', this.login);
-            localStorage.setItem('MW_Password', this.password);
-        }
-        
-        this.submitLogin(this.login, this.password);
-    }
-    else if (src.src == "guestLogin" && (evt.type == "click" || evt.type == "keypress"))
-    {
-        this.login = "guest";
-        this.password = "guest";
-
-        this.submitLogin(this.login, this.password);
-    }
-    else if (src.src == "logout" && evt.type == "click")
-    {
-        this.statusLabel.setValue("");
-        this.setLoginStatus(false);
-        this.loginTextbox.setFocus(true);
-    }
-}  
-
-LoginController.prototype.setLoginStatus = function(isLoggedIn)
-{
-    if (isLoggedIn)
-    {
-        this.loginGroup.hide();
-        this.logoutGroup.show();
-    }
-    else
-    {
-        // Set logout
-        this.user_id = null;
-        this.tempLogin = null;
-        this.login = null;
-        this.tempPassword = null;
-        this.password = null;
-        localStorage.removeItem('MW_Login');
-        localStorage.removeItem('MW_Password');
-        this.loginTextbox.setValue("");
-        this.passwordTextbox.setValue("");
-        this.loginGroup.show();
-        this.logoutGroup.hide();
-    }
-
-    if (isLoggedIn != this.loggedIn)
-    {
-        this.tellActionListeners(this, isLoggedIn ? {type:"loggedIn"} : {type:"loggedOut"});
-    }
-    this.loggedIn = isLoggedIn;
 }
 // Model for a two-dimensional grid
 // - Each (i, j) position contains a GridContents object
@@ -3942,7 +3719,7 @@ GridModel.prototype.findItemByCode = function(itemCode)
     }
     return null;
 }
-
+// The contents of a particular element in the grid
 function GridContents(model, x, y)
 {
     GridContents.baseConstructor.call(this);
@@ -4850,13 +4627,6 @@ GridItem.prototype.followSimplePathTo = function(item)
     // Couldn't go anywhere.
     return null;
 }
-
-
-/**************************************************/
-/* View Elements                                  */
-/**************************************************/
-
-
 function GridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
     this.itemGraphics = null; // The item graphics, as distinct from the item's children
@@ -5099,10 +4869,19 @@ function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, sta
 
 KevLinDev.extend(GridView, SVGElement);
 
-GridView.prototype.setViewport = function(startCol, startRow)
+GridView.prototype.setViewport = function(startCol, startRow, numCols, numRows)
 {
-    this.startCol = startCol;
-    this.startRow = startRow;  
+	if (startCol != null)
+    	this.startCol = startCol;
+
+	if (startRow != null)
+    	this.startRow = startRow;
+	
+	if (numCols != null)
+		this.numCols = numCols;
+	
+	if (numRows != null)
+		this.numRows = numRows;
      
     // Redraw the view, to ensure all cells in the view area
     // are visible.
@@ -5329,6 +5108,8 @@ LitGridModel.prototype.calcLightLevel = function(distance, srcLevel)
         return (1.0 - distance / 4) * srcLevel;
 }
 
+// Contents of a lit grid point
+// This is mainly about keeping track of the ambient light level of a grid point.
 function LitGridContents(model, x, y, ambientLight)
 {
     LitGridContents.baseConstructor.call(this, model, x, y);
@@ -5388,6 +5169,8 @@ LitGridContents.prototype.fromXML = function(xml)
     LitGridContents.superClass.fromXML.call(this, xml);
 }
 
+// LitGridItem keeps track of lighting for an item, using the POV model of GridItem
+//
 // Extra params relevant to LitGrid items are:
 //      lightStrength - how strong the light being emitted by this item is.
 //      lightRadius - how far the light spreads.
@@ -5418,6 +5201,7 @@ LitGridItem.prototype.updatePOV = function()
     }
 }
 
+// LitGridViewItem handles the lighting effects on this item.
 function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
     LitGridViewItem.baseConstructor.call(this, modelItem, viewItemFactory, itemGraphics);
@@ -5478,6 +5262,8 @@ LitGridViewItem.prototype.doAction = function(src, evt)
     }
 }
 
+// LitGridViewContents handles lighting changes by telling all the items in the contents
+// about it.
 function LitGridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {
     LitGridViewContents.baseConstructor.call(this, view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer);
@@ -5503,6 +5289,7 @@ LitGridViewContents.prototype.setLighting = function()
     }
 }
 
+// Handles lighting changes for the grid
 function LitGridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
     LitGridView.baseConstructor.call(this, gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height);   
@@ -5523,7 +5310,7 @@ LitGridView.prototype.setLighting = function()
     }
 }
 
-// Default content factory
+// Default Content factory for lit items
 function LitContentFactory(ambientLight)
 {
     LitContentFactory.baseConstructor.call(this);
@@ -5553,9 +5340,11 @@ LitContentFactory.prototype.makeViewItem = function(itemCode)
     return null;
 }
 
+// Overall opacity of the shadows - if this is less than 1, shadows aren't as dark.
 var gOpacityScaleFactor = 1.0;
 
-// Holds the element and its shadow
+// ShadowElement holds the element and its shadow (an svg element, usually the 
+// boundary of the element with a black fill).
 // Note that this is distinct from an item: an item may contain many
 // shadowElements (eg. the perspective base element has two verticals, 
 // each with their own shadow)
@@ -5658,6 +5447,12 @@ function HexGridModel(ambientLight, itemProperties)
 
 KevLinDev.extend(HexGridModel, GridModel);
 
+// View of a hex grid - only real difference between hex and rect grids from our point of view is that
+// the y position is offset by 1/2 for alternating grid points:
+//     __    __
+//    / 0\__/ 2\__
+//    \__/ 1\__/ 3\
+//       \__/  \__/
 function HexGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
 {
     HexGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
@@ -5675,6 +5470,7 @@ HexGridView.prototype.getLayoutY = function(i, j)
     return (i % 2 == 0 ? j : j + 0.5);
 }
 
+// Rectangular grid model
 function RectGridModel(ambientLight, itemProperties)
 {
     RectGridModel.baseConstructor.call(this, ambientLight, itemProperties);
@@ -5682,6 +5478,7 @@ function RectGridModel(ambientLight, itemProperties)
 
 KevLinDev.extend(RectGridModel, GridModel);
 
+// View of rectangular grid
 function RectGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
 {
     RectGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
@@ -5738,7 +5535,9 @@ PerspectiveGridModel.prototype.clearInTheWay = function()
     this.itemsInTheWay = [];
 }
 
-
+// Contents of a perspective grid. Handles opacity issues (e.g. if the user
+// can't see an item because there's another "in front", this will reduce the opacity
+// of the in-front item).
 function PerspectiveGridContents(model, x, y, ambientLight)
 {
     PerspectiveGridContents.baseConstructor.call(this, model, x, y, ambientLight);
@@ -5767,6 +5566,7 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
     }
 }
 
+// PerspectiveGridItem 
 function PerspectiveGridItem(params)
 {
     PerspectiveGridItem.baseConstructor.call(this, params);
@@ -5783,6 +5583,7 @@ PerspectiveGridItem.prototype.setInTheWay = function(opacity)
     }
 }
 
+// The view of a perspective grid model
 function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
 {
     PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
@@ -5827,6 +5628,7 @@ PerspectiveGridView.prototype.inView = function(x, y)
             j < this.numRows);
 }
 
+// Contents of a perspective grid
 function PerspectiveGridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {
     PerspectiveGridViewContents.baseConstructor.call
@@ -5938,6 +5740,8 @@ PerspectiveGridViewItem.prototype.setLighting = function()
     }
 }
 
+// A block view item.
+// Handles the top and two visible vertical elements.
 function BlockGridViewItem(modelItem, viewItemFactory, elements)
 {
     BlockGridViewItem.baseConstructor.call
@@ -6205,6 +6009,7 @@ BlockGridViewItem.prototype.updateView = function(povList)
     }
 }
 
+// A simple block
 function SimpleBlockGridViewItem(itemViewFactory, itemCode, height)
 {
     SimpleBlockGridViewItem.baseConstructor.call(this, 0, 0);
@@ -6243,7 +6048,7 @@ SimpleBlockGridViewItem.prototype.setHeight = function(height)
     this.frontRect.setAttribute("d", frontPath);
 }
 
-// StateGridViewItem handles svg from a graphics file that has the following layout:
+// StateDirectionShadowElement handles svg from a graphics file that has the following layout:
 // <g id="itemId">
 //     <g id="itemId_def" state="def">
 //         <g id="itemId_def_def" [direction="dirn"]>
@@ -6255,7 +6060,7 @@ SimpleBlockGridViewItem.prototype.setHeight = function(height)
 //     <g id="itemId_state2" state="state2"/>
 // </g>
 // 
-// The only compulsary item is the id="itemId_def_def", which is 
+// The only compulsory item is the id="itemId_def_def", which is 
 // the default graphic used if no other information is provided about
 // direction or state.
 // If a state X is provided, the subset of items under the id "itemId_X"
@@ -6356,7 +6161,7 @@ StateDirectionShadowElement.prototype.setShadowElement = function(shadow)
     }
 }
 
-
+// Handle the view of an item that has multiple states
 function StateGridViewItem(modelItem, viewItemFactory, stateItem)
 {
     this.stateItem = stateItem;
@@ -6445,6 +6250,7 @@ function SelectableViewItem(view, item)
 
 KevLinDev.extend(SelectableViewItem, ParamButton);
 
+// Factory for creating rectangular perspective items
 function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
 {
     PerspectiveItemFactory.baseConstructor.call(this, ambientLight);
@@ -6458,6 +6264,8 @@ function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
     // The rectangles may also have visible sides, depending on the
     // height of adjacent squares.
     // 
+	// There is a small delta-sized extra "bottom" on the rectangle, to get around
+	// anti-aliasing issues
 	this.delta = 0.5;
 	this.slope = y / x;
     this.x = x;
@@ -6473,6 +6281,9 @@ function PerspectiveItemFactory(ambientLight, x, y, itemTemplates, baseSummary)
     //               \|/ 
     //               0,f
     // where d is the block height and f=d+y
+    //
+	// The points f, g, h, p, q, r are present to allow a tick-shaped delta-sized overlap of the two vertical panels,
+	// to get around the anti-aliasing issues of drawing adjacent rectangles.
     this.verticalTemplate = ["M -x,0 0,y g,h g,j 0,f -x,d z", "M x,0 x,d 0,f p,q p,r 0,y z", "M -x,0 L-x,-d 0,-f 0,-y z", "M x,0 0,-y 0,-f x,-d z"];
 
     this.baseRect = this.baseRectTemplate.replace(/x/gi, x).replace(/y/gi, y).replace(/f/gi, this.delta).replace(/g/gi, this.delta + y);
@@ -6651,91 +6462,7 @@ PerspectiveItemFactory.prototype.createSpeechBubble = function(textVal)
     return result;
 }
 
-// Content layout view shows a tree of the items at a given contents,
-// and allows the user to click on them.
-function ContentLayoutView(view)
-{
-    ContentLayoutView.baseConstructor.call(this, 0, 0);
-    this.bgRect = new SVGElement("rect", {x:-5, y: -5, width:0, height:0, fill:"white", stroke:"black"});
-    this.tree = new FlowLayout(0, 0);
-    this.appendChild(this.bgRect);
-    this.appendChild(this.tree);
-    this.hide();
-    this.view = view;
-}
-
-KevLinDev.extend(ContentLayoutView, SVGComponent);
-
-ContentLayoutView.prototype.setContents = function(contents)
-{
-    var x_posn = this.view.getLayoutX(contents.x, contents.y) * this.view.width;
-    var y_posn = this.view.getLayoutY(contents.x, contents.y) * this.view.height;
-
-    this.setPosition(x_posn, y_posn);
-    this.show();
-    
-    if (this.contents == contents)
-        return;
-        
-    this.contents = contents;
-    this.tree.removeChildren();
-        
-    //this.contents.addActionListener(this);
-    
-    // Add the contents
-    for (var i in this.contents.myItems)
-    {
-        var currItemView = makeItemLayout(this.view, this.contents.myItems[i]);
-        this.tree.appendChild(currItemView);
-    }
-    
-    var bbox = this.tree.getBBox();
-    this.bgRect.setAttribute("x", bbox.x - 5);
-    this.bgRect.setAttribute("y", bbox.y - 5);
-    this.bgRect.setAttribute("width", bbox.width + 10);
-    this.bgRect.setAttribute("height", bbox.height + 10);
-}
-
-
-function makeItemLayout(view, item)
-{
-    var result = null;
-    
-    //var currItemView = view.itemFactory.makeViewItem(item);
-    var currItemView = new SelectableViewItem(view, item);   
-    
-    if (item.myItems.length > 1)
-    {
-        // Need a new vertical layout for us + children
-        result = new FlowLayout(0, 0, {direction:"up"});
-        result.appendChild(currItemView);
-        
-        // Need a new horizontal layout for children
-        var hBox = new FlowLayout(0, 0);
-        result.appendChild(hBox);
-        
-        for (var i in item.myItems)
-        {
-            var childItemLayout = makeItemLayout(view, item.myItems[i]);
-            hBox.appendChild(childItemLayout);
-        }
-    }
-    else if (item.myItems.length == 1)
-    {
-        result = makeItemLayout(view, item.myItems[0]);
-
-        // add ourselves to the top of the vertical layout
-        result.prependChild(currItemView);
-    }
-    else
-    {
-        // create a new vertical layout and put our item into it.
-        result = new FlowLayout(0, 0, {direction:"up"});
-        result.appendChild(currItemView);
-    }
-    
-    return result;
-}// ACItemHandler is responsible for handling items that belong to actions and conditions.
+// ACItemHandler is responsible for handling items that belong to actions and conditions.
 // Actions and conditions sometimes use items to either perform actions on or with, or to check conditions.
 // This class helps handle the items for the actions and conditions.
 function ACItemHandler(model, item, itemName)
@@ -9164,6 +8891,315 @@ HasItemConditionEditor.prototype.doAction = function(src, evt)
 
     HasItemConditionEditor.superClass.doAction.call(this, src, evt);
 }
+// Content layout view shows a tree of the items at a given contents,
+// and allows the user to click on them.
+function ContentLayoutView(view)
+{
+    ContentLayoutView.baseConstructor.call(this, 0, 0);
+    this.bgRect = new SVGElement("rect", {x:-5, y: -5, width:0, height:0, fill:"white", stroke:"black"});
+    this.tree = new FlowLayout(0, 0);
+    this.appendChild(this.bgRect);
+    this.appendChild(this.tree);
+    this.hide();
+    this.view = view;
+}
+
+KevLinDev.extend(ContentLayoutView, SVGComponent);
+
+ContentLayoutView.prototype.setContents = function(contents)
+{
+    var x_posn = this.view.getLayoutX(contents.x, contents.y) * this.view.width;
+    var y_posn = this.view.getLayoutY(contents.x, contents.y) * this.view.height;
+
+    this.setPosition(x_posn, y_posn);
+    this.show();
+    
+    if (this.contents == contents)
+        return;
+        
+    this.contents = contents;
+    this.tree.removeChildren();
+        
+    //this.contents.addActionListener(this);
+    
+    // Add the contents
+    for (var i in this.contents.myItems)
+    {
+        var currItemView = makeItemLayout(this.view, this.contents.myItems[i]);
+        this.tree.appendChild(currItemView);
+    }
+    
+    var bbox = this.tree.getBBox();
+    this.bgRect.setAttribute("x", bbox.x - 5);
+    this.bgRect.setAttribute("y", bbox.y - 5);
+    this.bgRect.setAttribute("width", bbox.width + 10);
+    this.bgRect.setAttribute("height", bbox.height + 10);
+}
+
+
+function makeItemLayout(view, item)
+{
+    var result = null;
+    
+    //var currItemView = view.itemFactory.makeViewItem(item);
+    var currItemView = new SelectableViewItem(view, item);   
+    
+    if (item.myItems.length > 1)
+    {
+        // Need a new vertical layout for us + children
+        result = new FlowLayout(0, 0, {direction:"up"});
+        result.appendChild(currItemView);
+        
+        // Need a new horizontal layout for children
+        var hBox = new FlowLayout(0, 0);
+        result.appendChild(hBox);
+        
+        for (var i in item.myItems)
+        {
+            var childItemLayout = makeItemLayout(view, item.myItems[i]);
+            hBox.appendChild(childItemLayout);
+        }
+    }
+    else if (item.myItems.length == 1)
+    {
+        result = makeItemLayout(view, item.myItems[0]);
+
+        // add ourselves to the top of the vertical layout
+        result.prependChild(currItemView);
+    }
+    else
+    {
+        // create a new vertical layout and put our item into it.
+        result = new FlowLayout(0, 0, {direction:"up"});
+        result.appendChild(currItemView);
+    }
+    
+    return result;
+}// SVG Login controller.
+// Checks update.php to see if user has cookies set for login.
+// If not, brings up login box.
+// Once logged in, replaces login boxes with login status and button to logout.
+function LoginController(background, loginArea, username, password)
+{
+    LoginController.baseConstructor.call(this);
+
+    this.background = background;
+
+    this.listeningForResponse = false;
+    this.loggedIn = false;
+    this.loginArea = loginArea;
+    
+    // login textbox
+    this.loginGroup = new SVGComponent(50, 50);
+    
+    var loginLabel = new SVGElement("text", {"font-size":20, fill:"white", y:20}, "username");
+    this.loginGroup.appendChild(loginLabel);
+    this.loginTextbox = new TextArea("login", this.background, {width:200, height:30, fill:"black", "stroke-width":3}, {"font-size":20, fill:"red", x:5, y:20}, 90, 0, {normal:{stroke:"white"}, focus:{stroke:"red"}});
+    this.loginGroup.appendChild(this.loginTextbox);
+
+    // password textbox
+    var passwordLabel = new SVGElement("text", {"font-size":20, fill:"white", y:70}, "password");
+    this.loginGroup.appendChild(passwordLabel);
+    this.passwordTextbox = new TextArea("password", this.background, {width:200, height:30, fill:"black", "stroke-width":3}, {"font-size":20, fill:"red", x:5, y:20}, 90, 50, {normal:{stroke:"white"}, focus:{stroke:"red"}});
+    this.passwordTextbox.setSecret();
+    this.loginGroup.appendChild(this.passwordTextbox);
+    
+    // Login button
+    this.loginButton = new SimpleButton("login", "rect", {width:70, height:30, rx:10, fill:"black", "stroke-width":3}, 30, 100, {normal:{stroke:"white"}, over:{stroke:"red"}, focus:{stroke:"red"}});
+    this.loginButton.addSVG("text", {"font-size":20, fill:"white", x:15, y:20}, "login");
+    this.loginButton.addActionListener(this);
+    this.loginButton.setBackground(this.background);
+    this.loginGroup.appendChild(this.loginButton);
+
+    // "or" label
+    var orLabel = new SVGElement("text", {"font-size":20, fill:"white", x:115, y:120}, "or");
+    this.loginGroup.appendChild(orLabel);
+
+    // Guest login button
+    this.guestLoginButton = new SimpleButton("guestLogin", "rect", {width:140, height:30, rx:10, fill:"black", "stroke-width":3}, 150, 100, {normal:{stroke:"white"}, over:{stroke:"red"}, focus:{stroke:"red"}});
+    this.guestLoginButton.addSVG("text", {"font-size":20, fill:"white", x:15, y:20}, "login as guest");
+    this.guestLoginButton.addActionListener(this);
+    this.guestLoginButton.setBackground(this.background);
+    this.loginGroup.appendChild(this.guestLoginButton);
+    
+
+    // Status message
+    this.statusLabel = new SVGElement("text", {"font-size":20, fill:"white", x:20, y:160}, "");
+    this.loginGroup.appendChild(this.statusLabel);
+
+    // Set focus listeners
+    this.loginTextbox.addFocusListener(this.passwordTextbox);
+    this.passwordTextbox.addFocusListener(this.loginTextbox);
+    this.passwordTextbox.addFocusListener(this.loginButton);
+    this.loginButton.addFocusListener(this.passwordTextbox);
+    
+    // Set focus ring
+    this.loginTextbox.setNextFocus(this.passwordTextbox);
+    this.passwordTextbox.setPreviousFocus(this.loginTextbox);
+    this.passwordTextbox.setNextFocus(this.loginButton);
+    this.loginButton.setPreviousFocus(this.passwordTextbox);
+    
+    this.loginArea.appendChild(this.loginGroup);
+
+    // Logout group holds info on user, and a logout button
+    this.logoutGroup = new FlowLayout(0, 0, {minSpacing:5});
+    this.logoutGroup.appendChild(new SVGElement("text", {y:12, "font-size":12, fill:"black"}, "Logged in as:"));
+
+    this.usernameLabel = new SVGElement("text", {y:12, "font-size":12, fill:"black"}, "");
+    this.logoutGroup.appendChild(this.usernameLabel);
+
+    this.logoutButton = new RectButton("logout", 0, 0, new SVGElement("text", {y:12, "font-size":12}, "Logout"), {fill:"lightblue", stroke:"black", rx:2}, {fill:"orange"}, {fill:"red"}, 2, false);
+    this.logoutButton.addActionListener(this);
+    this.logoutButton.setBackground(this.background);
+    this.logoutGroup.appendChild(this.logoutButton);
+    
+    // Check whether we've got stored username and password
+    this.login = null;
+    this.password = null;
+    if (window.localStorage)
+    {
+        this.login = localStorage.getItem('MW_Login');
+        this.password = localStorage.getItem('MW_Password');
+    }
+    
+    if (this.login != null && this.password != null)
+    {
+        this.submitLogin(this.login, this.password);
+    }
+    else
+    {
+        // The login and password may have been set externally by cookies,
+        // so check that.
+        this.checkLogin();
+    }
+}
+
+KevLinDev.extend(LoginController, ActionObject);
+
+LoginController.prototype.submitLogin = function(login, password)
+{
+    var http_string = "update.php";
+    var params = "login=" + login + "&password=" + password;
+    
+    if (!this.listeningForResponse)
+    {
+        this.listeningForResponse = true;
+    }
+    
+    // Give an updating message
+    this.statusLabel.setValue("logging in...");
+    
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveLoginFromServer(xml);
+            }, 
+            params
+        );
+}
+
+LoginController.prototype.checkLogin = function()
+{
+    var http_string = "update.php";
+    var params = "loginStatus=1";
+    
+    // Give an updating message
+    this.statusLabel.setValue("checking login status...");
+    
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveLoginFromServer(xml);
+            }, 
+            params
+        );
+}
+
+LoginController.prototype.receiveLoginFromServer = function(xml)
+{    
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+        this.user_id = xml.getAttribute("user_id");
+        this.curr_map = xml.getAttribute("curr_map");
+        this.usernameLabel.setValue(xml.getAttribute("login"));
+        this.logoutGroup.refreshLayout();
+        
+        this.setLoginStatus(true);
+    }
+    else
+    {
+        // Not logged in
+        this.statusLabel.setValue(xml.textContent);
+        this.setLoginStatus(false);
+    }
+    
+    this.listeningForResponse = false;
+}
+
+LoginController.prototype.doAction = function(src, evt)
+{
+    if (src.src == "login" && (evt.type == "click" || evt.type == "keypress"))
+    {
+        // Store login and password
+        this.login = this.loginTextbox.textVal;
+        this.password = this.passwordTextbox.secretVal;
+        
+        if (window.localStorage)
+        {
+            localStorage.setItem('MW_Login', this.login);
+            localStorage.setItem('MW_Password', this.password);
+        }
+        
+        this.submitLogin(this.login, this.password);
+    }
+    else if (src.src == "guestLogin" && (evt.type == "click" || evt.type == "keypress"))
+    {
+        this.login = "guest";
+        this.password = "guest";
+
+        this.submitLogin(this.login, this.password);
+    }
+    else if (src.src == "logout" && evt.type == "click")
+    {
+        this.statusLabel.setValue("");
+        this.setLoginStatus(false);
+        this.loginTextbox.setFocus(true);
+    }
+}  
+
+LoginController.prototype.setLoginStatus = function(isLoggedIn)
+{
+    if (isLoggedIn)
+    {
+        this.loginGroup.hide();
+        this.logoutGroup.show();
+    }
+    else
+    {
+        // Set logout
+        this.user_id = null;
+        this.tempLogin = null;
+        this.login = null;
+        this.tempPassword = null;
+        this.password = null;
+        localStorage.removeItem('MW_Login');
+        localStorage.removeItem('MW_Password');
+        this.loginTextbox.setValue("");
+        this.passwordTextbox.setValue("");
+        this.loginGroup.show();
+        this.logoutGroup.hide();
+    }
+
+    if (isLoggedIn != this.loggedIn)
+    {
+        this.tellActionListeners(this, isLoggedIn ? {type:"loggedIn"} : {type:"loggedOut"});
+    }
+    this.loggedIn = isLoggedIn;
+}
 // A generic selector for items 
 function SummaryItemDisplay(controller, rectAttributes, borderWidth)
 {
@@ -9803,6 +9839,11 @@ function EditWindow(controller, editRoot)
     this.playButton = new RectButton("play", 0, 0, new SVGElement("text", {"font-size":12}, "Play"), {fill:"lightblue", stroke:"black", rx:2}, {fill:"orange"}, {fill:"red"}, 2, false);
     this.playButton.addActionListener(this);
     this.finalButtonsBar.appendChild(this.playButton);
+
+	// Slider for zooming
+	this.zoomSlider = new Slider({orientation:"h", sliderLength:65, startPosition:0.5});
+	this.zoomSlider.addActionListener(this);
+	this.contents.appendChild(this.zoomSlider);
 }
 
 KevLinDev.extend(EditWindow, SVGWindow);
@@ -9849,6 +9890,20 @@ EditWindow.prototype.doAction = function(src, evt)
 	else if (evt.type == "selected")
 	{
 	    this.radioButtonGroup.setSelected(src);
+	}
+	else if (evt.type == "dragSlider" && src == this.zoomSlider)
+	{
+		// Set zoom level of window between 4 x 6 (at 0) to 16 x 26 (at 0.5) to 64 x 104 (at 1)
+		if (evt.position < 0.2)
+			this.controller.view.setViewport(null, null, 4, 6);
+		else if (evt.position < 0.4)
+			this.controller.view.setViewport(null, null, 8, 12);
+		else if (evt.position < 0.6)
+			this.controller.view.setViewport(null, null, 16, 26);
+		else if (evt.position < 0.8)
+			this.controller.view.setViewport(null, null, 32, 52);
+		else
+			this.controller.view.setViewport(null, null, 64, 104);
 	}
 }
 
@@ -10101,7 +10156,8 @@ WorldChooserWindow.prototype.clear = function()
 {
     this.contents.removeChildren();
     this.refreshLayout();
-}// TurnClock keeps track of the time in the game. It starts at zero
+}
+// TurnClock keeps track of the time in the game. It starts at zero
 // at the beginning of each level and increments by 1 for each turn.
 function TurnClock()
 {
@@ -11514,7 +11570,7 @@ function updateLayout()
     gController.editLayer.childConstraints = bbox;
     
     // Game board - centre and scale
-    var boardWidth = 375;
+    var boardWidth = 375; 
     var boardHeight = 330;
     var boardAreaWidth = bbox.width;
     var boardAreaHeight = bbox.height;

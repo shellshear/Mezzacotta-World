@@ -77,7 +77,7 @@ function updateLayout()
     gController.editLayer.childConstraints = bbox;
     
     // Game board - centre and scale
-    var boardWidth = 375;
+    var boardWidth = 375; 
     var boardHeight = 330;
     var boardAreaWidth = bbox.width;
     var boardAreaHeight = bbox.height;
