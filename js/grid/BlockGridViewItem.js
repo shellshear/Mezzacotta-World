@@ -18,7 +18,7 @@ BlockGridViewItem.prototype.onBeingAdded = function()
 BlockGridViewItem.prototype.updateHeight = function()
 {
     var y = -this.modelItem.params.elev - this.modelItem.params.ht;
-    this.rootContainer.svg_mouseover.setPosition(0, y);
+    this.rootContainer.setMouseoverPosition(0, y);
 
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 

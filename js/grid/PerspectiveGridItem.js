@@ -1,4 +1,7 @@
 // PerspectiveGridItem 
+// Helps handle "in the way" items (i.e. items that, due to perspective, block the
+// user's view of something they should be able to see, and should therefore be made
+// partially opaque)
 function PerspectiveGridItem(params)
 {
     PerspectiveGridItem.baseConstructor.call(this, params);

@@ -5,6 +5,9 @@ function init()
 {
     var background = new Background();
     
+	// base summaries are for blocks - how they appear; what properties they have.
+	// name, topColor, frontLeftColor, frontRightColor, canStandOn, weight
+	// Weight of blocks is per unit of height.
     var baseSummary = {
         s:["Sand", "#d1df5d", "#c1cf4d", "#b1bf3d", true, 50],
         m:["Mud", "#808000", "#707000", "#606000", true, 50],
@@ -20,6 +23,7 @@ function init()
         d:["Stone", "#506070", "#405060", "#304050", true, 100]
         };
     
+	// itemTemplates are params for all the non-block items in the game.
     // itemName, itemCode, ht, wt, lightStrength, lightRadius, povRange, blockView, canStandOn, isPushable, isTakeable, isVisible
 
     var itemTemplates = {
@@ -92,9 +96,6 @@ function updateLayout()
     var playArea = document.getElementById(gController.idMap.playArea);
     playArea.setAttribute("transform", "translate(" + xOffset + "," + yOffset + ") scale(" + scale + ")");
 
-    // Position the edit button
-    //gController.editMapButton.setPosition(boardAreaWidth - 40, 5);
-
     // Set the login and logout areas
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);
 
@@ -107,50 +108,4 @@ function updateLayout()
     loadingNotification.children[1].setAttribute("y", bbox.height / 2);
 
 }
-
-
-function HexGameController(background, templateButtons, model, view, idMap)
-{
-    HexGameController.baseConstructor.call(this, background, templateButtons, model, view, idMap);
-}
-
-KevLinDev.extend(HexGameController, GameController);
-
-HexGameController.prototype.parseKeypress = function(charCode)
-{
-    switch (charCode)
-    {
-    case 97:
-       // a
-       this.moveCurrentChar(5);
-       break;
-   
-    case 100:
-       // d
-       this.moveCurrentChar(2);
-       break;
-   
-    case 119:
-       // w
-       this.moveCurrentChar(0);
-       break;
-
-    case 101:
-       // e
-       this.moveCurrentChar(1);
-       break;
-
-    case 122:
-       // z
-       this.moveCurrentChar(4);
-       break;
-
-    case 120:
-       // x
-       this.moveCurrentChar(3);
-       break;
-    }
-}
-
-   
 

@@ -478,6 +478,7 @@ GameController.prototype.initialiseModelFromXML = function()
 
 	this.newItems = [];
     this.model.clear();
+	this.view.clear();
     this.actionController.clear();
     this.model.registerItem(this.currentChar);
     
@@ -574,6 +575,7 @@ GameController.prototype.doAction = function(src, evt)
         this.adminWindow.hide();
         document.getElementById("persMapArea").setAttribute("display", "none");
         this.model.clear();
+		this.view.clear();
         this.actionController.clear();
         this.clearPlayerData();
     }

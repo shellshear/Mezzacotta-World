@@ -4803,6 +4803,11 @@ function GridViewContents(view, x, y, x_index, y_index, modelContents, doSeparat
 
 KevLinDev.extend(GridViewContents, ParamButton);
 
+GridViewContents.prototype.setMouseoverPosition = function(x, y)
+{
+	this.svg_mouseover.setPosition(x, y);
+}
+
 GridViewContents.prototype.setAble = function(isAble)
 {
     GridViewContents.superClass.setAble.call(this, isAble);   
@@ -4831,6 +4836,11 @@ GridViewContents.prototype.updateView = function(povList)
     }
 }
 
+// Clear this grid view contents and reset the mouseover position.
+GridViewContents.prototype.clear = function()
+{
+	this.setMouseoverPosition(0, 0);
+}
 // View corresponding to a grid model
 // - each node has mouseover and mouseclick
 // - overall view has key events
@@ -5042,6 +5052,17 @@ GridView.prototype.updateView = function(povList)
             this.view[i][j].updateView(povList);
         }
     }
+}
+
+GridView.prototype.clear = function()
+{
+    for (var i in this.view)
+    {
+        for (var j in this.view[i])
+        {
+			this.view[i][j].clear();
+		}
+	}
 }
 
 GridView.prototype.doAction = function(src, evt)
@@ -5567,6 +5588,9 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
 }
 
 // PerspectiveGridItem 
+// Helps handle "in the way" items (i.e. items that, due to perspective, block the
+// user's view of something they should be able to see, and should therefore be made
+// partially opaque)
 function PerspectiveGridItem(params)
 {
     PerspectiveGridItem.baseConstructor.call(this, params);
@@ -5760,7 +5784,7 @@ BlockGridViewItem.prototype.onBeingAdded = function()
 BlockGridViewItem.prototype.updateHeight = function()
 {
     var y = -this.modelItem.params.elev - this.modelItem.params.ht;
-    this.rootContainer.svg_mouseover.setPosition(0, y);
+    this.rootContainer.setMouseoverPosition(0, y);
 
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 
@@ -10637,6 +10661,7 @@ GameController.prototype.initialiseModelFromXML = function()
 
 	this.newItems = [];
     this.model.clear();
+	this.view.clear();
     this.actionController.clear();
     this.model.registerItem(this.currentChar);
     
@@ -10733,6 +10758,7 @@ GameController.prototype.doAction = function(src, evt)
         this.adminWindow.hide();
         document.getElementById("persMapArea").setAttribute("display", "none");
         this.model.clear();
+		this.view.clear();
         this.actionController.clear();
         this.clearPlayerData();
     }
@@ -11498,6 +11524,9 @@ function init()
 {
     var background = new Background();
     
+	// base summaries are for blocks - how they appear; what properties they have.
+	// name, topColor, frontLeftColor, frontRightColor, canStandOn, weight
+	// Weight of blocks is per unit of height.
     var baseSummary = {
         s:["Sand", "#d1df5d", "#c1cf4d", "#b1bf3d", true, 50],
         m:["Mud", "#808000", "#707000", "#606000", true, 50],
@@ -11513,6 +11542,7 @@ function init()
         d:["Stone", "#506070", "#405060", "#304050", true, 100]
         };
     
+	// itemTemplates are params for all the non-block items in the game.
     // itemName, itemCode, ht, wt, lightStrength, lightRadius, povRange, blockView, canStandOn, isPushable, isTakeable, isVisible
 
     var itemTemplates = {
@@ -11585,9 +11615,6 @@ function updateLayout()
     var playArea = document.getElementById(gController.idMap.playArea);
     playArea.setAttribute("transform", "translate(" + xOffset + "," + yOffset + ") scale(" + scale + ")");
 
-    // Position the edit button
-    //gController.editMapButton.setPosition(boardAreaWidth - 40, 5);
-
     // Set the login and logout areas
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);
 
@@ -11600,50 +11627,4 @@ function updateLayout()
     loadingNotification.children[1].setAttribute("y", bbox.height / 2);
 
 }
-
-
-function HexGameController(background, templateButtons, model, view, idMap)
-{
-    HexGameController.baseConstructor.call(this, background, templateButtons, model, view, idMap);
-}
-
-KevLinDev.extend(HexGameController, GameController);
-
-HexGameController.prototype.parseKeypress = function(charCode)
-{
-    switch (charCode)
-    {
-    case 97:
-       // a
-       this.moveCurrentChar(5);
-       break;
-   
-    case 100:
-       // d
-       this.moveCurrentChar(2);
-       break;
-   
-    case 119:
-       // w
-       this.moveCurrentChar(0);
-       break;
-
-    case 101:
-       // e
-       this.moveCurrentChar(1);
-       break;
-
-    case 122:
-       // z
-       this.moveCurrentChar(4);
-       break;
-
-    case 120:
-       // x
-       this.moveCurrentChar(3);
-       break;
-    }
-}
-
-   
 

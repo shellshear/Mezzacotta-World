@@ -211,6 +211,17 @@ GridView.prototype.updateView = function(povList)
     }
 }
 
+GridView.prototype.clear = function()
+{
+    for (var i in this.view)
+    {
+        for (var j in this.view[i])
+        {
+			this.view[i][j].clear();
+		}
+	}
+}
+
 GridView.prototype.doAction = function(src, evt)
 {
     if (evt.type == "contentsUpdate")

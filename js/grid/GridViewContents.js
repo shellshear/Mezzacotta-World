@@ -48,6 +48,11 @@ function GridViewContents(view, x, y, x_index, y_index, modelContents, doSeparat
 
 KevLinDev.extend(GridViewContents, ParamButton);
 
+GridViewContents.prototype.setMouseoverPosition = function(x, y)
+{
+	this.svg_mouseover.setPosition(x, y);
+}
+
 GridViewContents.prototype.setAble = function(isAble)
 {
     GridViewContents.superClass.setAble.call(this, isAble);   
@@ -76,3 +81,8 @@ GridViewContents.prototype.updateView = function(povList)
     }
 }
 
+// Clear this grid view contents and reset the mouseover position.
+GridViewContents.prototype.clear = function()
+{
+	this.setMouseoverPosition(0, 0);
+}
