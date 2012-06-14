@@ -4058,6 +4058,11 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     	xmlItem.setAttribute("h", this.params.saveVals.ht);
 	else
     	xmlItem.setAttribute("h", this.params.ht);
+
+	// Lots of items can have directions that don't need to be saved - only
+	// save if the user specifically set the initial direction.
+	if (this.params.saveVals.direction != null)
+		xmlItem.setAttribute("d", this.params.saveVals.direction);
     
     if (this.id != null)
     {
@@ -4082,13 +4087,19 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
 
 GridItem.prototype.fromXML = function(xml)
 {
-    this.setHeight(parseInt(xml.getAttribute("h")), true);
     if (xml.hasAttribute("id"))
     {
         this.id = xml.getAttribute("id");
         this.contents.model.importItem(this);
     }
                 
+    this.setHeight(parseInt(xml.getAttribute("h")), true);
+
+	if (xml.hasAttribute("d"))
+	{
+		this.setItemParam("direction", xml.getAttribute("d"), true);
+	}
+
     // Update all the child items of this item as well
     for (var i = 0; i < xml.childNodes.length; i++)
     {
@@ -4409,6 +4420,34 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
 
     // Tell our listeners
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
+}
+
+// Rotate the specified item to the right, by the specified amount (-1 to turn left)
+GridItem.prototype.rotateItem = function(rotation)
+{
+	// Check if the item has no direction specified
+	if (this.params.direction == null)
+	{
+		this.params.direction = "f";
+	}
+	
+	// The directions are right, back, left, and forwards (by default).
+	var dirns = ['r', 'b', 'l', 'f'];
+	for (var i = 0; i < dirns.length; ++i)
+	{
+		if (dirns[i] == this.params.direction)
+		{
+			// Rotate to the specified direction
+			i += rotation;
+			i = i % dirns.length;
+			while (i < 0)
+				i += dirns.length;
+			
+			this.setItemParam("direction", dirns[i], true);
+			
+			break;
+		}
+	}
 }
 
 // Object height is a special case of an item param because it can affect pov,
@@ -9882,7 +9921,7 @@ LightLevelWindow.prototype.doAction = function(src, evt)
 // EditWindow has a set of all editing buttons, many of which call subwindows.
 function EditWindow(controller, editRoot)
 {
-    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:204, storePrefix:"MW_EditWindow", contentsSpacing:3});
+    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:246, storePrefix:"MW_EditWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.editRoot = editRoot;
@@ -9952,6 +9991,21 @@ function EditWindow(controller, editRoot)
     this.downArrowButton.setToggle(true);
     this.radioButtonGroup.addButton(this.downArrowButton);
     
+    // Rotate right/left top item
+    var rotateRightArrow = new SVGElement();
+    rotateRightArrow.cloneElement(this.controller.artwork.getElementById("iconRotateRight"));
+    this.rotateRightArrowButton = new RectButton("rotateRightArrowButton", 0, 0, rotateRightArrow, {fill:"white", stroke:"black", rx:2, width:30, height:30}, {fill:"yellow"}, {fill:"orange"}, 4, false);
+	this.rotateRightArrowButton.addActionListener(this);
+    this.rotateRightArrowButton.setToggle(true);
+    this.radioButtonGroup.addButton(this.rotateRightArrowButton);
+
+    var rotateLeftArrow = new SVGElement();
+    rotateLeftArrow.cloneElement(this.controller.artwork.getElementById("iconRotateLeft"));
+    this.rotateLeftArrowButton = new RectButton("rotateLeftArrowButton", 0, 0, rotateLeftArrow, {fill:"white", stroke:"black", rx:2, width:30, height:30}, {fill:"yellow"}, {fill:"orange"}, 4, false);
+	this.rotateLeftArrowButton.addActionListener(this);
+    this.rotateLeftArrowButton.setToggle(true);
+    this.radioButtonGroup.addButton(this.rotateLeftArrowButton);
+
     // Set light level (also sets default light level)
     this.lightLevelWindow = new LightLevelWindow(this.controller);
     this.lightLevelWindow.hide();
@@ -9994,7 +10048,7 @@ function EditWindow(controller, editRoot)
 
     // Arrange the buttons
     this.editBar = [];
-    for (var i = 0; i < 3; i++)
+    for (var i = 0; i < 4; i++)
     {
         var newFlow = new FlowLayout(0, 0, {minSpacing:5});
         this.editBar.push(newFlow);
@@ -10009,6 +10063,9 @@ function EditWindow(controller, editRoot)
 
     this.editBar[2].appendChild(this.blockItemWindow.itemAppearanceButton);
     this.editBar[2].appendChild(this.itemWindow.itemAppearanceButton);
+
+    this.editBar[3].appendChild(this.rotateLeftArrowButton);
+    this.editBar[3].appendChild(this.rotateRightArrowButton);
 
     this.finalButtonsBar = new FlowLayout(0, 0, {minSpacing:3});
     this.contents.appendChild(this.finalButtonsBar);
@@ -10066,7 +10123,7 @@ EditWindow.prototype.doAction = function(src, evt)
         }
         else if (src.src == "play")
         {
-            this.controller.setEditMode(false);
+            this.controller.playLevel();
         }
 	}
 	else if (evt.type == "selected")
@@ -10215,11 +10272,11 @@ AdminWindow.prototype.doAction = function(src, evt)
 	    {
 	        if (this.controller.editMode)
 	        {
-                this.controller.setEditMode(false);
+                this.controller.playLevel();
 	        }
 	        else
 	        {
-                this.controller.setEditMode(true);
+                this.controller.editLevel();
 	        }
 	    }
 		else if (src.src == "debug")
@@ -10390,7 +10447,8 @@ function GameController(background, itemFactory, model, view, idMap)
     // The game is not initially active (ie. listening for events)
     this.isActive = false;
 
-    this.editMode = false;
+    this.canEdit = false; // Whether editing is allowed or not for this level.
+	this.editMode = false;
     
     // TurnClock keeps a track of how many turns have passed since
     // the player entered the current map.
@@ -10685,7 +10743,7 @@ GameController.prototype.submitLoadMap = function(map_id, doGetItems)
     // Instead, return to edit mode.
     if (!this.isMapSaved)
     {
-        this.setEditMode(true);
+        this.editLevel();
         return;
     }
         
@@ -10743,6 +10801,9 @@ GameController.prototype.receiveMapFromServer = function(xml)
 	        this.setMapName(xml.getAttribute("map_name"));
 	    }
 
+		// Set whether the level is editable
+		this.enableEditMode(xml.hasAttribute("editable") && xml.getAttribute("editable") == "1");
+
 		// List of items that the user has saved
 	    this.getSavedItemsFromXML(xml);	
 		
@@ -10750,15 +10811,7 @@ GameController.prototype.receiveMapFromServer = function(xml)
 		this.unsavedMap = null;
 		this.initialiseModelFromXML();
 		
-		// Kick the user out of edit mode if the world isn't editable
-		if (xml.hasAttribute("editable") && xml.getAttribute("editable") == "1")
-		{
-		    this.enableEditMode(true);
-		}
-		else
-		{
-		    this.enableEditMode(false);
-    	}
+		this.playLevel();
 	}
     else
     {
@@ -10802,21 +10855,10 @@ GameController.prototype.initialiseModelFromXML = function()
     this.actionController.clear();
     this.model.registerItem(this.currentChar);
     
-    gItemCount = 0;
     this.gameState = "normal";
     this.turnClock.currentTime = 0;
     this.model.fromXML(xml);
     this.actionController.fromXML(xml);
-
-    if (!this.editMode)
-    {
-        this.removeSavedItemsFromMap();
-        this.currentChar.setItemParam('speech', null, false);
-        this.placeAvatar();
-    
-        // Time 0 is reserved for starting actions
-        this.stepTime();
-    }
 }
 
 GameController.prototype.submitSaveMap = function(map)
@@ -11007,6 +11049,7 @@ GameController.prototype.parseGameAction = function(src, evt)
             // The user has been notified that they are dead, so
             // restart the map.
             this.initialiseModelFromXML();
+			this.playLevel();
         }
         return;
     }
@@ -11048,7 +11091,10 @@ GameController.prototype.parseGameAction = function(src, evt)
     {
         if (src.src == "editmap")
         {
-            this.setEditMode(src.isSelected);
+            if (src.isSelected)
+				this.editLevel();
+			else
+				this.playLevel();
         }
     }
 }
@@ -11080,23 +11126,11 @@ GameController.prototype.parseEditAction = function(src, evt)
     {
         if (src.src == "editmap")
         {
-            this.setEditMode(src.isSelected);
+            if (src.isSelected)
+				this.editLevel();
+			else
+				this.playLevel();
         }
-        /*
-        else if (src.src == "loadmap")
-        {
-            var newmap = prompt("Load Map");
-            if (newmap != null)
-            {
-                //this.model.clear();
-
-                var parser = new DOMParser();
-                var xmlDoc = parser.parseFromString(newmap, "text/xml");
-
-                this.model.fromXML(xmlDoc);
-                this.view.setCellCentre(0, 0);
-            }
-        }*/
         else if (src.src == "persView")
         {
             this.contentSelected(src, evt);
@@ -11241,6 +11275,30 @@ GameController.prototype.contentSelected = function(src, evt)
             }
             this.setMapSavedStatus(false);
         }
+        else if (this.editWindow.radioButtonGroup.currentSelection.src == "rotateLeftArrowButton")
+        {
+            // Rotate the top item left
+            var topItem = currData.getTopItem();
+
+            if (topItem != null)
+            {
+				// Rotate the item to the left
+				topItem.rotateItem(-1);
+            }
+            this.setMapSavedStatus(false);
+        }
+        else if (this.editWindow.radioButtonGroup.currentSelection.src == "rotateRightArrowButton")
+        {
+            // Rotate the top item right
+            var topItem = currData.getTopItem();
+
+            if (topItem != null)
+            {
+				// Rotate the item to the left
+				topItem.rotateItem(1);
+            }
+            this.setMapSavedStatus(false);
+        }
         else if (this.editWindow.radioButtonGroup.currentSelection.src == "lightButton")
         {
             currData.setAmbientLight(this.editWindow.lightLevelWindow.lightLevel);
@@ -11294,13 +11352,6 @@ GameController.prototype.contentSelected = function(src, evt)
 
 GameController.prototype.appendItem = function(topData, item)
 {
-    /*
-    if (2000 - gItemCount <= 0)
-    {
-        // Item limit has been reached.
-        return;
-    }*/
-    
     var params = {};
     for (var i in item.params)
         params[i] = item.params[i];
@@ -11321,57 +11372,35 @@ GameController.prototype.appendItem = function(topData, item)
         this.model.addToMoveableItems(itemCopy);
     }
 
-    //this.updateItemsRemainingText();
-    
     this.setMapSavedStatus(false);
 }
 
 GameController.prototype.placeAvatar = function()
 {
-    // If the avatar is already in existance, leave them in place.
-    if (this.editModeSavedContents != null)
-    {
-        // Place the avatar back where they were
-        var currData = this.model.getContents(this.editModeSavedContents.x, this.editModeSavedContents.y);
-        var topData = currData.getTopItem();
-        topData.appendItem(this.currentChar);
-        
-        this.editModeSavedContents = null;
-    }
-    else
-    {
-        // Find the start position
-        var startX = 0;
-        var startY = 0;
-        // If there is a start marker, use that
-        var startItem = this.model.findItemByCode("S");
-        if (startItem != null)
-        {
-            startX = startItem.contents.x;
-            startY = startItem.contents.y;
-        }
-          
-        // Add the avatar to the world
-        var currData = this.model.getContents(startX, startY);
-        var topData = currData.getTopItem();
-        topData.appendItem(this.currentChar);
-    }
-    
-    if (!this.editMode)
-    {
-        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
-	    this.view.updateView();
-        this.view.updatePOV([this.currentChar]);
-	    this.view.removeOutsideView();
-    }
+	// Reset the start direction
+	this.currentChar.setItemParam("direction", "f");
+	
+	// Find the start position
+	var startX = 0;
+	var startY = 0;
+
+	// If there is a start marker, use that
+	var startItem = this.model.findItemByCode("S");
+	if (startItem != null)
+	{
+	    startX = startItem.contents.x;
+	    startY = startItem.contents.y;
+	}
+  
+	// Add the avatar to the world
+	var currData = this.model.getContents(startX, startY);
+	var topData = currData.getTopItem();
+	topData.appendItem(this.currentChar);
 }
 
+// Remove the avatar from the board.
 GameController.prototype.removeAvatar = function()
 {
-    // Remove the avatar from its current location, but save that location
-    // so it can be put back there when we leave edit mode.
-    this.editModeSavedContents = this.currentChar.contents;
-    
     if (this.currentChar.owner != null)
         this.currentChar.owner.removeItem(this.currentChar);
 }
@@ -11533,13 +11562,13 @@ GameController.prototype.changeItems = function()
 
 GameController.prototype.enableEditMode = function(doEnable)
 {
+	this.canEdit = doEnable;
+	
+	// Also clear the buttons if necessary.
     if (doEnable)
         this.adminWindow.editMapButton.show();
     else
-    {
-        this.setEditMode(false);
         this.adminWindow.editMapButton.hide();
-    }
 }
 
 GameController.prototype.setActive = function(isActive)
@@ -11585,112 +11614,102 @@ GameController.prototype.setDebugMode = function(debugMode)
 		this.view.updatePOV(null);
         this.view.setLighting();
         this.editLayer.show();
-		this.setZoom(this.editWindow.zoomSlider.position);
+		this.setZoom(this.editWindow.zoomSlider.sliderPosition);
     }
     else
     {
-        this.editLayer.hide();
-
-        this.view.setFixedCellCount(8);
-
-		this.clearHighlightedItems();
-        this.model.showInvisible = false;
-
-        gOpacityScaleFactor = 1.0;
-        this.view.setLighting();
-
-        var bgrect = document.getElementById("baseBG");
-        bgrect.setAttribute("fill", "black");
-
-        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
-	    this.view.updateView();
-	    this.view.removeOutsideView();
-        this.view.updatePOV([this.currentChar]);
+		this.playLevel();
     }
 }
 
-GameController.prototype.setEditMode = function(editMode)
+// Initialise and start editing the level, if permitted.
+GameController.prototype.editLevel = function(debugMode)
 {
-    if (editMode == this.editMode)
-        return;
-        
-    this.editMode = editMode;
-   
+	if (this.canEdit == false)
+	{
+		this.playLevel();
+		return;
+	}
+	
+    this.editMode = true;
+
     // Clear any "in the way" squares that might be left over
     this.model.clearInTheWay();
 
-    if (editMode)
-    {        
-        // Go into edit mode
-        this.adminWindow.editMapButton.setContents(this.adminWindow.editMapButtonPlayText);
+	this.adminWindow.editMapButton.setContents(this.adminWindow.editMapButtonPlayText);
 
-        this.model.showInvisible = true;
-        
-        // Remove the avatar
-        this.removeAvatar();
-        
-        var bgrect = document.getElementById("baseBG");
-        bgrect.setAttribute("fill", "white");
+	this.model.showInvisible = true;
 
-        gOpacityScaleFactor = 0.6;
+	var bgrect = document.getElementById("baseBG");
+	bgrect.setAttribute("fill", "white");
 
-        // Initialise the level from the xml, so that all the actions are reset
+	gOpacityScaleFactor = 0.6;
+
+	if (!debugMode)
+	{
+		// Remove the avatar
+		this.removeAvatar();
+
+		// Initialise the level from the xml, so that all the actions are reset
 		this.initialiseModelFromXML();
-
-		this.view.updatePOV(null);
-        this.view.setLighting();
-        this.editLayer.show();
-		this.setZoom(this.editWindow.zoomSlider.position);
-    }
-    else
-    {
-        this.adminWindow.editMapButton.setContents(this.adminWindow.editMapButtonEditText);
-
-		// Save any unsaved map data
-		if (!this.isMapSaved)
-	   		this.unsavedMap = this.model.toXML();
-
-        this.editLayer.hide();
-        
-        this.view.setFixedCellCount(8);
-
-		this.clearHighlightedItems();
-        this.model.showInvisible = false;
-        
-        gOpacityScaleFactor = 1.0;
-        this.view.setLighting();
-        
-        // reset the turn clock
-        this.turnClock.currentTime = 0;
-
-        // Add the avatar back into the scene
-        this.placeAvatar();
-        
-        var bgrect = document.getElementById("baseBG");
-        bgrect.setAttribute("fill", "black");
-
-        this.stepTime();
-    }
+	}
+	
+	this.view.updatePOV(null);
+	this.view.setLighting();
+	this.editLayer.show();
+	this.setZoom(this.editWindow.zoomSlider.sliderPosition);
 }
 
-GameController.prototype.updateItemsRemainingText = function()
+// Initialise and play the level.
+GameController.prototype.playLevel = function()
 {
-    var itemsRemaining = 2000 - gItemCount;
-    if (itemsRemaining <= 0)
-    {
-        this.itemsRemainingText.setAttribute("fill", "red");
-    }
-    else if (itemsRemaining <= 10)
-    {
-        this.itemsRemainingText.setAttribute("fill", "orange");
-    }
-    else
-    {
-        this.itemsRemainingText.setAttribute("fill", "black");
-    }
+    this.editMode = false;
+
+    // Clear any "in the way" squares that might be left over
+    this.model.clearInTheWay();
+
+	// Hide the editor
+    this.adminWindow.editMapButton.setContents(this.adminWindow.editMapButtonEditText);
+    this.editLayer.hide();
+
+	// Save any unsaved map data
+	if (!this.isMapSaved)
+   		this.unsavedMap = this.model.toXML();
     
-    this.itemsRemainingText.setValue("Items Remaining: " + itemsRemaining);
+	this.clearHighlightedItems();
+    this.model.showInvisible = false;
+    
+	// reset the lighting
+    gOpacityScaleFactor = 1.0;
+    this.view.setLighting();
+    
+    // reset the turn clock
+    this.turnClock.currentTime = 0;
+
+	// Remove held items from the map.
+    this.removeSavedItemsFromMap();
+
+    // Add the avatar into the scene
+    this.placeAvatar();
+
+	// Setup the board
+    this.view.setFixedCellCount(8);
+    this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+    this.view.updateView();
+    this.view.updatePOV([this.currentChar]);
+    this.view.removeOutsideView();
+    
+	// Set the background appearance to black.
+    var bgrect = document.getElementById("baseBG");
+    bgrect.setAttribute("fill", "black");
+
+	// Clear any existing speech bubbles.
+    this.currentChar.setItemParam('speech', null, false);
+
+	// Start the first turn.
+    this.stepTime();	
 }
+
 var gController;
 var gWindow = this;
 

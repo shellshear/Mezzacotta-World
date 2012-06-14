@@ -416,16 +416,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="8.6678765"
-     inkscape:cx="7.7209462"
-     inkscape:cy="1061.369"
+     inkscape:zoom="12.258229"
+     inkscape:cx="-0.069613754"
+     inkscape:cy="1061.6118"
      inkscape:document-units="px"
      inkscape:current-layer="layer4"
      showgrid="false"
      inkscape:window-width="1122"
-     inkscape:window-height="916"
-     inkscape:window-x="105"
-     inkscape:window-y="0"
+     inkscape:window-height="756"
+     inkscape:window-x="15"
+     inkscape:window-y="36"
      inkscape:window-maximized="0"
      inkscape:object-paths="false"
      inkscape:snap-nodes="false"
@@ -1182,7 +1182,7 @@
            style="display:none"
            display="none">
           <image
-             sodipodi:absref="/Users/andrewshellshear/Sites/MezzacottaWorld/avatar_right_small.png"
+             sodipodi:absref="/Users/shellshear/Sites/github/Mezzacotta-World/images/avatar_right_small.png"
              xlink:href="avatar_right_small.png"
              width="32.146503"
              height="42.862003"
@@ -1200,7 +1200,7 @@
            direction="b"
            style="display:none">
           <image
-             sodipodi:absref="/Users/andrewshellshear/Sites/MezzacottaWorld/avatar_back_small.png"
+             sodipodi:absref="/Users/shellshear/Sites/github/Mezzacotta-World/images/avatar_back_small.png"
              xlink:href="avatar_back_small.png"
              y="-34.191219"
              x="-16.464897"
@@ -1219,7 +1219,7 @@
            display="none"
            style="display:none">
           <image
-             sodipodi:absref="/Users/andrewshellshear/Sites/MezzacottaWorld/avatar_front_small.png"
+             sodipodi:absref="/Users/shellshear/Sites/github/Mezzacotta-World/images/avatar_front_small.png"
              xlink:href="avatar_front_small.png"
              width="32.559059"
              height="43.412079"
@@ -1238,7 +1238,7 @@
            display="none"
            style="display:none">
           <image
-             sodipodi:absref="/Users/andrewshellshear/Sites/MezzacottaWorld/avatar_left_small.png"
+             sodipodi:absref="/Users/shellshear/Sites/github/Mezzacotta-World/images/avatar_left_small.png"
              xlink:href="avatar_left_small.png"
              width="32.557671"
              height="43.410233"
@@ -1944,5 +1944,15 @@
            id="tspan3948"
            sodipodi:role="line">?</tspan></text>
     </g>
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.8;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m -3.8091057,-8.3719098 4.04822,3.8140424 2.530108,-4.5428965 -2.21055512,0.099899 C 0.02434627,-15.500461 11.171477,-11.523953 4.9605418,-6.0938044 l 1.3916625,1.8024337 C 14.979365,-15.039356 -2.760618,-17.91586 -1.0709689,-8.8517053 l -2.7381368,0.4797955 z"
+       id="iconRotateLeft"
+       sodipodi:nodetypes="cccccccc" />
+    <path
+       sodipodi:nodetypes="cccccccc"
+       id="iconRotateRight"
+       d="m 10.241477,-8.2087541 -4.0482201,3.8140424 -2.5301083,-4.5428965 2.2921327,0.099899 C 6.5796717,-14.612095 -2.4445029,-11.443519 2.2876079,-6.338538 L 0.97752334,-5.0255714 C -6.7522818,-13.326221 9.0298335,-18.65006 7.8296513,-8.6069717 l 2.4118257,0.3982176 z"
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.8;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
   </g>
 </svg>

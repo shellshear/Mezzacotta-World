@@ -71,11 +71,11 @@ AdminWindow.prototype.doAction = function(src, evt)
 	    {
 	        if (this.controller.editMode)
 	        {
-                this.controller.setEditMode(false);
+                this.controller.playLevel();
 	        }
 	        else
 	        {
-                this.controller.setEditMode(true);
+                this.controller.editLevel();
 	        }
 	    }
 		else if (src.src == "debug")

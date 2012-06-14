@@ -143,6 +143,11 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     	xmlItem.setAttribute("h", this.params.saveVals.ht);
 	else
     	xmlItem.setAttribute("h", this.params.ht);
+
+	// Lots of items can have directions that don't need to be saved - only
+	// save if the user specifically set the initial direction.
+	if (this.params.saveVals.direction != null)
+		xmlItem.setAttribute("d", this.params.saveVals.direction);
     
     if (this.id != null)
     {
@@ -167,13 +172,19 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
 
 GridItem.prototype.fromXML = function(xml)
 {
-    this.setHeight(parseInt(xml.getAttribute("h")), true);
     if (xml.hasAttribute("id"))
     {
         this.id = xml.getAttribute("id");
         this.contents.model.importItem(this);
     }
                 
+    this.setHeight(parseInt(xml.getAttribute("h")), true);
+
+	if (xml.hasAttribute("d"))
+	{
+		this.setItemParam("direction", xml.getAttribute("d"), true);
+	}
+
     // Update all the child items of this item as well
     for (var i = 0; i < xml.childNodes.length; i++)
     {
@@ -494,6 +505,34 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
 
     // Tell our listeners
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
+}
+
+// Rotate the specified item to the right, by the specified amount (-1 to turn left)
+GridItem.prototype.rotateItem = function(rotation)
+{
+	// Check if the item has no direction specified
+	if (this.params.direction == null)
+	{
+		this.params.direction = "f";
+	}
+	
+	// The directions are right, back, left, and forwards (by default).
+	var dirns = ['r', 'b', 'l', 'f'];
+	for (var i = 0; i < dirns.length; ++i)
+	{
+		if (dirns[i] == this.params.direction)
+		{
+			// Rotate to the specified direction
+			i += rotation;
+			i = i % dirns.length;
+			while (i < 0)
+				i += dirns.length;
+			
+			this.setItemParam("direction", dirns[i], true);
+			
+			break;
+		}
+	}
 }
 
 // Object height is a special case of an item param because it can affect pov,

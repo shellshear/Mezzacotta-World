@@ -1,2 +1,2 @@
 // Version of Mezzacotta World
-g_mwVersion = "0.31";
+g_mwVersion = "0.32";

@@ -1,7 +1,7 @@
 // EditWindow has a set of all editing buttons, many of which call subwindows.
 function EditWindow(controller, editRoot)
 {
-    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:204, storePrefix:"MW_EditWindow", contentsSpacing:3});
+    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:246, storePrefix:"MW_EditWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.editRoot = editRoot;
@@ -71,6 +71,21 @@ function EditWindow(controller, editRoot)
     this.downArrowButton.setToggle(true);
     this.radioButtonGroup.addButton(this.downArrowButton);
     
+    // Rotate right/left top item
+    var rotateRightArrow = new SVGElement();
+    rotateRightArrow.cloneElement(this.controller.artwork.getElementById("iconRotateRight"));
+    this.rotateRightArrowButton = new RectButton("rotateRightArrowButton", 0, 0, rotateRightArrow, {fill:"white", stroke:"black", rx:2, width:30, height:30}, {fill:"yellow"}, {fill:"orange"}, 4, false);
+	this.rotateRightArrowButton.addActionListener(this);
+    this.rotateRightArrowButton.setToggle(true);
+    this.radioButtonGroup.addButton(this.rotateRightArrowButton);
+
+    var rotateLeftArrow = new SVGElement();
+    rotateLeftArrow.cloneElement(this.controller.artwork.getElementById("iconRotateLeft"));
+    this.rotateLeftArrowButton = new RectButton("rotateLeftArrowButton", 0, 0, rotateLeftArrow, {fill:"white", stroke:"black", rx:2, width:30, height:30}, {fill:"yellow"}, {fill:"orange"}, 4, false);
+	this.rotateLeftArrowButton.addActionListener(this);
+    this.rotateLeftArrowButton.setToggle(true);
+    this.radioButtonGroup.addButton(this.rotateLeftArrowButton);
+
     // Set light level (also sets default light level)
     this.lightLevelWindow = new LightLevelWindow(this.controller);
     this.lightLevelWindow.hide();
@@ -113,7 +128,7 @@ function EditWindow(controller, editRoot)
 
     // Arrange the buttons
     this.editBar = [];
-    for (var i = 0; i < 3; i++)
+    for (var i = 0; i < 4; i++)
     {
         var newFlow = new FlowLayout(0, 0, {minSpacing:5});
         this.editBar.push(newFlow);
@@ -128,6 +143,9 @@ function EditWindow(controller, editRoot)
 
     this.editBar[2].appendChild(this.blockItemWindow.itemAppearanceButton);
     this.editBar[2].appendChild(this.itemWindow.itemAppearanceButton);
+
+    this.editBar[3].appendChild(this.rotateLeftArrowButton);
+    this.editBar[3].appendChild(this.rotateRightArrowButton);
 
     this.finalButtonsBar = new FlowLayout(0, 0, {minSpacing:3});
     this.contents.appendChild(this.finalButtonsBar);
@@ -185,7 +203,7 @@ EditWindow.prototype.doAction = function(src, evt)
         }
         else if (src.src == "play")
         {
-            this.controller.setEditMode(false);
+            this.controller.playLevel();
         }
 	}
 	else if (evt.type == "selected")
