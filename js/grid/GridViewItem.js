@@ -72,7 +72,7 @@ GridViewItem.prototype.doSpeech = function(text)
 // This item can only be seen if it can be seen by one of the items in the
 // list.
 // If the povList is null, show the item anyway.
-GridViewItem.prototype.updateView = function(povList)
+GridViewItem.prototype.updatePOV = function(povList)
 {
     var contents = this.modelItem.contents;
     if (contents == null)
@@ -111,7 +111,7 @@ GridViewItem.prototype.updateView = function(povList)
     
     for (var i in this.containedItems.childNodes)
     {
-        this.containedItems.childNodes[i].updateView(povList);
+        this.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 

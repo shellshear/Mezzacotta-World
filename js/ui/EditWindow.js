@@ -1,7 +1,7 @@
 // EditWindow has a set of all editing buttons, many of which call subwindows.
 function EditWindow(controller, editRoot)
 {
-    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:186, storePrefix:"MW_EditWindow", contentsSpacing:3});
+    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:204, storePrefix:"MW_EditWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.editRoot = editRoot;
@@ -194,17 +194,7 @@ EditWindow.prototype.doAction = function(src, evt)
 	}
 	else if (evt.type == "dragSlider" && src == this.zoomSlider)
 	{
-		// Set zoom level of window between 4 x 6 (at 0) to 16 x 26 (at 0.5) to 64 x 104 (at 1)
-		if (evt.position < 0.2)
-			this.controller.view.setViewport(null, null, 4, 6);
-		else if (evt.position < 0.4)
-			this.controller.view.setViewport(null, null, 8, 12);
-		else if (evt.position < 0.6)
-			this.controller.view.setViewport(null, null, 16, 26);
-		else if (evt.position < 0.8)
-			this.controller.view.setViewport(null, null, 32, 52);
-		else
-			this.controller.view.setViewport(null, null, 64, 104);
+		this.controller.setZoom(evt.position);
 	}
 }
 

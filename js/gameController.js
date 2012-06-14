@@ -138,17 +138,6 @@ GameController.prototype.highlightItem = function(item)
 
 GameController.prototype.setupEditArea = function()
 {    
-    var objectLayer = document.getElementById(this.idMap.objectLayer);
-    objectLayer.appendChild(this.view.svg);
-
-    var coverLayer = document.getElementById(this.idMap.coverLayer);
-    coverLayer.appendChild(this.view.coverLayer.svg);
-    
-    // OK, yes, this is a hack to allow content layout view to show
-    // the expanded view of content on the map above everything
-    var cover2 = document.getElementById("coverLayer2");
-    cover2.appendChild(this.view.coverLayer2.svg);
-   
     // Show the contract/expand icon for the AdminWindow
 	var coverEl1 = cloneElementById(this.artwork, "iconCircleCover");
 	var contractEl = cloneElementById(this.artwork, "iconContract");
@@ -627,6 +616,7 @@ function parseKeycodesAndCharcodes(keyCode, charCode)
         // s
         result = "down";        
         break;
+
     case 100:
         // d
         result = "right"     
@@ -773,7 +763,7 @@ GameController.prototype.parseEditAction = function(src, evt)
                 var xmlDoc = parser.parseFromString(newmap, "text/xml");
 
                 this.model.fromXML(xmlDoc);
-                this.view.setViewport(0, 0);
+                this.view.setCellCentre(0, 0);
             }
         }*/
         else if (src.src == "persView")
@@ -786,19 +776,27 @@ GameController.prototype.parseEditAction = function(src, evt)
         switch (parseKeycodesAndCharcodes(evt.keyCode, evt.charCode))
         {
         case "left":
-            this.view.setViewport(this.view.startCol - 1, this.view.startRow);
+            this.view.setCellCentre(this.view.cellCentreX - 1, this.view.cellCentreY);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
        
         case "up":
-            this.view.setViewport(this.view.startCol, this.view.startRow - 1);
+            this.view.setCellCentre(this.view.cellCentreX, this.view.cellCentreY - 1);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
        
         case "right":
-            this.view.setViewport(this.view.startCol + 1, this.view.startRow);
+            this.view.setCellCentre(this.view.cellCentreX + 1, this.view.cellCentreY);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
 
         case "down":
-            this.view.setViewport(this.view.startCol, this.view.startRow + 1);
+            this.view.setCellCentre(this.view.cellCentreX, this.view.cellCentreY + 1);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
 
         case "zoom_out":
@@ -1030,8 +1028,10 @@ GameController.prototype.placeAvatar = function()
     
     if (!this.editMode)
     {
-        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-        this.view.updateView([this.currentChar]);
+        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+	    this.view.updateView();
+        this.view.updatePOV([this.currentChar]);
+	    this.view.removeOutsideView();
     }
 }
 
@@ -1148,8 +1148,10 @@ GameController.prototype.stepTime = function()
     this.turnClock.currentTime++;
 
 	// Finally update the view
-    this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-    this.view.updateView([this.currentChar]);
+    this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+    this.view.updateView();
+    this.view.removeOutsideView();
+    this.view.updatePOV([this.currentChar]);
     this.setVisibleToUser(this.currentChar.contents, 15);
 }
 
@@ -1208,9 +1210,27 @@ GameController.prototype.enableEditMode = function(doEnable)
         this.adminWindow.editMapButton.hide();
     }
 }
+
 GameController.prototype.setActive = function(isActive)
 {
     this.isActive = isActive;
+}
+
+GameController.prototype.setZoom = function(zoomLevel)
+{
+	// Set zoom level of window
+	if (zoomLevel < 0.2)
+		this.view.setFixedCellCount(4);
+	else if (zoomLevel < 0.4)
+		this.view.setFixedCellCount(8);
+	else if (zoomLevel < 0.6)
+		this.view.setFixedCellCount(12);
+	else if (zoomLevel < 0.8)
+		this.view.setFixedCellCount(20);
+	else
+		this.view.setFixedCellCount(30);
+	
+	this.view.updateView();
 }
 
 // Go into debug mode - it's like edit mode, except it doesn't load or save the level
@@ -1231,13 +1251,16 @@ GameController.prototype.setDebugMode = function(debugMode)
 
         gOpacityScaleFactor = 0.6;
 
-		this.view.updateView(null);
+		this.view.updatePOV(null);
         this.view.setLighting();
         this.editLayer.show();
+		this.setZoom(this.editWindow.zoomSlider.sliderPosition);
     }
     else
     {
         this.editLayer.hide();
+
+        this.view.setFixedCellCount(8);
 
 		this.clearHighlightedItems();
         this.model.showInvisible = false;
@@ -1248,8 +1271,10 @@ GameController.prototype.setDebugMode = function(debugMode)
         var bgrect = document.getElementById("baseBG");
         bgrect.setAttribute("fill", "black");
 
-        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-        this.view.updateView([this.currentChar]);
+        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+	    this.view.updateView();
+	    this.view.removeOutsideView();
+        this.view.updatePOV([this.currentChar]);
     }
 }
 
@@ -1281,9 +1306,10 @@ GameController.prototype.setEditMode = function(editMode)
         // Initialise the level from the xml, so that all the actions are reset
 		this.initialiseModelFromXML();
 
-		this.view.updateView(null);
+		this.view.updatePOV(null);
         this.view.setLighting();
         this.editLayer.show();
+		this.setZoom(this.editWindow.zoomSlider.sliderPosition);
     }
     else
     {
@@ -1295,6 +1321,8 @@ GameController.prototype.setEditMode = function(editMode)
 
         this.editLayer.hide();
         
+        this.view.setFixedCellCount(8);
+
 		this.clearHighlightedItems();
         this.model.showInvisible = false;
         
@@ -1332,5 +1360,3 @@ GameController.prototype.updateItemsRemainingText = function()
     
     this.itemsRemainingText.setValue("Items Remaining: " + itemsRemaining);
 }
-
-

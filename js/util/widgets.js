@@ -545,44 +545,62 @@ SVGElement.prototype.getBBox = function()
 };
 
 // A root SVG element that has a clipping bounding box
-function SVGRoot(x, y, width, height)
+function SVGRoot(clipBox)
 {
-    SVGComponent.baseConstructor.call(this, "svg", {x:x, y:y, width:width, height:height});
+	this.clipBox = clipBox;
+	
+	if (this.clipBox == null)
+	{
+		this.clipBox = {};
+	}
+	
+	if (this.clipBox.x == null)
+	{
+		this.clipBox.x = 0;
+	}
+    
+	if (this.clipBox.y == null)
+	{
+		this.clipBox.y = 0;
+	}
+
+	if (this.clipBox.width == null)
+	{
+		this.clipBox.width = 0;
+	}
+
+	if (this.clipBox.height == null)
+	{
+		this.clipBox.height = 0;
+	}
+	
+	SVGComponent.baseConstructor.call(this, "svg", this.clipBox);
 }
 
 KevLinDev.extend(SVGRoot, SVGElement);
 
 SVGRoot.prototype.setPosition = function(x, y)
 {
-    if (x == null)
-       x = 0;
-
-    if (y == null)
-       y = 0;
-
-    this.svg.setAttribute("x", x);
-    this.svg.setAttribute("y", y);
+    if (x != null)
+	{
+       	this.clipBox.x = x;
+    	this.setAttribute("x", x);
+	}
+    
+	if (y != null)
+    {
+   		this.clipBox.y = y;
+	    this.setAttribute("y", y);
+	}
 }
 
-SVGRoot.prototype.getVisualBBox = function()
+SVGRoot.prototype.setClipRect = function(bbox)
 {
-	var result = SVGRoot.superClass.getVisualBBox.call(this);
-    var x = this.getAttribute("x");
-    var y = this.getAttribute("y");
-    var width = this.getAttribute("width");
-    var height = this.getAttribute("height");
-
-	// Restrict the bbox to the contents here.
-	if (result.x < x)
-		result.x = x;
-	if (result.y < y)
-		result.y = y;
-	if (result.x + result.width > x + width)
-		result.width = x + width - result.x;
-	if (result.y + result.height > y + height)
-		result.height = y + height - result.y;
-	
-	return result;
+	this.clipBox = bbox;
+	this.setAttribute("x", this.clipBox.x);
+	this.setAttribute("y", this.clipBox.y);
+	this.setAttribute("width", this.clipBox.width);
+	this.setAttribute("height", this.clipBox.height);
 }
 // An SVG container (actually a group element). Has focus handling.
 function SVGComponent(x, y)
@@ -2537,36 +2555,37 @@ function Slider(params)
     this.slider.appendChild(this.scrollTop);
     this.appendChild(this.slider);
    
-	this.setSliderPosition(this.params.startPosition * this.params.sliderLength);
+	this.setSliderPosition(this.params.startPosition);
 }
 
 KevLinDev.extend(Slider, SVGComponent);
 
 Slider.prototype.setDragPosition = function(x, y)
 {
-    this.setSliderPosition(this.params.orientation == "h" ? x : y);
+	var position = (this.params.orientation == "h" ? x : y) / (this.params.sliderLength - this.params.draggerWidth);
+    this.setSliderPosition(position);
 }
 
 Slider.prototype.setDragEnd = function()
 {
 }
 
-// Set the Slider position
+// Set the slider position as a proportion of its length
 Slider.prototype.setSliderPosition = function(position)
 {
-    this.position = position < 0 ? 0 : (position > (this.params.sliderLength - this.params.draggerWidth) ? (this.params.sliderLength - this.params.draggerWidth) : position);
-    
+	this.sliderPosition = position < 0 ? 0 : (position > 1.0 ? 1.0 : position);
+	var absolutePosition = this.sliderPosition * (this.params.sliderLength - this.params.draggerWidth);
+	
     if (this.params.orientation == "h")
     {
-        this.scrollTop.setPosition(this.position, 0);
+        this.scrollTop.setPosition(absolutePosition, 0);
     }
     else
     {
-        this.scrollTop.setPosition(0, this.position);
+        this.scrollTop.setPosition(0, absolutePosition);
     }
 
-    this.tellActionListeners(this, {type:"dragSlider", position:this.position / (this.params.sliderLength - this.params.draggerWidth)});
-    
+    this.tellActionListeners(this, {type:"dragSlider", position:this.sliderPosition});
 }
 
 Slider.prototype.doAction = function(src, evt)
@@ -2588,7 +2607,7 @@ Slider.prototype.doAction = function(src, evt)
 			currPos = (evt.clientY - this.svg.getCTM().f) - 0.5 * this.params.draggerWidth;
 		}
 	    
-		this.setSliderPosition(currPos);
+		this.setSliderPosition(currPos / (this.params.sliderLength - this.params.draggerWidth));
 	}
 }
 
@@ -2771,7 +2790,7 @@ function ScrollbarRegion(params, contents)
 		this.appendChild(this.rectBorder);
 	}
 
-    this.mask = new SVGRoot(0, 0, params.width, params.height);
+    this.mask = new SVGRoot({width:params.width, height:params.height});
     this.contents = new SVGComponent(0, 0);
     this.contents.appendChild(contents);
     this.mask.appendChild(this.contents);

@@ -73,11 +73,11 @@ GridViewContents.prototype.remove = function()
     this.detach();
 }
 
-GridViewContents.prototype.updateView = function(povList)
+GridViewContents.prototype.updatePOV = function(povList)
 {
     for (var i in this.viewItems.containedItems.childNodes)
     {
-        this.viewItems.containedItems.childNodes[i].updateView(povList);
+        this.viewItems.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 

@@ -619,44 +619,62 @@ SVGElement.prototype.getBBox = function()
 };
 
 // A root SVG element that has a clipping bounding box
-function SVGRoot(x, y, width, height)
+function SVGRoot(clipBox)
 {
-    SVGComponent.baseConstructor.call(this, "svg", {x:x, y:y, width:width, height:height});
+	this.clipBox = clipBox;
+	
+	if (this.clipBox == null)
+	{
+		this.clipBox = {};
+	}
+	
+	if (this.clipBox.x == null)
+	{
+		this.clipBox.x = 0;
+	}
+    
+	if (this.clipBox.y == null)
+	{
+		this.clipBox.y = 0;
+	}
+
+	if (this.clipBox.width == null)
+	{
+		this.clipBox.width = 0;
+	}
+
+	if (this.clipBox.height == null)
+	{
+		this.clipBox.height = 0;
+	}
+	
+	SVGComponent.baseConstructor.call(this, "svg", this.clipBox);
 }
 
 KevLinDev.extend(SVGRoot, SVGElement);
 
 SVGRoot.prototype.setPosition = function(x, y)
 {
-    if (x == null)
-       x = 0;
-
-    if (y == null)
-       y = 0;
-
-    this.svg.setAttribute("x", x);
-    this.svg.setAttribute("y", y);
+    if (x != null)
+	{
+       	this.clipBox.x = x;
+    	this.setAttribute("x", x);
+	}
+    
+	if (y != null)
+    {
+   		this.clipBox.y = y;
+	    this.setAttribute("y", y);
+	}
 }
 
-SVGRoot.prototype.getVisualBBox = function()
+SVGRoot.prototype.setClipRect = function(bbox)
 {
-	var result = SVGRoot.superClass.getVisualBBox.call(this);
-    var x = this.getAttribute("x");
-    var y = this.getAttribute("y");
-    var width = this.getAttribute("width");
-    var height = this.getAttribute("height");
-
-	// Restrict the bbox to the contents here.
-	if (result.x < x)
-		result.x = x;
-	if (result.y < y)
-		result.y = y;
-	if (result.x + result.width > x + width)
-		result.width = x + width - result.x;
-	if (result.y + result.height > y + height)
-		result.height = y + height - result.y;
-	
-	return result;
+	this.clipBox = bbox;
+	this.setAttribute("x", this.clipBox.x);
+	this.setAttribute("y", this.clipBox.y);
+	this.setAttribute("width", this.clipBox.width);
+	this.setAttribute("height", this.clipBox.height);
 }
 // An SVG container (actually a group element). Has focus handling.
 function SVGComponent(x, y)
@@ -2611,36 +2629,37 @@ function Slider(params)
     this.slider.appendChild(this.scrollTop);
     this.appendChild(this.slider);
    
-	this.setSliderPosition(this.params.startPosition * this.params.sliderLength);
+	this.setSliderPosition(this.params.startPosition);
 }
 
 KevLinDev.extend(Slider, SVGComponent);
 
 Slider.prototype.setDragPosition = function(x, y)
 {
-    this.setSliderPosition(this.params.orientation == "h" ? x : y);
+	var position = (this.params.orientation == "h" ? x : y) / (this.params.sliderLength - this.params.draggerWidth);
+    this.setSliderPosition(position);
 }
 
 Slider.prototype.setDragEnd = function()
 {
 }
 
-// Set the Slider position
+// Set the slider position as a proportion of its length
 Slider.prototype.setSliderPosition = function(position)
 {
-    this.position = position < 0 ? 0 : (position > (this.params.sliderLength - this.params.draggerWidth) ? (this.params.sliderLength - this.params.draggerWidth) : position);
-    
+	this.sliderPosition = position < 0 ? 0 : (position > 1.0 ? 1.0 : position);
+	var absolutePosition = this.sliderPosition * (this.params.sliderLength - this.params.draggerWidth);
+	
     if (this.params.orientation == "h")
     {
-        this.scrollTop.setPosition(this.position, 0);
+        this.scrollTop.setPosition(absolutePosition, 0);
     }
     else
     {
-        this.scrollTop.setPosition(0, this.position);
+        this.scrollTop.setPosition(0, absolutePosition);
     }
 
-    this.tellActionListeners(this, {type:"dragSlider", position:this.position / (this.params.sliderLength - this.params.draggerWidth)});
-    
+    this.tellActionListeners(this, {type:"dragSlider", position:this.sliderPosition});
 }
 
 Slider.prototype.doAction = function(src, evt)
@@ -2662,7 +2681,7 @@ Slider.prototype.doAction = function(src, evt)
 			currPos = (evt.clientY - this.svg.getCTM().f) - 0.5 * this.params.draggerWidth;
 		}
 	    
-		this.setSliderPosition(currPos);
+		this.setSliderPosition(currPos / (this.params.sliderLength - this.params.draggerWidth));
 	}
 }
 
@@ -2845,7 +2864,7 @@ function ScrollbarRegion(params, contents)
 		this.appendChild(this.rectBorder);
 	}
 
-    this.mask = new SVGRoot(0, 0, params.width, params.height);
+    this.mask = new SVGRoot({width:params.width, height:params.height});
     this.contents = new SVGComponent(0, 0);
     this.contents.appendChild(contents);
     this.mask.appendChild(this.contents);
@@ -4701,7 +4720,7 @@ GridViewItem.prototype.doSpeech = function(text)
 // This item can only be seen if it can be seen by one of the items in the
 // list.
 // If the povList is null, show the item anyway.
-GridViewItem.prototype.updateView = function(povList)
+GridViewItem.prototype.updatePOV = function(povList)
 {
     var contents = this.modelItem.contents;
     if (contents == null)
@@ -4740,7 +4759,7 @@ GridViewItem.prototype.updateView = function(povList)
     
     for (var i in this.containedItems.childNodes)
     {
-        this.containedItems.childNodes[i].updateView(povList);
+        this.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 
@@ -4828,11 +4847,11 @@ GridViewContents.prototype.remove = function()
     this.detach();
 }
 
-GridViewContents.prototype.updateView = function(povList)
+GridViewContents.prototype.updatePOV = function(povList)
 {
     for (var i in this.viewItems.containedItems.childNodes)
     {
-        this.viewItems.containedItems.childNodes[i].updateView(povList);
+        this.viewItems.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 
@@ -4844,22 +4863,45 @@ GridViewContents.prototype.clear = function()
 // View corresponding to a grid model
 // - each node has mouseover and mouseclick
 // - overall view has key events
-// - Queries model for what to show
-// - Tells controller when user input happens
-// - Receives update info from model.
-function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height)
+// - queries model for what to show
+// - tells controller when user input happens
+// - receives update info from model.
+// 
+// Has the following structure
+// <svg x="" y="" width="" height=""> // clip layer
+//     <g transform=""> // Transform layer
+//         <g/> // Objects go in here
+//         <g/> // Covers go in here
+//         <g/> // Bonus covers go in here
+//     </svg>
+// </g>
+function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, cellWidth, cellHeight)
 {
-    GridView.baseConstructor.call(this, "g");
+	// Setup the view area
+	this.cellWidth = cellWidth;
+	this.cellHeight = cellHeight;
+	
+	this.setCellCentre(startCol, startRow);
+	this.setViewCentre(187, 165);
+	this.setViewSize(375, 330);
 
-    this.idMap = idMap;
+    GridView.baseConstructor.call(this, {width:375, height:330});
+
     this.itemFactory = itemFactory;
-    this.numCols = numCols;
-    this.numRows = numRows;
-    this.width = width;
-    this.height = height;
+
+	this.transformLayer = new SVGElement("g");
+	this.appendChild(this.transformLayer);
+	
+	this.objectLayer = new SVGElement("g");
+	this.transformLayer.appendChild(this.objectLayer);
     this.coverLayer = new SVGElement("g"); // svg for the cover layer
+	this.transformLayer.appendChild(this.coverLayer);
     this.coverLayer2 = new SVGElement("g"); // svg for the cover2 layer
+	this.transformLayer.appendChild(this.coverLayer2);
     
+	
+	this.idMap = idMap;
+
     this.view = []; // Keep an array for the view elements
    
     // Keep an array for the z-order groups
@@ -4869,41 +4911,88 @@ function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, sta
    
     this.gridModel = gridModel;
    
-    // Can't use setViewport here, as it also does other things
-    // we don't want to do yet.
-    this.startCol = startCol;
-    this.startRow = startRow;
-   
-    this.drawView();
+	this.setFixedCellCount(8);
+    this.updateView();
 }
 
-KevLinDev.extend(GridView, SVGElement);
+KevLinDev.extend(GridView, SVGRoot);
 
-GridView.prototype.setViewport = function(startCol, startRow, numCols, numRows)
+// Set the size of the view area. This will dictate the pattern of cells 
+// that we draw.
+GridView.prototype.setViewSize = function(width, height)
 {
-	if (startCol != null)
-    	this.startCol = startCol;
+	this.viewWidth = width;
+	this.viewHeight = height;
+}
 
-	if (startRow != null)
-    	this.startRow = startRow;
-	
-	if (numCols != null)
-		this.numCols = numCols;
-	
-	if (numRows != null)
-		this.numRows = numRows;
-     
-    // Redraw the view, to ensure all cells in the view area
-    // are visible.
-    this.drawView();
-   
-    this.removeOutsideView();
-   
-    var transform = "translate(" + (this.getLayoutX(startCol, startRow) * -this.width) + "," + (this.getLayoutY(startCol, startRow) * -this.height) + ")";
+// Set the viewpoint centre.
+// - centre_x, centre_y: the view is centred around this point
+GridView.prototype.setViewCentre = function(centre_x, centre_y)
+{
+	this.viewCentreX = centre_x;
+	this.viewCentreY = centre_y;
+}
 
-    this.svg.setAttribute("transform", transform);
-    this.coverLayer.svg.setAttribute("transform", transform);
-    this.coverLayer2.svg.setAttribute("transform", transform);
+// Set the cell that is at the viewCentre.
+GridView.prototype.setCellCentre = function(i, j)
+{
+	this.cellCentreX = i;
+	this.cellCentreY = j;
+}
+
+// Set a fixed cell count in the x direction
+GridView.prototype.setFixedCellCount = function(cellCountX)
+{
+	this.fixedCellCountX = cellCountX;
+}
+
+// Update the view appearance
+// 
+// Prototype method. Derived classes should implement this.
+GridView.prototype.updateView = function()
+{
+}
+
+// Default visual layout of cells
+// (These functions will get overriden by child classes if they require
+// more sophisticated mappings)
+GridView.prototype.getLayoutX = function(i, j)
+{
+    return i;
+}
+
+GridView.prototype.getLayoutY = function(i, j)
+{
+    return j;
+}
+
+GridView.prototype.inView = function(i, j)
+{
+}
+
+// Set the bounds of the gridView to be within the specified bbox.
+// Also adjust the width or height of the clipBox
+GridView.prototype.setBounds = function(bbox)
+{
+	// We have a fixed aspect ratio, so trim the bbox correspondingly.
+	var testWidth = this.cellWidth * bbox.height / this.cellHeight;
+	if (bbox.width > testWidth)
+	{
+		// trim width and maintain centre.
+		bbox.x += (bbox.width - testWidth) / 2.0;
+		bbox.width = testWidth;
+	}
+	else
+	{
+		// trim height and maintain centre.
+		var testHeight = this.cellHeight * bbox.width / this.cellWidth;
+		bbox.y += (bbox.height - testHeight) / 2.0;
+		bbox.height = testHeight;
+	}
+	this.setClipRect(bbox);
+	this.setViewSize(bbox.width, bbox.height);
+	this.setViewCentre(bbox.width / 2.0, bbox.height / 2.0);
+	this.updateView();
 }
 
 GridView.prototype.drawCell = function(x, y)
@@ -4921,8 +5010,8 @@ GridView.prototype.drawCell = function(x, y)
     {
         // Add a new grid object view
        
-        var x_posn = this.getLayoutX(x, y) * this.width;
-        var y_posn = this.getLayoutY(x, y) * this.height;
+        var x_posn = this.getLayoutX(x, y) * this.cellWidth;
+        var y_posn = this.getLayoutY(x, y) * this.cellHeight;
 
         // Update with the model contents
         var currCell = this.itemFactory.makeViewContents(this, x_posn, y_posn, x, y, modelContents, true);
@@ -4969,11 +5058,11 @@ GridView.prototype.drawCell = function(x, y)
             if (next_z == z)
             {
                 // There wasn't anything after z
-                this.appendChild(zGroup);
+                this.objectLayer.appendChild(zGroup);
             }
             else
             {
-                this.insertBefore(zGroup, this.z_list[next_z]);
+                this.objectLayer.insertBefore(zGroup, this.z_list[next_z]);
             }
 
             this.z_list[z] = zGroup;
@@ -4989,17 +5078,6 @@ GridView.prototype.drawCell = function(x, y)
         // via their auxGroup.
         this.coverLayer.appendChild(currCell.auxiliaryComponents[1]);
     }
-}
-
-// Default visual layout of cells
-GridView.prototype.getLayoutX = function(i, j)
-{
-    return i;
-}
-
-GridView.prototype.getLayoutY = function(i, j)
-{
-    return j;
 }
 
 // Remove any view contents that are outside the visible area
@@ -5018,27 +5096,8 @@ GridView.prototype.removeOutsideView = function()
     }
 }
 
-GridView.prototype.drawView = function()
-{
-    for (var i = 0; i < this.numCols; i++)
-    {
-       for (var j = 0; j < this.numRows; j++)
-       {
-           this.drawCell(i + this.startCol, j + this.startRow);
-       }
-    }
-}
-
-GridView.prototype.inView = function(i, j)
-{
-    return (i >= this.startCol &&
-           i < this.startCol + this.numCols &&
-           j >= this.startRow &&
-           j < this.startRow + this.numRows);
-}
-
 // Update the view to include the points of view in the povList
-GridView.prototype.updateView = function(povList)
+GridView.prototype.updatePOV = function(povList)
 {
     for (var i in this.view)
     {
@@ -5049,7 +5108,7 @@ GridView.prototype.updateView = function(povList)
             else
                 this.view[i][j].setAble(false);
            
-            this.view[i][j].updateView(povList);
+            this.view[i][j].updatePOV(povList);
         }
     }
 }
@@ -5611,45 +5670,144 @@ PerspectiveGridItem.prototype.setInTheWay = function(opacity)
 function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
 {
     PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+
+	this.extraBottomRows = 2; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
+
+	this.adjustCellBounds();
 }
 
 KevLinDev.extend(PerspectiveGridView, LitGridView);
 
-PerspectiveGridView.prototype.getLayoutX = function(x, y)
+PerspectiveGridView.prototype.setFixedCellCount = function(cellCountX)
 {
-    return x + y;
+    PerspectiveGridView.superClass.setFixedCellCount.call(this, cellCountX);   
+	this.adjustCellBounds();
 }
 
-PerspectiveGridView.prototype.getLayoutY = function(x, y)
+PerspectiveGridView.prototype.setViewSize = function(width, height)
 {
-    return y - x;
+    PerspectiveGridView.superClass.setViewSize.call(this, width, height);   
+	this.adjustCellBounds();
 }
 
-// In this case, we want to draw a diamond
-PerspectiveGridView.prototype.drawView = function()
+// Calculate the max x and y.
+PerspectiveGridView.prototype.adjustCellBounds = function()
 {
-    for (var i = 0; i < this.numCols; i++)
+	if (this.fixedCellCountX == null)
+	{
+		this.scaleFactor = 1.0;
+		this.maxX = Math.ceil(this.viewWidth / this.cellWidth);
+		this.maxY = Math.ceil(this.viewHeight / this.cellHeight / 2);
+	}
+	else
+	{
+		this.maxX = this.fixedCellCountX;
+
+		// Work out how much scaling to apply
+		this.scaleFactor = this.viewWidth / this.cellWidth / this.fixedCellCountX;
+
+		// Also adjust the maximum y
+		this.maxY = Math.ceil(this.viewHeight / this.cellHeight / this.scaleFactor);
+	}
+}
+
+// Update the view appearance.
+PerspectiveGridView.prototype.updateView = function()
+{
+	// Don't update if centre position is unset (can happen during init)
+	if (this.cellCentreX == null)
+		return;
+
+	// Here is the grid, relative to the cellCentre:
+	//    /\    /\    /\    /\    /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -1 \/  0 \/  1 \/  2 \/  3 \
+	//  \ -3 /\ -2 /\ -1 /\  0 /\  1 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/ -1 \/  0 \/  1 \/  2 \/
+	//    /\ -2 /\ -1 /\  0 /\  1 /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -2 \/ -1 \/  0 \/  1 \/  2 \
+	//  \ -2 /\ -1 /\  0 /\  1 /\  2 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/ -2 \/ -1 \/  0 \/  1 \/
+	//    /\ -1 /\  0 /\  1 /\  2 /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -3 \/ -2 \/ -1 \/  0 \/  1 \
+	//  \ -1 /\  0 /\  1 /\  2 /\  3 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/    \/    \/    \/    \/
+	// This grid shows the (i, j) coords of the cells.
+	// We can convert to something more useful as follows:
+	// x = j + i
+	// y = j - i
+	//    /\    /\    /\    /\    /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -4 \/ -2 \/  0 \/  2 \/  4 \
+	//  \ -2 /\ -2 /\ -2 /\ -2 /\ -2 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/ -3 \/ -1 \/  1 \/  3 \/
+	//    /\ -1 /\ -1 /\ -1 /\ -1 /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -4 \/ -2 \/  0 \/  2 \/  4 \
+	//  \  0 /\  0 /\  0 /\  0 /\  0 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/ -3 \/ -1 \/  1 \/  3 \/
+	//    /\  1 /\  1 /\  1 /\  1 /\
+	//   /  \  /  \  /  \  /  \  /  \
+	//  / -4 \/ -2 \/  0 \/  2 \/  4 \
+	//  \  2 /\  2 /\  2 /\  2 /\  2 /
+	//   \  /  \  /  \  /  \  /  \  /
+	//    \/    \/    \/    \/    \/
+	// This grid is 4 x 2 (the maxX and maxY vals)
+	// We can convert back using
+	// i = (x - y) / 2
+	// j = (x + y) / 2
+
+    for (var y = -this.maxY; y <= this.maxY + this.extraBottomRows; y++)
     {
-        for (var j = 0; j < this.numRows; j++)
+		// Odd numbered rows are offset by 1
+		var xOffset = (y % 2 == 0) ? 0 : 1;
+        for (var x = xOffset; x <= this.maxX; x += 2)
         {
-            var real_i = i - j;
-            var real_j = i + j;
-            this.drawCell(real_i + this.startCol, real_j + this.startRow);
-            this.drawCell(real_i + this.startCol, real_j + this.startRow + 1);            
-        }
+			// Convert back to native coordinates
+            var i = (x - y) / 2;
+            var j = (x + y) / 2;
+            this.drawCell(i + this.cellCentreX, j + this.cellCentreY);
+			if (x != 0)
+			{
+				i = (-x - y) / 2;
+				j = (-x + y) / 2;
+            	this.drawCell(i + this.cellCentreX, j + this.cellCentreY);
+			}
+		} 
     }
+
+	// Set the cell Centre to be at (0,0) so we can do a scale. Then move it to the screen centre.
+	var centreX = -(this.cellCentreX + this.cellCentreY) * this.cellWidth;
+	var centreY = -(this.cellCentreY - this.cellCentreX) * this.cellHeight;
+	
+	// Show the transformed image. Note that the scaleFactor is divided by 2 - this is because
+	// we actually show twice the maxX and maxY in width and height.
+	this.transformLayer.setAttribute("transform", "translate(" + this.viewCentreX + "," + this.viewCentreY + ") scale(" + (this.scaleFactor / 2) + ") translate(" + centreX + "," + centreY + ")"); 
 }
 
-PerspectiveGridView.prototype.inView = function(x, y)
+PerspectiveGridView.prototype.getLayoutX = function(i, j)
 {
-    
-    var i = (x - this.startCol) + (y - this.startRow);
-    var j = (y - this.startRow) - (x - this.startCol);
+    return i + j;
+}
 
-    return (i >= 0 && 
-            i < this.numCols &&
-            j >= 0 &&
-            j < this.numRows);
+PerspectiveGridView.prototype.getLayoutY = function(i, j)
+{
+    return j - i;
+}
+
+PerspectiveGridView.prototype.inView = function(i, j)
+{
+    var x = (i - this.cellCentreX) + (j - this.cellCentreY);
+    var y = (j - this.cellCentreY) - (i - this.cellCentreX);
+
+    return (Math.abs(x) <= this.maxX && (y >= -this.maxY && y <= this.maxY + this.extraBottomRows));
 }
 
 // Contents of a perspective grid
@@ -5902,7 +6060,7 @@ BlockGridViewItem.prototype.setHighlight = function(doHighlight)
 		this.elements["highlight"].hide();		
 }
 
-BlockGridViewItem.prototype.updateView = function(povList)
+BlockGridViewItem.prototype.updatePOV = function(povList)
 {
     var contents = this.modelItem.contents;
     if (contents == null)
@@ -6029,7 +6187,7 @@ BlockGridViewItem.prototype.updateView = function(povList)
     
     for (var i in this.containedItems.childNodes)
     {
-        this.containedItems.childNodes[i].updateView(povList);
+        this.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 
@@ -9724,7 +9882,7 @@ LightLevelWindow.prototype.doAction = function(src, evt)
 // EditWindow has a set of all editing buttons, many of which call subwindows.
 function EditWindow(controller, editRoot)
 {
-    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:186, storePrefix:"MW_EditWindow", contentsSpacing:3});
+    EditWindow.baseConstructor.call(this, "Edit Map", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:71, height:204, storePrefix:"MW_EditWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.editRoot = editRoot;
@@ -9917,17 +10075,7 @@ EditWindow.prototype.doAction = function(src, evt)
 	}
 	else if (evt.type == "dragSlider" && src == this.zoomSlider)
 	{
-		// Set zoom level of window between 4 x 6 (at 0) to 16 x 26 (at 0.5) to 64 x 104 (at 1)
-		if (evt.position < 0.2)
-			this.controller.view.setViewport(null, null, 4, 6);
-		else if (evt.position < 0.4)
-			this.controller.view.setViewport(null, null, 8, 12);
-		else if (evt.position < 0.6)
-			this.controller.view.setViewport(null, null, 16, 26);
-		else if (evt.position < 0.8)
-			this.controller.view.setViewport(null, null, 32, 52);
-		else
-			this.controller.view.setViewport(null, null, 64, 104);
+		this.controller.setZoom(evt.position);
 	}
 }
 
@@ -10321,17 +10469,6 @@ GameController.prototype.highlightItem = function(item)
 
 GameController.prototype.setupEditArea = function()
 {    
-    var objectLayer = document.getElementById(this.idMap.objectLayer);
-    objectLayer.appendChild(this.view.svg);
-
-    var coverLayer = document.getElementById(this.idMap.coverLayer);
-    coverLayer.appendChild(this.view.coverLayer.svg);
-    
-    // OK, yes, this is a hack to allow content layout view to show
-    // the expanded view of content on the map above everything
-    var cover2 = document.getElementById("coverLayer2");
-    cover2.appendChild(this.view.coverLayer2.svg);
-   
     // Show the contract/expand icon for the AdminWindow
 	var coverEl1 = cloneElementById(this.artwork, "iconCircleCover");
 	var contractEl = cloneElementById(this.artwork, "iconContract");
@@ -10810,6 +10947,7 @@ function parseKeycodesAndCharcodes(keyCode, charCode)
         // s
         result = "down";        
         break;
+
     case 100:
         // d
         result = "right"     
@@ -10956,7 +11094,7 @@ GameController.prototype.parseEditAction = function(src, evt)
                 var xmlDoc = parser.parseFromString(newmap, "text/xml");
 
                 this.model.fromXML(xmlDoc);
-                this.view.setViewport(0, 0);
+                this.view.setCellCentre(0, 0);
             }
         }*/
         else if (src.src == "persView")
@@ -10969,19 +11107,27 @@ GameController.prototype.parseEditAction = function(src, evt)
         switch (parseKeycodesAndCharcodes(evt.keyCode, evt.charCode))
         {
         case "left":
-            this.view.setViewport(this.view.startCol - 1, this.view.startRow);
+            this.view.setCellCentre(this.view.cellCentreX - 1, this.view.cellCentreY);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
        
         case "up":
-            this.view.setViewport(this.view.startCol, this.view.startRow - 1);
+            this.view.setCellCentre(this.view.cellCentreX, this.view.cellCentreY - 1);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
        
         case "right":
-            this.view.setViewport(this.view.startCol + 1, this.view.startRow);
+            this.view.setCellCentre(this.view.cellCentreX + 1, this.view.cellCentreY);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
 
         case "down":
-            this.view.setViewport(this.view.startCol, this.view.startRow + 1);
+            this.view.setCellCentre(this.view.cellCentreX, this.view.cellCentreY + 1);
+		    this.view.updateView();
+		    this.view.removeOutsideView();
             break;
 
         case "zoom_out":
@@ -11213,8 +11359,10 @@ GameController.prototype.placeAvatar = function()
     
     if (!this.editMode)
     {
-        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-        this.view.updateView([this.currentChar]);
+        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+	    this.view.updateView();
+        this.view.updatePOV([this.currentChar]);
+	    this.view.removeOutsideView();
     }
 }
 
@@ -11331,8 +11479,10 @@ GameController.prototype.stepTime = function()
     this.turnClock.currentTime++;
 
 	// Finally update the view
-    this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-    this.view.updateView([this.currentChar]);
+    this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+    this.view.updateView();
+    this.view.removeOutsideView();
+    this.view.updatePOV([this.currentChar]);
     this.setVisibleToUser(this.currentChar.contents, 15);
 }
 
@@ -11391,9 +11541,27 @@ GameController.prototype.enableEditMode = function(doEnable)
         this.adminWindow.editMapButton.hide();
     }
 }
+
 GameController.prototype.setActive = function(isActive)
 {
     this.isActive = isActive;
+}
+
+GameController.prototype.setZoom = function(zoomLevel)
+{
+	// Set zoom level of window
+	if (zoomLevel < 0.2)
+		this.view.setFixedCellCount(4);
+	else if (zoomLevel < 0.4)
+		this.view.setFixedCellCount(8);
+	else if (zoomLevel < 0.6)
+		this.view.setFixedCellCount(12);
+	else if (zoomLevel < 0.8)
+		this.view.setFixedCellCount(20);
+	else
+		this.view.setFixedCellCount(30);
+	
+	this.view.updateView();
 }
 
 // Go into debug mode - it's like edit mode, except it doesn't load or save the level
@@ -11414,13 +11582,16 @@ GameController.prototype.setDebugMode = function(debugMode)
 
         gOpacityScaleFactor = 0.6;
 
-		this.view.updateView(null);
+		this.view.updatePOV(null);
         this.view.setLighting();
         this.editLayer.show();
+		this.setZoom(this.editWindow.zoomSlider.position);
     }
     else
     {
         this.editLayer.hide();
+
+        this.view.setFixedCellCount(8);
 
 		this.clearHighlightedItems();
         this.model.showInvisible = false;
@@ -11431,8 +11602,10 @@ GameController.prototype.setDebugMode = function(debugMode)
         var bgrect = document.getElementById("baseBG");
         bgrect.setAttribute("fill", "black");
 
-        this.view.setViewport(this.currentChar.contents.x + 2, this.currentChar.contents.y - 9);
-        this.view.updateView([this.currentChar]);
+        this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+	    this.view.updateView();
+	    this.view.removeOutsideView();
+        this.view.updatePOV([this.currentChar]);
     }
 }
 
@@ -11464,9 +11637,10 @@ GameController.prototype.setEditMode = function(editMode)
         // Initialise the level from the xml, so that all the actions are reset
 		this.initialiseModelFromXML();
 
-		this.view.updateView(null);
+		this.view.updatePOV(null);
         this.view.setLighting();
         this.editLayer.show();
+		this.setZoom(this.editWindow.zoomSlider.position);
     }
     else
     {
@@ -11478,6 +11652,8 @@ GameController.prototype.setEditMode = function(editMode)
 
         this.editLayer.hide();
         
+        this.view.setFixedCellCount(8);
+
 		this.clearHighlightedItems();
         this.model.showInvisible = false;
         
@@ -11515,8 +11691,6 @@ GameController.prototype.updateItemsRemainingText = function()
     
     this.itemsRemainingText.setValue("Items Remaining: " + itemsRemaining);
 }
-
-
 var gController;
 var gWindow = this;
 
@@ -11567,7 +11741,10 @@ function init()
    
     var coverLayer = document.getElementById(persIDMap.coverLayer);
     var persModel = new PerspectiveGridModel(itemFactory);
+
+	var playArea = wrapElementById("persPlayArea");
     var persView = new PerspectiveGridView(persModel, persIDMap, itemFactory, 16, 26, 0, 0, 25, 15);
+	playArea.appendChild(persView);
    
     gController = new GameController(background, itemFactory, persModel, persView, persIDMap);
 
@@ -11612,8 +11789,7 @@ function updateLayout()
     var xOffset = (boardAreaWidth - boardWidth * scale) / 2;
     var yOffset = (boardAreaHeight - boardHeight * scale) / 2;
     
-    var playArea = document.getElementById(gController.idMap.playArea);
-    playArea.setAttribute("transform", "translate(" + xOffset + "," + yOffset + ") scale(" + scale + ")");
+    gController.view.setBounds(bbox);
 
     // Set the login and logout areas
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);

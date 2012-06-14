@@ -48,7 +48,10 @@ function init()
    
     var coverLayer = document.getElementById(persIDMap.coverLayer);
     var persModel = new PerspectiveGridModel(itemFactory);
+
+	var playArea = wrapElementById("persPlayArea");
     var persView = new PerspectiveGridView(persModel, persIDMap, itemFactory, 16, 26, 0, 0, 25, 15);
+	playArea.appendChild(persView);
    
     gController = new GameController(background, itemFactory, persModel, persView, persIDMap);
 
@@ -93,8 +96,7 @@ function updateLayout()
     var xOffset = (boardAreaWidth - boardWidth * scale) / 2;
     var yOffset = (boardAreaHeight - boardHeight * scale) / 2;
     
-    var playArea = document.getElementById(gController.idMap.playArea);
-    playArea.setAttribute("transform", "translate(" + xOffset + "," + yOffset + ") scale(" + scale + ")");
+    gController.view.setBounds(bbox);
 
     // Set the login and logout areas
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);

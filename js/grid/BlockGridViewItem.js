@@ -136,7 +136,7 @@ BlockGridViewItem.prototype.setHighlight = function(doHighlight)
 		this.elements["highlight"].hide();		
 }
 
-BlockGridViewItem.prototype.updateView = function(povList)
+BlockGridViewItem.prototype.updatePOV = function(povList)
 {
     var contents = this.modelItem.contents;
     if (contents == null)
@@ -263,7 +263,7 @@ BlockGridViewItem.prototype.updateView = function(povList)
     
     for (var i in this.containedItems.childNodes)
     {
-        this.containedItems.childNodes[i].updateView(povList);
+        this.containedItems.childNodes[i].updatePOV(povList);
     }
 }
 
