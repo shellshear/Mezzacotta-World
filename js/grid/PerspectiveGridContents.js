@@ -8,15 +8,15 @@ function PerspectiveGridContents(model, x, y, ambientLight)
 
 KevLinDev.extend(PerspectiveGridContents, LitGridContents);
 
-// Ensure this grid contents at the specified height is visible
-// by making the contents "in front" of it from the perspective of the user
+// Ensure this grid cellContents at the specified height is visible
+// by making the cellContents "in front" of it from the perspective of the user
 // semi-opaque
 PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
 {
     for (var i = 1; i < 4; i++)
     {
-        var contents = this.model.getContents(this.x - i, this.y + i);
-        var topData = contents;
+        var cellContents = this.model.getContents(this.x - i, this.y + i);
+        var topData = cellContents;
         while (topData.myItems.length > 0)
         {
             topData = topData.myItems[0];

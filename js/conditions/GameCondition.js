@@ -52,6 +52,11 @@ GameCondition.prototype.isMet = function()
     return false;
 }
 
+// Default
+GameCondition.prototype.onDelete = function()
+{
+}
+
 GameCondition.prototype.toXML = function()
 {
     var xmlCond = this.model.xmlDoc.createElement("cond");
@@ -135,7 +140,7 @@ WeightCondition.prototype.isMet = function()
     var weight = 0;
     for (var i in items)
     {
-        if (items[i] != this.item && items[i].params.wt != null)
+        if (items[i] != this.weightItem.item && items[i].params.wt != null)
         {
             weight += items[i].params.wt;
         }
@@ -166,15 +171,20 @@ WeightCondition.prototype.fromXML = function(xml)
 	this.setMinWeight(parseInt(xml.getAttribute('minWt')));
 }
 
+WeightCondition.prototype.onDelete = function()
+{
+	this.weightItem.onDelete();
+}
+
 
 // True if the container has the itemId or itemCode as a descendant
-function HasItemCondition(model, controller, heldItem, isItemByType, container)
+function HasItemCondition(model, controller, heldItem, matchCriterion, container, itemTag)
 {
     HasItemCondition.baseConstructor.call(this, model, controller);
     this.type = "HasItem";
 
     this.heldItem = new ACItemHandler(this.model, heldItem, "held");
-	this.heldItem.setItemByType(isItemByType);
+	this.heldItem.setItemMatchCriterion(matchCriterion, itemTag);
 	this.heldItem.addActionListener(this);
 	
     this.containerItem = new ACItemHandler(this.model, container, "container");
@@ -217,5 +227,11 @@ HasItemCondition.prototype.fromXML = function(xml)
   
     this.heldItem.fromXML(xml);
 	this.containerItem.fromXML(xml);
+}
+
+HasItemCondition.prototype.onDelete = function()
+{
+	this.heldItem.onDelete();
+	this.containerItem.onDelete();
 }
 

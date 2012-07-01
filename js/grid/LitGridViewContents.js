@@ -1,4 +1,4 @@
-// LitGridViewContents handles lighting changes by telling all the items in the contents
+// LitGridViewContents handles lighting changes by telling all the items in the cellContents
 // about it.
 function LitGridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {

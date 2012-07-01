@@ -1,5 +1,5 @@
 // Version of Mezzacotta World
-g_mwVersion = "0.31";// Global configuration parameters
+g_mwVersion = "0.32";// Global configuration parameters
 var g_config = new MW_Config();
 
 function MW_Config()
@@ -129,6 +129,21 @@ function htmlspecialchars(string)
 function htmlspecialchars_decode(string)
 {
     return string.toString().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#0*39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');    
+}
+
+function createXMLDoc(elementName)
+{
+	var result = null;
+	if (document.implementation && document.implementation.createDocument) 
+	{
+	    result = document.implementation.createDocument(null, elementName, null);
+	}
+	else
+	{
+	    result = new ActiveXObject("MSXML2.DOMDocument"); 
+	    result.loadXML("<" + elementName + "/>");
+	}
+	return result;
 }
 
 // Action Listeners respond to any SVG events via the handleEvent
@@ -3292,10 +3307,7 @@ SVGWindowManager.prototype.doAction = function(src, evt)
     {
 		this.appendChild(src);
 	}
-}// A global item counter, used to give unique ids to items.
-gItemCount = 0;
-
-// Item container holds items
+}// Item container holds items
 function ItemContainer()
 {
     ItemContainer.baseConstructor.call(this);
@@ -3314,6 +3326,12 @@ ItemContainer.prototype.moveItem = function(target)
         this.owner.removeItem(this);
     }
     target.appendItem(this);
+}
+
+ItemContainer.prototype.removeAllItems = function()
+{
+    while (this.myItems.length > 0)
+        this.removeItemByIndex(0);
 }
 
 ItemContainer.prototype.removeItem = function(item)
@@ -3363,8 +3381,6 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
     this.myItems.splice(itemIndex, 1);
 
     this.tellActionListeners(this, {type:"removeItem", itemIndex:itemIndex});
-    
-    gItemCount--;
 }
 
 // Clean up, because we're about to be removed from our parent
@@ -3386,15 +3402,22 @@ ItemContainer.prototype.appendItem = function(item)
 {
     this.myItems.push(item);
     item.setOwner(this);
+    this.tellActionListeners(this, {type:"appendedItem", item:item});
 
-    var evt = new Object();
-    evt.type = "appendItem";
-    evt.itemIndex = this.myItems.length - 1;
-    this.tellActionListeners(this, evt);
-    
-    gItemCount++;
+	//item.notifyAppendItemChildren();
 }
 
+ItemContainer.prototype.notifyAppendItemChildren = function()
+{
+	if (this.myItems == null)
+		return;
+		
+	for (var i = 0; i < this.myItems.length; ++i)
+	{
+	    this.tellActionListeners(this, {type:"appendedItem", item:this.myItems[i]});
+	    this.myItems[i].notifyAppendItemChildren();
+	}
+}
 
 // ViewItemContainer is the view of the ItemContainer.
 // It updates whenever the ItemContainer updates.
@@ -3422,9 +3445,9 @@ ViewItemContainer.prototype.doAction = function(src, evt)
 {
     ViewItemContainer.superClass.doAction.call(this, src, evt);   
 
-    if (evt.type == "appendItem")
+    if (evt.type == "appendedItem")
     {
-        this.appendViewItem(this.modelItem.myItems[evt.itemIndex]);
+        this.appendViewItemAndChildren(evt.item);
     }
     else if (evt.type == "removeItem")
     {
@@ -3444,13 +3467,11 @@ ViewItemContainer.prototype.updateChildrenFromModel = function()
 {
     for (var i = 0; i < this.modelItem.myItems.length; ++i)
     {
-        var viewItem = this.appendViewItem(this.modelItem.myItems[i]);
-        if (viewItem != null)    
-            viewItem.updateChildrenFromModel();
+        this.appendViewItemAndChildren(this.modelItem.myItems[i]);
     }
 }
 
-ViewItemContainer.prototype.appendViewItem = function(item)
+ViewItemContainer.prototype.appendViewItemAndChildren = function(item)
 {
     var viewItem = this.viewItemFactory.makeViewItem(item);
     if (viewItem != null)
@@ -3465,7 +3486,15 @@ ViewItemContainer.prototype.appendViewItem = function(item)
         viewItem.onBeingAdded();
     }
     
-    return viewItem;
+	// If the item has children, also append those.
+	if (item.myItems != null)
+	{
+		for (var i = 0; i < item.myItems.length; ++i)
+		{
+			viewItem.appendViewItemAndChildren(item.myItems[i]);
+		}
+	}
+	return viewItem;
 }
 
 // Default method called when a ViewItemContainer is itself contained
@@ -3492,15 +3521,7 @@ function GridModel(itemFactory)
     GridModel.baseConstructor.call(this);
     this.src = "GridModel";
 
-    if (document.implementation && document.implementation.createDocument) 
-    {
-        this.xmlDoc = document.implementation.createDocument(null, "m", null);
-    }
-    else
-    {
-        this.xmlDoc = new ActiveXObject("MSXML2.DOMDocument"); 
-        this.xmlDoc.loadXML("<m/>");
-    }
+	this.xmlDoc = createXMLDoc("m");
     this.xmlModel = this.xmlDoc.firstChild;
     
     this.gridData = {};
@@ -3517,7 +3538,7 @@ function GridModel(itemFactory)
     
     this.quadList = [{x:1,y:1},{x:-1,y:1},{x:-1,y:-1},{x:1,y:-1}];
     
-    // Default list of adjacent contents
+    // Default list of adjacent cellContents
     this.adjList = [
         {x:1,y:0,inFront:false, side:0},
         {x:0,y:1,inFront:true, side:1},
@@ -3554,6 +3575,8 @@ GridModel.prototype.registerItem = function(item)
     this.itemIdList[item.id] = item;
 }
 
+// Add the item to the itemIdList, so that we can later more easily retrieve items with ids.
+// Also ensure that any new id we create doesn't overlap existing ids.
 GridModel.prototype.importItem = function(item)
 {
     // We only care about items with ids.
@@ -3679,9 +3702,9 @@ GridModel.prototype.toXML = function()
     {
         for (var j in this.gridData[i])
         {
-            var contentsXML = this.gridData[i][j].toXML(this.xmlDoc);
-            if (contentsXML != null)
-                this.xmlModel.appendChild(contentsXML);
+            var cellContentsXML = this.gridData[i][j].toXML(this.xmlDoc);
+            if (cellContentsXML != null)
+                this.xmlModel.appendChild(cellContentsXML);
         }
     }
     
@@ -3700,9 +3723,9 @@ GridModel.prototype.fromXML = function(xml)
         var xmlContents = xmlContentsList.item(i);
         var x = parseInt(xmlContents.getAttribute("x"));
         var y = parseInt(xmlContents.getAttribute("y"));
-        var contents = this.getContents(x, y);
+        var cellContents = this.getContents(x, y);
         
-        contents.fromXML(xmlContents);
+        cellContents.fromXML(xmlContents);
     }    
 }
 
@@ -3718,25 +3741,29 @@ GridModel.prototype.fromString = function(str)
            var bits = nodeList[k].split(",");
            var x = parseInt(bits[0].substr(1)); // skip the "["
            var y = parseInt(bits[1]);
-           var contents = this.getContents(x, y);
-           contents.fromString(bits[2]);
+           var cellContents = this.getContents(x, y);
+           cellContents.fromString(bits[2]);
        }
     }
 }
 
-// Find the first item with the specified item code
-GridModel.prototype.findItemByCode = function(itemCode)
+// Find the items with the specified item code
+GridModel.prototype.findItemsByCode = function(itemCode)
 {
+	var result = [];
     for (var i in this.gridData)
     {
         for (var j in this.gridData[i])
         {
-            var result = this.gridData[i][j].findItemByCode(itemCode);
-            if (result != null)
-                return result;
+            var currItem = this.gridData[i][j].findItemByCode(itemCode);
+            if (currItem != null)
+                result.push(currItem);
         }
     }
-    return null;
+	if (result.length == 0)
+    	return null;
+	else
+		return result;
 }
 // The contents of a particular element in the grid
 function GridContents(model, x, y)
@@ -3755,8 +3782,7 @@ KevLinDev.extend(GridContents, ItemContainer);
 
 GridContents.prototype.clear = function()
 {
-    while (this.myItems.length > 0)
-        this.removeItemByIndex(0);
+    this.removeAllItems();
 }
 
 GridContents.prototype.toString = function()
@@ -3841,20 +3867,9 @@ GridContents.prototype.fromXML = function(xml)
 {
     for (var i = 0; i < xml.childNodes.length; i++)
     {
-        var xmlItem = xml.childNodes.item(i);
-        
-        // We need to know the item code in advance, so the factory
-        // knows what kind of item to make.
-        // The factory uses its template data to preset a bunch
-        // of parameters for the item.
-        var itemCode = xmlItem.getAttribute("c");
-        var currItem = this.model.itemFactory.makeItem(itemCode);
-        
+        var xmlItem = xml.childNodes.item(i);        
+		var currItem = this.model.itemFactory.makeItemFromXML(xmlItem, this.model);
         this.appendItem(currItem);
-
-        // The item itself updates its children and non-template
-        // parameters from the xml.
-        currItem.fromXML(xmlItem);        
     }
 }
 
@@ -3933,7 +3948,7 @@ function GridItem(params)
     GridItem.baseConstructor.call(this);
     this.src = "GridItem";
 
-    this.params = params;
+    this.params = (params == null) ? {} : params;
 	this.params.saveVals = [];
 	
     if (this.params.ht == null)
@@ -3953,7 +3968,7 @@ function GridItem(params)
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
 		
-    this.contents = null; // doesn't belong to anything yet
+    this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
 }
 
@@ -3967,11 +3982,8 @@ GridItem.prototype.setOwner = function(owner)
     // Set our elevation based on our owner.
     this.updateElev();
 
-    // Set the contents
+    // Set the cellContents
     this.updateOwnerContents();    
-    
-    this.updateAffectedPOV();
-    this.updatePOV();
 }
 
 // Update the elevation based on our owner's height and elevation
@@ -3997,15 +4009,15 @@ GridItem.prototype.updateElev = function()
 GridItem.prototype.updateAffectedPOV = function()
 {
     // If we're in the path of any seeing items, update those
-    if (this.contents != null)
+    if (this.cellContents != null)
     {
         // First get a list of the items that will need their povs updated
-        // Note that the contents.seenBy list may change as we update the
+        // Note that the cellContents.seenBy list may change as we update the
         // povs of the items.
         var povItems = [];
-        for (var i in this.contents.seenBy)
+        for (var i in this.cellContents.seenBy)
         {
-            povItems.push(this.contents.seenBy[i].item);
+            povItems.push(this.cellContents.seenBy[i].item);
         }
         
         for (var j in povItems)
@@ -4050,9 +4062,19 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     // Temporary items shouldn't get saved
     if (this.params.isTemporary)
         return null;
-        
-    var xmlItem = xmlDoc.createElement("i");
-    xmlItem.setAttribute("c", this.params.itemCode);
+
+	var xmlItem = null;
+    if (xmlDoc == null)
+	{
+		xmlDoc = createXMLDoc("i");
+		xmlItem = xmlDoc.firstChild;
+	}
+	else
+	{
+		xmlItem = xmlDoc.createElement("i");		
+	}
+
+	xmlItem.setAttribute("c", this.params.itemCode);
 
 	if (this.params.saveVals.ht != null)
     	xmlItem.setAttribute("h", this.params.saveVals.ht);
@@ -4084,67 +4106,29 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     return xmlItem;
 }
 
-
-GridItem.prototype.fromXML = function(xml)
-{
-    if (xml.hasAttribute("id"))
-    {
-        this.id = xml.getAttribute("id");
-        this.contents.model.importItem(this);
-    }
-                
-    this.setHeight(parseInt(xml.getAttribute("h")), true);
-
-	if (xml.hasAttribute("d"))
-	{
-		this.setItemParam("direction", xml.getAttribute("d"), true);
-	}
-
-    // Update all the child items of this item as well
-    for (var i = 0; i < xml.childNodes.length; i++)
-    {
-        var xmlItem = xml.childNodes.item(i);
-        
-        // We need to know the item code in advance, so the factory
-        // knows what kind of item to make.
-        // The factory uses its template data to preset a bunch
-        // of parameters for the item.
-        var itemCode = xmlItem.getAttribute("c");
-        var currItem = this.contents.model.itemFactory.makeItem(itemCode);
-        
-        this.appendItem(currItem);
-        
-        // If the item is moveable, add it to the moveable list.
-        if (currItem.params.moveTowards != null)
-        {
-            this.contents.model.addToMoveableItems(currItem);
-        }
-
-        // The item itself updates its children and non-template
-        // parameters from the xml.
-        currItem.fromXML(xmlItem);        
-    }
-}
-
-// The item is being removed, so clean up any light references and let listeners know
+// The item is being removed, so let listeners know
 GridItem.prototype.cleanup = function()
 {
     GridItem.superClass.cleanup.call(this);   
-    this.clearSeenBy();
+	this.updateCellContents(null);
 	this.tellActionListeners(this, {type:"ItemBeingDeleted", item:this});
 }
 
-// Update the item and its children regarding the contents that
+// Update the item and its children regarding the cellContents that
 // it is part of
 GridItem.prototype.updateOwnerContents = function()
 {
     if (this.owner != null)
     {
         if (this.owner.src == "GridContents")
-            this.contents = this.owner;
-        else
-            this.contents = this.owner.contents;
-    }
+		{
+			this.updateCellContents(this.owner);
+        }
+		else
+        {
+			this.updateCellContents(this.owner.cellContents);
+    	}
+	}
     
     for (var i = 0; i < this.myItems.length; ++i)
     {
@@ -4152,19 +4136,38 @@ GridItem.prototype.updateOwnerContents = function()
     }
 }
 
+// Update the cellContents for this item.
+// Also handle all the things that happen when the item is placed in a new cell.
+GridItem.prototype.updateCellContents = function(newCellContents)
+{
+	if (this.cellContents != newCellContents)
+	{
+    	this.cellContents = newCellContents;
+		if (this.cellContents != null)
+		{
+			this.updatePOV();
+			this.updateAffectedPOV();
+		}
+		else
+		{
+		    this.clearSeenBy();
+		}
+	}
+}
+
 // Set what is visible to this item.
 //
-// We tell the item what height it can see at each grid contents within the
-// radius, and inform each of the contents that they can be seen by this item
+// We tell the item what height it can see at each grid cellContents within the
+// radius, and inform each of the cellContents that they can be seen by this item
 // at that height.
 // 
-// We calculate the view height at each contents. Anything below that height
-// is not visible. The view height for each viewed contents is a function of the 
+// We calculate the view height at each cellContents. Anything below that height
+// is not visible. The view height for each viewed cellContents is a function of the 
 // viewer elevation, the height of the objects between the viewer
 // and the viewed, and the distance between the viewer and viewed.
-// To simplify matters, we evaluate each viewed contents in an increasing 
+// To simplify matters, we evaluate each viewed cellContents in an increasing 
 // radius, so we never have to evaluate the height using more than just the
-// contents one step away from the viewed contents.
+// cellContents one step away from the viewed cellContents.
 // To calculate what we have to look at, we use the following chart:
 //
 // dddlllllddd  
@@ -4198,22 +4201,22 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
 {
     this.clearSeenBy(viewType);
     
-    // Start with adjacent contents, the widen the field of view
-    if (this.contents == null)
+    // Start with adjacent cellContents, the widen the field of view
+    if (this.cellContents == null)
         return;
-    var model = this.contents.model;
+    var model = this.cellContents.model;
         
-    var x = this.contents.x;
-    var y = this.contents.y;
+    var x = this.cellContents.x;
+    var y = this.cellContents.y;
     var q = model.quadList;
     var sourceElevation = this.params.elev + this.params.ht;
    
-    this.setVisibility(this.contents, this.params.elev, 0, x, y, viewType);
+    this.setVisibility(this.cellContents, this.params.elev, 0, x, y, viewType);
 
-    // For each contents, set the height that can be seen at that
-    // contents by the viewer.
+    // For each cellContents, set the height that can be seen at that
+    // cellContents by the viewer.
     // This will depend on the height of the viewer, and the height
-    // of objects between the viewer and the contents.
+    // of objects between the viewer and the cellContents.
     for (var i = 1; i <= radius; i++)
     {
         // Test central l
@@ -4343,18 +4346,18 @@ GridItem.prototype.getViewElevation = function(model, x, y, sourceElevation, dis
     return h - (sourceElevation - h) / distance * 2; // TODO: The *2 is a fudge factor
 }
 
-// This item can see this contents at this elevation
-GridItem.prototype.setVisibility = function(contents, viewElev, distance, x, y, viewType)
+// This item can see this cellContents at this elevation
+GridItem.prototype.setVisibility = function(cellContents, viewElev, distance, x, y, viewType)
 {
-    contents.addSeenBy(this, viewElev, distance, x, y, viewType);
+    cellContents.addSeenBy(this, viewElev, distance, x, y, viewType);
 
     if (this.canSee[viewType] == null)
         this.canSee[viewType] = [];
 
-    if (this.canSee[viewType][contents.x] == null)
-        this.canSee[viewType][contents.x] = [];
+    if (this.canSee[viewType][cellContents.x] == null)
+        this.canSee[viewType][cellContents.x] = [];
    
-    this.canSee[viewType][contents.x][contents.y] = {contents:contents, viewElev:viewElev, distance:distance};
+    this.canSee[viewType][cellContents.x][cellContents.y] = {cellContents:cellContents, viewElev:viewElev, distance:distance};
 }
 
 GridItem.prototype.clearSeenBy = function(viewType)
@@ -4367,7 +4370,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
             {
                 for (var j in this.canSee[s][i])
                 {
-                    this.canSee[s][i][j].contents.removeSeenBy(this);
+                    this.canSee[s][i][j].cellContents.removeSeenBy(this);
                 }
             }
         }        
@@ -4379,7 +4382,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
         {
             for (var j in this.canSee[viewType][i])
             {
-                this.canSee[viewType][i][j].contents.removeSeenBy(this);
+                this.canSee[viewType][i][j].cellContents.removeSeenBy(this);
             }
         }
         this.canSee[viewType] = [];
@@ -4468,17 +4471,18 @@ GridItem.prototype.setHeight = function(height, doSave)
     	items[i].updatePOV();
 	}
 	
-	// Update any items with a POV that touches this contents
+	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
 }
 
 
-// Return true if the item can be moved to the destination contents
-// This is only true if the destination contents can be stood upon, and
-// if the height of the contents is less than the item's current height
+// Return true if the item can be moved to the destination cellContents
+// This is only true if the destination cellContents can be stood upon, and
+// if the height of the cellContents is less than the item's current height
 // plus the delta height specified (ie. can't climb too high)
 GridItem.prototype.canMoveTo = function(destItem, maxClimbHeight, maxDropHeight)
 {
+	// Can only move items onto other items
 	if (destItem.src == "GridContents")
 		return false;
 		
@@ -4506,9 +4510,9 @@ GridItem.prototype.searchFor = function(itemCode)
         {
             var canSee = this.canSee["pov"][i][j];
             
-            // Find if there are any items in this contents match our request
+            // Find if there are any items in this cellContents match our request
             // TODO: need a find function that gets all results, not just the first.
-            var item = canSee.contents.find("itemCode", itemCode);
+            var item = canSee.cellContents.find("itemCode", itemCode);
 
             // Is it in view?
             if (item != null && item.params.elev + item.params.ht >= canSee.viewElev)
@@ -4585,22 +4589,22 @@ GridItem.prototype.requestChange = function()
                 for (var j in closestItems)
                 {
                     destContents = this.followSimplePathTo(closestItems[j].item);
-                    sumX += (destContents.x - this.contents.x);
-                    sumY += (destContents.y - this.contents.y);                    
+                    sumX += (destContents.x - this.cellContents.x);
+                    sumY += (destContents.y - this.cellContents.y);                    
                 }
                 
                 if (Math.abs(sumX) > Math.abs(sumY))
                 {
-                    destContents = this.contents.model.getContents(this.contents.x + (sumX > 0 ? 1 : -1), this.contents.y);
+                    destContents = this.cellContents.model.getContents(this.cellContents.x + (sumX > 0 ? 1 : -1), this.cellContents.y);
                 }
                 else if (Math.abs(sumX) < Math.abs(sumY))
                 {
-                    destContents = this.contents.model.getContents(this.contents.x, this.contents.y + (sumY > 0 ? 1 : -1));
+                    destContents = this.cellContents.model.getContents(this.cellContents.x, this.cellContents.y + (sumY > 0 ? 1 : -1));
                 }
                 else if (sumX != 0)
                 {
                     // sumX and sumY are equal - we default to X direction
-                    destContents = this.contents.model.getContents(this.contents.x + (sumX > 0 ? 1 : -1), this.contents.y);
+                    destContents = this.cellContents.model.getContents(this.cellContents.x + (sumX > 0 ? 1 : -1), this.cellContents.y);
                 }
                 else
                 {
@@ -4615,8 +4619,8 @@ GridItem.prototype.requestChange = function()
     if (destContents != null)
     {
         // Hooray! We have a destination. We'll also want to set the direction label.
-        var dirnLabel = (destContents.x != this.contents.x ? (destContents.x < this.contents.x ? "r" : "l") : (destContents.y < this.contents.y ? "b" : "f"));
-        return {contents: destContents, params:{direction:dirnLabel}};
+        var dirnLabel = (destContents.x != this.cellContents.x ? (destContents.x < this.cellContents.x ? "r" : "l") : (destContents.y < this.cellContents.y ? "b" : "f"));
+        return {cellContents: destContents, params:{direction:dirnLabel}};
     }
     
     return null;
@@ -4624,10 +4628,10 @@ GridItem.prototype.requestChange = function()
 
 GridItem.prototype.getSimplePathPreferred = function(item, goLong)
 {
-    var deltaX = this.contents.x - item.contents.x;
-    var deltaY = this.contents.y - item.contents.y;
-    var destX = this.contents.x;
-    var destY = this.contents.y;
+    var deltaX = this.cellContents.x - item.cellContents.x;
+    var deltaY = this.cellContents.y - item.cellContents.y;
+    var destX = this.cellContents.x;
+    var destY = this.cellContents.y;
 
     // Try the preferred direction first, with X as default.
     if (goLong == (Math.abs(deltaX) >= Math.abs(deltaY)))
@@ -4638,7 +4642,7 @@ GridItem.prototype.getSimplePathPreferred = function(item, goLong)
     {
         destY += (deltaY == 0 ? 0 : (deltaY > 0 ? -1 : 1));
     }
-    return this.contents.model.getContents(destX, destY);
+    return this.cellContents.model.getContents(destX, destY);
 }
 
 // Calculate the simple "as the crow flies" direction to go towards the
@@ -4651,7 +4655,7 @@ GridItem.prototype.followSimplePathTo = function(item)
         return null;
     
     // If we're right next to it, we can move there
-    if (destContents == item.contents)
+    if (destContents == item.cellContents)
     {
         // Need to check whether we'd be able to move to where the item is
         // standing
@@ -4669,7 +4673,7 @@ GridItem.prototype.followSimplePathTo = function(item)
     
     // Oookay, we'll try the less compelling direction.
     var destContents = this.getSimplePathPreferred(item, false);
-    if (destContents == this.contents)
+    if (destContents == this.cellContents)
     {
         // That's where we are now, so let's not move at all.
         // (This happens if the simple path is a straight line in x or y direction)
@@ -4699,8 +4703,8 @@ function GridViewItem(modelItem, viewItemFactory, itemGraphics)
      
 KevLinDev.extend(GridViewItem, ViewItemContainer);
 
-// Append components of the item contents
-// A view item contents can contain several bits (eg. the item and the
+// Append components of the item cellContents
+// A view item cellContents can contain several bits (eg. the item and the
 // item's shadow)
 GridViewItem.prototype.appendItemContents = function(itemGraphics)
 {
@@ -4761,8 +4765,8 @@ GridViewItem.prototype.doSpeech = function(text)
 // If the povList is null, show the item anyway.
 GridViewItem.prototype.updatePOV = function(povList)
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
 
     if (povList == null)
@@ -4772,16 +4776,16 @@ GridViewItem.prototype.updatePOV = function(povList)
     else if (this.itemGraphics != null)
     {
         var povTop = false;
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].viewType == "pov")
+            if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
                 for (var k in povList)
                 {
-                    if (povList[k] == contents.seenBy[j].item)
+                    if (povList[k] == cellContents.seenBy[j].item)
                     {
-                        if (contents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
+                        if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
                         {
                             povTop = true;
                         }
@@ -4805,7 +4809,7 @@ GridViewItem.prototype.updatePOV = function(povList)
 GridViewItem.prototype.setVisibilityTop = function(isVisible)
 {
     // Always override if parameter says it's invisible.
-    if (this.modelItem.params.isInvisible && !this.modelItem.contents.model.showInvisible)
+    if (this.modelItem.params.isInvisible && !this.modelItem.cellContents.model.showInvisible)
         isVisible = false;
     
     this.itemGraphics.setVisible(isVisible);
@@ -5052,7 +5056,7 @@ GridView.prototype.drawCell = function(x, y)
         var x_posn = this.getLayoutX(x, y) * this.cellWidth;
         var y_posn = this.getLayoutY(x, y) * this.cellHeight;
 
-        // Update with the model contents
+        // Update with the model cellContents
         var currCell = this.itemFactory.makeViewContents(this, x_posn, y_posn, x, y, modelContents, true);
    
         this.view[x][y] = currCell;
@@ -5119,7 +5123,7 @@ GridView.prototype.drawCell = function(x, y)
     }
 }
 
-// Remove any view contents that are outside the visible area
+// Remove any view cellContents that are outside the visible area
 GridView.prototype.removeOutsideView = function()
 {
     for (var i in this.view)
@@ -5165,7 +5169,7 @@ GridView.prototype.clear = function()
 
 GridView.prototype.doAction = function(src, evt)
 {
-    if (evt.type == "contentsUpdate")
+    if (evt.type == "cellContentsUpdate")
     {
        this.drawCell(src.x, src.y);
     }
@@ -5188,6 +5192,11 @@ ContentFactory.prototype.makeItem = function(itemCode)
     return null;
 }
 
+ContentFactory.prototype.makeItemFromXML = function(xml, model)
+{
+	return null;
+}
+
 ContentFactory.prototype.makeViewContents = function(view, x, y, x_index, y_index, modelContents)
 {
     return new GridViewContents(view, x, y, x_index, y_index, modelContents);
@@ -5203,7 +5212,7 @@ ContentFactory.prototype.makeViewItem = function(item)
     return null;
 }
 // This class applies lighting effects to the GridModel base class.
-// It allows ambient light levels to be set for each contents, and
+// It allows ambient light levels to be set for each cellContents, and
 // for point sources to be defined in GridItems, which radiate light
 // except where they are blocked.
 // GridContents understand about blocking light.
@@ -5314,7 +5323,7 @@ LitGridItem.prototype.updatePOV = function()
             {
                 var evt = new Object();
                 evt.type = "lightChanged";
-                this.canSee.light[i][j].contents.tellActionListeners(this, evt);
+                this.canSee.light[i][j].cellContents.tellActionListeners(this, evt);
             }
         }
     }
@@ -5324,7 +5333,6 @@ LitGridItem.prototype.updatePOV = function()
 function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
     LitGridViewItem.baseConstructor.call(this, modelItem, viewItemFactory, itemGraphics);
-
     this.setLighting();
 }
 
@@ -5332,30 +5340,32 @@ KevLinDev.extend(LitGridViewItem, GridViewItem);
 
 LitGridViewItem.prototype.setLighting = function()
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
+	{
         return;
-
+	}
+	
     if (this.itemGraphics != null)
     {
         // Set the shadow according to ambient light and light sources
         // this item is seen by.
-        var lightLevel = contents.ambientLight;
+        var lightLevel = cellContents.ambientLight;
         
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].item.params.lightStrength == null || contents.seenBy[j].item.params.lightStrength == 0)
+            if (cellContents.seenBy[j].item.params.lightStrength == null || cellContents.seenBy[j].item.params.lightStrength == 0)
                 continue;
             
-            if (contents.seenBy[j].viewType != "light")
+            if (cellContents.seenBy[j].viewType != "light")
                 continue;
             
             // Not visible if the top isn't visible
-            var elev = contents.seenBy[j].viewElev;
-            if (contents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
+            var elev = cellContents.seenBy[j].viewElev;
+            if (cellContents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
                 continue;
             
-            var sourceLevel = contents.model.calcLightLevel(contents.seenBy[j].distance, contents.seenBy[j].item.params.lightStrength);
+            var sourceLevel = cellContents.model.calcLightLevel(cellContents.seenBy[j].distance, cellContents.seenBy[j].item.params.lightStrength);
             if (sourceLevel > lightLevel)
             {
                 lightLevel = sourceLevel;
@@ -5381,7 +5391,7 @@ LitGridViewItem.prototype.doAction = function(src, evt)
     }
 }
 
-// LitGridViewContents handles lighting changes by telling all the items in the contents
+// LitGridViewContents handles lighting changes by telling all the items in the cellContents
 // about it.
 function LitGridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {
@@ -5664,15 +5674,15 @@ function PerspectiveGridContents(model, x, y, ambientLight)
 
 KevLinDev.extend(PerspectiveGridContents, LitGridContents);
 
-// Ensure this grid contents at the specified height is visible
-// by making the contents "in front" of it from the perspective of the user
+// Ensure this grid cellContents at the specified height is visible
+// by making the cellContents "in front" of it from the perspective of the user
 // semi-opaque
 PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
 {
     for (var i = 1; i < 4; i++)
     {
-        var contents = this.model.getContents(this.x - i, this.y + i);
-        var topData = contents;
+        var cellContents = this.model.getContents(this.x - i, this.y + i);
+        var topData = cellContents;
         while (topData.myItems.length > 0)
         {
             topData = topData.myItems[0];
@@ -5698,9 +5708,9 @@ KevLinDev.extend(PerspectiveGridItem, LitGridItem);
 
 PerspectiveGridItem.prototype.setInTheWay = function(opacity)
 {
-    if (this.contents != null)
+    if (this.cellContents != null)
     {
-        this.contents.model.itemsInTheWay.push(this);
+        this.cellContents.model.itemsInTheWay.push(this);
         this.tellActionListeners(this, {type:"InTheWay", opacity:opacity});
     }
 }
@@ -5710,7 +5720,7 @@ function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, star
 {
     PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
 
-	this.extraBottomRows = 2; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
+	this.extraBottomRows = 4; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
 
 	this.adjustCellBounds();
 }
@@ -5884,11 +5894,11 @@ PerspectiveGridViewItem.prototype.setLighting = function()
 {
     PerspectiveGridViewItem.superClass.setLighting.call(this);   
 
-    // The light on these contents has changed, so we need to 
+    // The light on these cellContents has changed, so we need to 
     // update the shadows on the verticals for this and adjacent
-    // contents.
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    // cellContents.
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
         
     for (var i in this.elements)
@@ -5897,17 +5907,17 @@ PerspectiveGridViewItem.prototype.setLighting = function()
             continue;
             
         // See what light sources affect this vertical
-        var lightLevel = contents.ambientLight;
+        var lightLevel = cellContents.ambientLight;
         
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-			var p = contents.seenBy[j].item.params;
+			var p = cellContents.seenBy[j].item.params;
 			
             if (p.lightStrength == null || p.lightStrength == 0)
                 continue;
            
             // It's unlit unless the light reaching it is low enough
-            if (contents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
+            if (cellContents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
                 continue;
 
             if (i == "top")
@@ -5916,10 +5926,10 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 if (p.elev + p.ht < this.modelItem.params.elev + this.modelItem.params.ht)
                     continue;
                 
-				// The top of the item must be higher than the lowest height of light on this contents
-                //if (contents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
+				// The top of the item must be higher than the lowest height of light on this cellContents
+                //if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
                 //{
-                    var sourceLevel = contents.model.calcLightLevel(contents.seenBy[j].distance, p.lightStrength);
+                    var sourceLevel = cellContents.model.calcLightLevel(cellContents.seenBy[j].distance, p.lightStrength);
                     if (sourceLevel > lightLevel)
                         lightLevel = sourceLevel;
                 //}
@@ -5929,7 +5939,7 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 // Distance 0 means the current square
                 // which doesn't contribute to the light on the
                 // verticals
-                if (contents.seenBy[j].distance == 0)
+                if (cellContents.seenBy[j].distance == 0)
                     continue;
             
                 // For the verticals, we need to calculate the distances again
@@ -5937,20 +5947,20 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 if (i == "left")
                 {
                     // This side is unlit unless its x value is less
-                    if (contents.seenBy[j].x >= contents.x)
+                    if (cellContents.seenBy[j].x >= cellContents.x)
                         continue;
                         
-                    dist = contents.model.getDistance(contents.seenBy[j].x, contents.seenBy[j].y, contents.x - 1, contents.y);            
+                    dist = cellContents.model.getDistance(cellContents.seenBy[j].x, cellContents.seenBy[j].y, cellContents.x - 1, cellContents.y);            
                 }
                 else if (i == "front")
                 {
                     // This side is unlit unless its y value is greater
-                    if (contents.seenBy[j].y <= contents.y)
+                    if (cellContents.seenBy[j].y <= cellContents.y)
                         continue;
-                    dist = contents.model.getDistance(contents.seenBy[j].x, contents.seenBy[j].y, contents.x, contents.y + 1);
+                    dist = cellContents.model.getDistance(cellContents.seenBy[j].x, cellContents.seenBy[j].y, cellContents.x, cellContents.y + 1);
                 }
                 
-                var sourceLevel = contents.model.calcLightLevel(dist, contents.seenBy[j].item.params.lightStrength);
+                var sourceLevel = cellContents.model.calcLightLevel(dist, cellContents.seenBy[j].item.params.lightStrength);
                 if (sourceLevel > lightLevel)
                 {
                     lightLevel = sourceLevel;
@@ -5972,7 +5982,7 @@ function BlockGridViewItem(modelItem, viewItemFactory, elements)
 KevLinDev.extend(BlockGridViewItem, PerspectiveGridViewItem);
 
 // Update our height when we get added to the view. At this point,
-// we can find the heights of any adjacent contents.
+// we can find the heights of any adjacent cellContents.
 BlockGridViewItem.prototype.onBeingAdded = function()
 {    
     this.updateHeight();
@@ -5986,9 +5996,9 @@ BlockGridViewItem.prototype.updateHeight = function()
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 
 
-    var contents = this.modelItem.contents;
+    var cellContents = this.modelItem.cellContents;
 
-    var leftContents = contents.model.getContents(contents.x - 1, contents.y);
+    var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
     var topLeftItem = getTopBlockItem(leftContents);
     
     var leftHeight = this.modelItem.params.ht;
@@ -6013,7 +6023,7 @@ BlockGridViewItem.prototype.updateHeight = function()
         this.elements["left"].hide();
     }
 
-    var frontContents = contents.model.getContents(contents.x, contents.y + 1);
+    var frontContents = cellContents.model.getContents(cellContents.x, cellContents.y + 1);
     var topFrontItem = getTopBlockItem(frontContents);
     
     var frontHeight = this.modelItem.params.ht;
@@ -6101,8 +6111,8 @@ BlockGridViewItem.prototype.setHighlight = function(doHighlight)
 
 BlockGridViewItem.prototype.updatePOV = function(povList)
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
 
     if (povList == null)
@@ -6121,34 +6131,34 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         var povRight = false;
         var povFront = false;
         var povBack = false;
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].viewType == "pov")
+            if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
                 for (var k in povList)
                 {
-                    if (povList[k] == contents.seenBy[j].item)
+                    if (povList[k] == cellContents.seenBy[j].item)
                     {
-                        if (contents.seenBy[j].viewElev <= this.modelItem.params.elev)
+                        if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev)
                         {
                             // Pov can see base of item
                             povBottom = true;
                         }                            
 
-                        var srcElev = contents.seenBy[j].item.params.elev + contents.seenBy[j].item.params.ht;
+                        var srcElev = cellContents.seenBy[j].item.params.elev + cellContents.seenBy[j].item.params.ht;
 
-                        if (contents.seenBy[j].viewElev <= modelElev) 
+                        if (cellContents.seenBy[j].viewElev <= modelElev) 
                         {
                             if (srcElev >= modelElev) 
                                 povTop = true;
 
-                            if (contents.seenBy[j].x < contents.x)
+                            if (cellContents.seenBy[j].x < cellContents.x)
                             {
                                 povLeft = true;
                             }
                             
-                            if (contents.seenBy[j].y > contents.y)
+                            if (cellContents.seenBy[j].y > cellContents.y)
                             {
                                 povFront = true;
                             }
@@ -6163,9 +6173,9 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         
         if (!povLeft)
         {
-            // Can't see the left side, but perhaps we can see the contents
+            // Can't see the left side, but perhaps we can see the cellContents
             // to the left, in which case let's say we can see it anyway.
-            var leftContents = contents.model.getContents(contents.x - 1, contents.y);
+            var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
             for (var j in leftContents.seenBy)
             {
                 if (leftContents.seenBy[j].viewType == "pov")
@@ -6179,7 +6189,7 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
                             {
                                 // NOTE: we still have to be standing to the
                                 // left of the item to see its left side
-                                if (leftContents.seenBy[j].x < contents.x)
+                                if (leftContents.seenBy[j].x < cellContents.x)
                                 {
                                     povLeft = true;
                                 }
@@ -6192,9 +6202,9 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         
         if (!povFront)
         {
-            // Can't see the front side, but perhaps we can see the contents
+            // Can't see the front side, but perhaps we can see the cellContents
             // to the front, in which case let's say we can see it anyway.
-            var frontContents = contents.model.getContents(contents.x, contents.y + 1);
+            var frontContents = cellContents.model.getContents(cellContents.x, cellContents.y + 1);
             for (var j in frontContents.seenBy)
             {
                 if (frontContents.seenBy[j].viewType == "pov")
@@ -6208,7 +6218,7 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
                             {
                                 // NOTE: we still have to be standing to the
                                 // front of the item to see its front side
-                                if (frontContents.seenBy[j].y > contents.y)
+                                if (frontContents.seenBy[j].y > cellContents.y)
                                 {
                                     povFront = true;
                                 }
@@ -6521,6 +6531,44 @@ PerspectiveItemFactory.prototype.makeContents = function(model, x, y, baseHeight
     return new PerspectiveGridContents(model, x, y, baseHeight, this.ambientLight);
 }
 
+// Construct the item given the xml.
+// We also provide the model so that it can register moving items and items with ids.
+PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
+{
+    var itemCode = xml.getAttribute("c");
+    var result = this.makeItem(itemCode);
+
+    if (xml.hasAttribute("id"))
+    {
+        result.id = xml.getAttribute("id");
+        model.importItem(result);
+    }
+
+    result.setHeight(parseInt(xml.getAttribute("h")), true);
+
+	if (xml.hasAttribute("d"))
+	{
+		result.setItemParam("direction", xml.getAttribute("d"), true);
+	}
+
+    // Update all the child items of this item as well
+    for (var i = 0; i < xml.childNodes.length; i++)
+    {
+        var xmlItem = xml.childNodes.item(i);
+
+        var currItem = this.makeItemFromXML(xmlItem, model);
+        result.appendItem(currItem);
+
+        // If the item is moveable, add it to the moveable list.
+        if (currItem.params.moveTowards != null)
+        {
+            model.addToMoveableItems(currItem);
+        }
+    }
+
+	return result;
+}
+
 PerspectiveItemFactory.prototype.makeItem = function(itemCode)
 {
     if (itemCode == null)
@@ -6555,13 +6603,19 @@ PerspectiveItemFactory.prototype.makeViewContents = function(view, x, y, x_index
 
 PerspectiveItemFactory.prototype.makeSimpleViewItem = function(modelItem)
 {
-    var b = this.baseSummary[modelItem.params.itemCode];
-    if (b != null)
+    if (this.baseSummary[modelItem.params.itemCode] != null)
     {
 		return new SimpleBlockGridViewItem(this, modelItem.params.itemCode, modelItem.params.ht);
     }
-    
-    var t = this.itemTemplates[modelItem.params.itemCode];
+    else
+	{
+		return this.makeSimpleViewItemFromCode(modelItem.params.itemCode);
+	}
+}
+
+PerspectiveItemFactory.prototype.makeSimpleViewItemFromCode = function(itemCode)
+{
+    var t = this.itemTemplates[itemCode];
     if (t != null)
     {
 	    var currItem = new SVGElement();
@@ -6692,9 +6746,8 @@ function ACItemHandler(model, item, itemName)
     this.model = model;
 	this.itemName = itemName;
 
-	// Indicates whether the item is a specific item in the grid,
-	// or a type of item
-	this.isItemByType = false; 
+	// Match criterion is "id", "code", or "tag". Default is "id".
+    this.matchCriterion = "id"; 
 	
 	this.setItem(item);
 }
@@ -6705,6 +6758,10 @@ ACItemHandler.prototype.setItem = function(item)
 {
 	if (item == this.item)
 		return;
+	
+	// Remove our old action listener
+	if (this.item != null)
+		this.item.removeActionListener(this);
 		
     this.item = item;
 
@@ -6722,12 +6779,19 @@ ACItemHandler.prototype.setItem = function(item)
 	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
-ACItemHandler.prototype.setItemByType = function(isItemByType)
+// Set the match criterion for this item.
+// - "id" - the id of this item needs to be matched by the input item.
+// - "code" - the item's itemCode must match the input item.
+// - "tag" - the items must have at least one tag in common.
+ACItemHandler.prototype.setItemMatchCriterion = function(matchCriterion, itemTag)
 {
-	if (isItemByType == this.isItemByType)
+	if (matchCriterion == this.matchCriterion && (itemTag == null || (this.item.params.itemTags != null && this.item.params.itemTags[0] == itemTag)))
 		return;
+
+	if (itemTag != null)
+		this.item.params.itemTags = [itemTag];
 		
-	this.isItemByType = isItemByType;
+	this.matchCriterion = matchCriterion;
 	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
 }
 
@@ -6737,15 +6801,29 @@ ACItemHandler.prototype.matchesItem = function(item)
 	{
 		return (item == this.item);
 	}
-	else if (this.isItemByType)
+	else if (this.matchCriterion == "code")
 	{
-		if (item.params.itemCode == this.item.params.itemCode)
+		if (item.params.itemCode != null && item.params.itemCode == this.item.params.itemCode)
 			return true;
 	}
-	else 
+	else if (this.matchCriterion == "id")
 	{
 		if (item.id == this.item.id)
 			return true;
+	}
+	else if (this.matchCriterion == "tag")
+	{
+		if (item.params.itemTags != null && this.item.params.itemTags != null)
+		{
+			for (var i = 0; i < item.params.itemTags.length; ++i)
+			{
+				for (var j = 0; j < this.item.params.itemTags.length; ++j)
+				{
+					if (item.params.itemTags[i] == this.item.params.itemTags[j])
+						return true;
+				}
+			}
+		}
 	}
 	return false;
 }
@@ -6756,14 +6834,19 @@ ACItemHandler.prototype.addToXML = function(xml)
 {
 	if (this.item != null)
     {
-		if (this.isItemByType)
+		if (this.matchCriterion == "code")
 		{
-			xml.setAttribute(this.itemName + "ItemType", this.item.params.itemCode);
+			xml.setAttribute(this.itemName + "ItemCode", this.item.params.itemCode);
 		}
-		else
+		else if (this.matchCriterion == "id")
 		{
 			xml.setAttribute(this.itemName + "ItemId", this.item.id);
     	}
+		else if (this.matchCriterion == "tag")
+		{
+			// TODO: Cope with more than one tag
+			xml.setAttribute(this.itemName + "ItemTag", this.item.params.itemTags[0]);
+		}
 	}
 }
 
@@ -6775,17 +6858,29 @@ ACItemHandler.prototype.fromXML = function(xml)
 	var itemId = xml.getAttribute(this.itemName + "ItemId");
 	if (itemId != null)
 	{
-		this.isItemByType = false;
+		this.matchCriterion = "id";
 	    item = this.model.getItemById(itemId);
 	}
 	else
 	{
-		// No id - see if there's an itemType for this item
-		var itemType = xml.getAttribute(this.itemName + "ItemType");
-		if (itemType != null)
+		// No id - see if there's an ItemCode for this item
+		var itemCode = xml.getAttribute(this.itemName + "ItemCode");
+		if (itemCode != null)
 		{
-			this.isItemByType = true;
-			item = this.model.itemFactory.makeItem(itemType);
+			this.matchCriterion = "code";
+			item = this.model.itemFactory.makeItem(itemCode);
+		}
+		else
+		{
+			// No itemCode - see if there's an itemTag for this item
+			// TODO: Cope with more than one tag
+			var itemTag = xml.getAttribute(this.itemName + "ItemTag");
+			if (itemTag != null)
+			{
+				this.matchCriterion = "tag";
+				item = this.model.itemFactory.makeItem("t");
+				item.params.itemTags = [itemTag];
+			}			
 		}
 	}
 	this.setItem(item);
@@ -6800,6 +6895,12 @@ ACItemHandler.prototype.doAction = function(src, evt)
 	}
 }
 
+ACItemHandler.prototype.onDelete = function()
+{
+	// Remove our action listener
+	if (this.item != null)
+		this.item.removeActionListener(this);		
+}
 function MyActionFactory(model, controller)
 {
     this.model = model;
@@ -6880,6 +6981,12 @@ GameAction.prototype.attemptAction = function()
 GameAction.prototype.performAction = function(areConditionsMet)
 {
     return true; // Return false to stop further actions.
+}
+
+// Clean up the action on delete.
+// Default
+GameAction.prototype.onDelete = function()
+{
 }
 
 GameAction.prototype.toXML = function()
@@ -6978,6 +7085,12 @@ SpeechAction.prototype.fromXML = function(xml)
     this.setSpeechArray(speechText.split('|'));
 }
 
+SpeechAction.prototype.onDelete = function()
+{
+	this.speechItem.onDelete();
+	this.speechItem.removeActionListener(this);
+}
+
 function HeightAction(model, controller, item, newHeight)
 {
     this.setHeight(newHeight);
@@ -7052,6 +7165,12 @@ HeightAction.prototype.fromXML = function(xml)
 	this.setHeight(ht);
 }
 
+HeightAction.prototype.onDelete = function()
+{
+	this.heightItem.onDelete();
+	this.heightItem.removeActionListener(this);
+}
+
 function TeleportAction(model, controller, destination)
 {
     this.setDestination(destination);
@@ -7073,7 +7192,7 @@ TeleportAction.prototype.performAction = function(areConditionsMet)
     {
         // We don't allow teleport at time 0 - this stops shennanigans with
         // multiple teleports.
-        this.controller.parentController.submitSaveItemsAndTeleport(this.destination);
+        this.controller.parentController.gameServerInterface.submitSaveItemsAndTeleport(this.destination);
         return false; // Stop further actions
     }
     return true;
@@ -7145,6 +7264,14 @@ MoveAction.prototype.fromXML = function(xml)
 	this.destItem.fromXML(xml);
 }
 
+MoveAction.prototype.onDelete = function()
+{
+	this.targetItem.onDelete();
+	this.destItem.onDelete();
+	this.targetItem.removeActionListener(this);
+	this.destItem.removeActionListener(this);
+}
+
 
 function ActionController(model, parentController, turnClock)
 {
@@ -7177,12 +7304,18 @@ KevLinDev.extend(ActionController, ActionObject);
 
 ActionController.prototype.clear = function()
 {
+	for (var i = 0; i < this.itemActionList.length; ++i)
+	{
+		this.itemActionList[i].onDelete();
+	}
 	this.itemActionList = [];
 
-	this.itemIdIndex = 0;
-	this.itemIdList = [];
+	for (var i in this.condIdList)
+	{
+		this.condIdList[i].onDelete();
+	}
 	this.conditionIdIndex = 0;
-	this.condIdList = [];
+	this.condIdList = {};
 	this.clearSpeakingItems();
 	this.tellActionListeners(this, {type:"allActionsAndConditionsDeleted"});
 }
@@ -7204,7 +7337,7 @@ ActionController.prototype.setItemSpeech = function(item, text)
 
 ActionController.prototype.teleportTo = function(destination)
 {
-    this.parentController.submitLoadMap(destination);
+    this.parentController.gameServerInterface.submitLoadMap(destination);
 }
 
 // Export the actions and conditions into the specified parent XML
@@ -7307,6 +7440,7 @@ ActionController.prototype.removeAction = function(action)
     {
      	if (this.itemActionList[i] == action)
      	{
+			action.onDelete();
 			action.tellActionListeners(this, {type:"actionDeleted"});
      	    action.controller = null;
          	this.itemActionList.splice(i, 1);
@@ -8522,6 +8656,11 @@ GameCondition.prototype.isMet = function()
     return false;
 }
 
+// Default
+GameCondition.prototype.onDelete = function()
+{
+}
+
 GameCondition.prototype.toXML = function()
 {
     var xmlCond = this.model.xmlDoc.createElement("cond");
@@ -8605,7 +8744,7 @@ WeightCondition.prototype.isMet = function()
     var weight = 0;
     for (var i in items)
     {
-        if (items[i] != this.item && items[i].params.wt != null)
+        if (items[i] != this.weightItem.item && items[i].params.wt != null)
         {
             weight += items[i].params.wt;
         }
@@ -8636,15 +8775,20 @@ WeightCondition.prototype.fromXML = function(xml)
 	this.setMinWeight(parseInt(xml.getAttribute('minWt')));
 }
 
+WeightCondition.prototype.onDelete = function()
+{
+	this.weightItem.onDelete();
+}
+
 
 // True if the container has the itemId or itemCode as a descendant
-function HasItemCondition(model, controller, heldItem, isItemByType, container)
+function HasItemCondition(model, controller, heldItem, matchCriterion, container, itemTag)
 {
     HasItemCondition.baseConstructor.call(this, model, controller);
     this.type = "HasItem";
 
     this.heldItem = new ACItemHandler(this.model, heldItem, "held");
-	this.heldItem.setItemByType(isItemByType);
+	this.heldItem.setItemMatchCriterion(matchCriterion, itemTag);
 	this.heldItem.addActionListener(this);
 	
     this.containerItem = new ACItemHandler(this.model, container, "container");
@@ -8687,6 +8831,12 @@ HasItemCondition.prototype.fromXML = function(xml)
   
     this.heldItem.fromXML(xml);
 	this.containerItem.fromXML(xml);
+}
+
+HasItemCondition.prototype.onDelete = function()
+{
+	this.heldItem.onDelete();
+	this.containerItem.onDelete();
 }
 
 // The condition summary allows the user to view a single condition
@@ -8838,7 +8988,7 @@ function HasItemConditionSummary(controller, condition)
     var hasElement = new SVGElement("text", {"font-size":12, fill:"black", x:5, y:14}, "contains");
     presentationContents.appendChild(hasElement);
 
-    // this|any
+    // this/any/a
     this.thisOrAnyElement = new SVGElement("text", {"font-size":12, fill:"black", x:5, y:14}, "this");
     presentationContents.appendChild(this.thisOrAnyElement);
     
@@ -8858,13 +9008,17 @@ HasItemConditionSummary.prototype.initFromCondition = function()
 	this.heldLabel.setSelectedItem(this.myCondition.heldItem.item);
     this.containerLabel.setSelectedItem(this.myCondition.containerItem.item);
 
-	if (this.myCondition.heldItem.isItemByType)
+	if (this.myCondition.heldItem.matchCriterion == "code")
 	{
 		this.thisOrAnyElement.setValue("any");
 	}
-	else
+	else if (this.myCondition.heldItem.matchCriterion == "id")
 	{
 		this.thisOrAnyElement.setValue("this");
+	}
+	else
+	{
+		this.thisOrAnyElement.setValue("a");
 	}
 
 	HasItemConditionSummary.superClass.initFromCondition.call(this);    
@@ -9045,7 +9199,7 @@ WeightConditionEditor.prototype.setWeight = function(weight)
 }
 function HasItemConditionEditor(controller, condition)
 {
-    HasItemConditionEditor.baseConstructor.call(this, controller, condition, 170, 109);
+    HasItemConditionEditor.baseConstructor.call(this, controller, condition, 218, 149);
     this.itemTag = "HeldItem";
     this.containerTag = "ContainerItem";
 
@@ -9073,16 +9227,43 @@ function HasItemConditionEditor(controller, condition)
     this.itemEditButton = new ItemViewSelector(controller, "orange", "heldItem", "topItem");
 	topRow.appendChild(this.itemEditButton);
 
+	this.heldItemTypeRadioGroup = new RadioButtonGroup();
+
     var secondRow = new FlowLayout(0, 0, {minSpacing:3});
     editableContents.appendChild(secondRow);
-
 	var checkboxParams = makeSimpleCheckboxParamButtonIdSet();
 	checkboxParams.width = 10;
 	checkboxParams.height = 10;
-	this.matchHeldByTypeCheckbox = new ParamButton2("matchHeldByTypeCheckbox", checkboxParams);
-	this.matchHeldByTypeCheckbox.setToggle(true);
-	secondRow.appendChild(this.matchHeldByTypeCheckbox);
-	secondRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match held item by type"));
+	this.matchHeldByCodeCheckbox = new ParamButton2("matchHeldByCodeCheckbox", checkboxParams);
+	this.matchHeldByCodeCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByCodeCheckbox);
+	secondRow.appendChild(this.matchHeldByCodeCheckbox);
+	secondRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match any held item that looks the same"));
+	this.matchHeldByCodeCheckbox.addActionListener(this);
+
+    var thirdRow = new FlowLayout(0, 0, {minSpacing:3});
+    editableContents.appendChild(thirdRow);
+	var checkboxParams2 = makeSimpleCheckboxParamButtonIdSet();
+	checkboxParams2.width = 10;
+	checkboxParams2.height = 10;
+	this.matchHeldByIdCheckbox = new ParamButton2("matchHeldByIdCheckbox", checkboxParams2);
+	this.matchHeldByIdCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByIdCheckbox);
+	thirdRow.appendChild(this.matchHeldByIdCheckbox);
+	thirdRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match only this held item"));
+	this.matchHeldByIdCheckbox.addActionListener(this);
+
+    var forthRow = new FlowLayout(0, 0, {minSpacing:3});
+    editableContents.appendChild(forthRow);
+	var checkboxParams3 = makeSimpleCheckboxParamButtonIdSet();
+	checkboxParams3.width = 10;
+	checkboxParams3.height = 10;
+	this.matchHeldByTagCheckbox = new ParamButton2("matchHeldByTagCheckbox", checkboxParams3);
+	this.matchHeldByTagCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByTagCheckbox);
+	forthRow.appendChild(this.matchHeldByTagCheckbox);
+	forthRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match any held item with the tag \"avatar\""));
+	this.matchHeldByTagCheckbox.addActionListener(this);
 
 	this.contents.prependChild(editableContents);
 
@@ -9096,23 +9277,45 @@ HasItemConditionEditor.prototype.initFromCondition = function()
 	this.containerEditButton.setSelectedItem(this.myCondition.containerItem.item);
     this.itemEditButton.setSelectedItem(this.myCondition.heldItem.item);
 
-	this.matchHeldByTypeCheckbox.setSelected(this.myCondition.heldItem.isItemByType);
+	this.matchHeldByCodeCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "code");
+	this.matchHeldByIdCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "id");
+	this.matchHeldByTagCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "tag");
 }
 
 HasItemConditionEditor.prototype.doAction = function(src, evt)
 {
-	if (evt.type == "click" && src.src == "updateCondition")
+	if (evt.type == "click")
 	{
-		// Commit the updates into the condition
-		this.myCondition.heldItem.setItem(this.itemEditButton.selectedItem);		
-		this.myCondition.heldItem.setItemByType(this.matchHeldByTypeCheckbox.isSelected);
+		if (src.src == "updateCondition")
+		{
+			// Commit the updates into the condition
+			// TODO: Deal with different tags
+			var matchCriterion = 
+				this.matchHeldByCodeCheckbox.isSelected ? "code" : 
+				(this.matchHeldByIdCheckbox.isSelected ? "id" : "tag");
+			var itemTag = (matchCriterion == "tag") ? "avatar" : null;
+			
+			this.myCondition.heldItem.setItem(this.itemEditButton.selectedItem);
+			this.myCondition.heldItem.setItemMatchCriterion(matchCriterion, itemTag);
 
-		this.myCondition.containerItem.setItem(this.containerEditButton.selectedItem);
-	}		
-
+			this.myCondition.containerItem.setItem(this.containerEditButton.selectedItem);
+		}
+		else if (src.src == "matchHeldByCodeCheckbox" || src.src == "matchHeldByIdCheckbox")
+		{
+			// If held item is currently a tag, replace with default
+			if (this.itemEditButton.selectedItem != null && this.itemEditButton.selectedItem.params.itemCode == "t")
+				this.itemEditButton.setSelectedItem(null);
+		}
+		else if (src.src == "matchHeldByTagCheckbox")
+		{
+			// Replace held item with "tag"
+			this.itemEditButton.setSelectedItem(this.controller.model.itemFactory.makeItem("t"));
+		}
+	}
+	
     HasItemConditionEditor.superClass.doAction.call(this, src, evt);
 }
-// Content layout view shows a tree of the items at a given contents,
+// Content layout view shows a tree of the items at a given cellContents,
 // and allows the user to click on them.
 function ContentLayoutView(view)
 {
@@ -9127,26 +9330,26 @@ function ContentLayoutView(view)
 
 KevLinDev.extend(ContentLayoutView, SVGComponent);
 
-ContentLayoutView.prototype.setContents = function(contents)
+ContentLayoutView.prototype.setContents = function(cellContents)
 {
-    var x_posn = this.view.getLayoutX(contents.x, contents.y) * this.view.width;
-    var y_posn = this.view.getLayoutY(contents.x, contents.y) * this.view.height;
+    var x_posn = this.view.getLayoutX(cellContents.x, cellContents.y) * this.view.width;
+    var y_posn = this.view.getLayoutY(cellContents.x, cellContents.y) * this.view.height;
 
     this.setPosition(x_posn, y_posn);
     this.show();
     
-    if (this.contents == contents)
+    if (this.cellContents == cellContents)
         return;
         
-    this.contents = contents;
+    this.cellContents = cellContents;
     this.tree.removeChildren();
         
-    //this.contents.addActionListener(this);
+    //this.cellContents.addActionListener(this);
     
-    // Add the contents
-    for (var i in this.contents.myItems)
+    // Add the cellContents
+    for (var i in this.cellContents.myItems)
     {
-        var currItemView = makeItemLayout(this.view, this.contents.myItems[i]);
+        var currItemView = makeItemLayout(this.view, this.cellContents.myItems[i]);
         this.tree.appendChild(currItemView);
     }
     
@@ -9421,7 +9624,11 @@ LoginController.prototype.setLoginStatus = function(isLoggedIn)
     }
     this.loggedIn = isLoggedIn;
 }
-// A generic selector for items 
+
+LoginController.prototype.getHTTPLoginString = function()
+{
+	return "login=" + escape(this.login) + "&password=" + escape(this.password);
+}// A generic selector for items 
 function SummaryItemDisplay(controller, rectAttributes, borderWidth)
 {
     this.controller = controller;
@@ -9484,14 +9691,18 @@ function ItemSelectorWindow(controller)
 	this.explanationText = new TextLabel("Select an item in the grid", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
     this.contents.appendChild(this.explanationText)
 
-    // Allow the avatar to be selected
-    var avatarElement = this.controller.model.itemFactory.makeSimpleViewItem(this.controller.currentChar);
+    // Allow the avatars to be selected
+	for (var i = 0; i < this.controller.avatarGroupController.avatarList.length; ++i)
+	{
+		var avatarElement = this.controller.avatarGroupController.avatarList[i].copyItem();
 
-    this.avatarButton = new RectButton("avatarButton", 0, 0, avatarElement, {fill:"white", stroke:"green", rx:2, width:40, height:40}, {fill:"yellow"}, {fill:"orange"}, 5, false);
+		// TODO: Handle more than one avatar.
+    	this.avatarButton = new RectButton("avatarButton", 0, 0, avatarElement, {fill:"white", stroke:"green", rx:2, width:40, height:40}, {fill:"yellow"}, {fill:"orange"}, 5, false);
 
-    this.contents.appendChild(this.avatarButton);
-    this.avatarButton.addActionListener(this);
-
+    	this.contents.appendChild(this.avatarButton);
+    	this.avatarButton.addActionListener(this);
+	}
+	
     var okCancelButtons = new FlowLayout(0, 0, {minSpacing:3});
     this.contents.appendChild(okCancelButtons);
 
@@ -9518,7 +9729,8 @@ ItemSelectorWindow.prototype.doAction = function(src, evt)
     {
         if (src.src == "avatarButton")
         {
-            this.setItem(this.controller.currentChar);
+			// TODO: Cope with more than one avatar.
+            this.setItem(this.controller.avatarGroupController.avatarList[0].avatarItem);
         }
         else if (src.src == "ItemSelectionCancel")
         {
@@ -9534,19 +9746,19 @@ ItemSelectorWindow.prototype.doAction = function(src, evt)
 }
 
 // User has selected a gridContents, so we choose the top relevent item out of it
-ItemSelectorWindow.prototype.setGridContents = function(contents)
+ItemSelectorWindow.prototype.setGridContents = function(cellContents)
 {
 	var item = null;
 	switch (this.itemType)
 	{
 	case "topBlock":
-		item = getTopBlockItem(contents);
+		item = getTopBlockItem(cellContents);
 		break;
 		
 	case "topItem":
 	case null:
 	default:
-		item = contents.getTopItem();
+		item = cellContents.getTopItem();
 		break;
 	}
 	
@@ -10294,7 +10506,7 @@ AdminWindow.prototype.doAction = function(src, evt)
 	else if (evt.type == "renameWorld")
 	{
 		// World renamer has returned a new name
-		this.controller.renameWorld(evt.newWorldName);
+		this.controller.gameServerInterface.renameWorld(evt.newWorldName);
 		
 		this.setAble(true);
 		this.removeChild(src);
@@ -10386,6 +10598,843 @@ WorldChooserWindow.prototype.clear = function()
     this.contents.removeChildren();
     this.refreshLayout();
 }
+// Avatar controller keeps track of items in the inventory and movement for a character.
+// It is also responsible for which items have been saved.
+function AvatarController(controller, avatarIndex, avatarCode)
+{
+    AvatarController.baseConstructor.call(this);
+
+	this.controller = controller;
+
+	this.avatarIndex = avatarIndex;
+    this.avatarItem = this.controller.itemFactory.makeItem(avatarCode);
+    this.avatarItem.params.isTemporary = true;
+
+	if (this.avatarItem.params.itemTags == null)
+		this.avatarItem.params.itemTags = [];
+	this.avatarItem.params.itemTags.push("avatar"); 
+	
+    this.avatarItem.id = "avatar_" + this.avatarIndex;
+    this.avatarItem.povHeight = 25;
+    this.registerAvatar();
+    
+	// List of items held by this avatar
+	this.heldItems = [];
+}
+
+KevLinDev.extend(AvatarController, ActionObject);
+
+// Register the avatar in the model.
+AvatarController.prototype.registerAvatar = function()
+{
+    this.controller.model.registerItem(this.avatarItem);
+}
+
+AvatarController.prototype.attemptMoveAvatar = function(direction)
+{
+	this.avatarItem.setItemParam("direction", direction);
+
+    if (this.avatarItem.cellContents == null)
+        return;
+    
+	var deltaX = 0;
+	var deltaY = 0;	
+	switch (direction)
+	{
+	case "b":
+		deltaY = -1;
+		break;
+	
+	case "r":
+		deltaX = -1;
+		break;
+
+	case "f":
+		deltaY = 1;
+		break;
+		
+	case "l":
+		deltaX = 1;
+		break;
+	}
+	
+    var destContents = this.controller.model.getContents(this.avatarItem.cellContents.x + deltaX, this.avatarItem.cellContents.y + deltaY);
+    var topData = destContents.getTopItem();
+
+	if (topData.src == "GridContents")
+		return;
+
+    var climbHeight = 0; // Can't climb at all, by default
+    if (this.avatarItem.params.climbHeight != null)
+        climbHeight = this.avatarItem.params.climbHeight;
+    
+    var dropHeight = null; // Can drop any distance, by default
+    if (this.avatarItem.params.dropHeight != null)
+        dropHeight = this.avatarItem.params.dropHeight;
+        
+    if (this.avatarItem.canMoveTo(topData, climbHeight, dropHeight))
+    { 
+        this.moveAvatar(topData);
+    }
+    else if (topData.params.isPushable)
+    {
+        // A pushable item can be pushed if:
+        // - the user would be able to move into its cellContents
+        //   if the pushable item wasn't there
+        // - the cellContents that the pushable item would move into
+        //   is the same level or lower than the cellContents it is
+        //   currently in, and can be stood on.
+        var deltaHeight = topData.params.elev - this.avatarItem.params.elev;
+        if (deltaHeight < 20)
+        {
+            // User would be able to move into this cellContents
+            var pushedDestContents = this.controller.model.getContents(this.avatarItem.cellContents.x + deltaX * 2, this.avatarItem.cellContents.y + deltaY * 2);            
+            while (pushedDestContents.myItems.length > 0)
+            {
+                pushedDestContents = pushedDestContents.myItems[0];
+            }
+            
+            var deltaPushedHeight = pushedDestContents.params.ht + pushedDestContents.params.elev - topData.params.elev;
+            
+            if (deltaPushedHeight <= 0)
+            {
+                topData.moveItem(pushedDestContents);
+                topData = destContents.getTopItem();
+                if (topData.params.canStandOn)
+                {
+                    this.moveAvatar(topData);
+                }
+            }
+        }
+    }        
+}
+
+AvatarController.prototype.moveAvatar = function(destItem)
+{
+    // Check if character is in the model
+    if (this.avatarItem.cellContents == null)
+        return;
+
+    // If there are any takeable items, take them first
+    while (destItem.params.isTakeable)
+    {
+        var owner = destItem.owner;
+        if (owner)
+        {            
+            // Remove item
+            owner.removeItem(destItem);
+
+            // Add to our inventory
+            this.addItemToInventory(this.current_map_id, destItem);
+        }
+        destItem = owner;
+    }
+
+    this.avatarItem.moveItem(destItem);    
+
+    this.controller.view.setCellCentre(this.avatarItem.cellContents.x, this.avatarItem.cellContents.y);
+}
+
+AvatarController.prototype.placeAvatar = function()
+{
+	// Reset the start direction
+	this.avatarItem.setItemParam("direction", "f");
+	
+	// Find the start position
+	var startX = 0;
+	var startY = 0;
+
+	// If there is a start marker, use that
+	var startItemList = this.controller.model.findItemsByCode("S");
+	if (startItemList != null)
+	{
+		// Find the appropriate start item
+		// TODO: For the moment, just use the first item.
+	    startX = startItemList[0].cellContents.x;
+	    startY = startItemList[0].cellContents.y;
+	}
+  
+	// Add the avatar to the world
+	var currData = this.controller.model.getContents(startX, startY);
+	var topData = currData.getTopItem();
+	topData.appendItem(this.avatarItem);
+}
+
+// Remove the avatar from the board.
+AvatarController.prototype.removeAvatar = function()
+{
+    if (this.avatarItem.owner != null)
+	{
+        this.avatarItem.owner.removeItem(this.avatarItem);
+	}
+}
+
+// Clear the inventory and avatar item listeners.
+AvatarController.prototype.clear = function()
+{
+	this.avatarItem.clearActionListeners();
+	this.clearInventory();
+}
+
+// Clear the inventory and avatar item listeners.
+AvatarController.prototype.clearInventory = function()
+{
+	this.heldItems = [];
+	this.avatarItem.removeAllItems();
+	this.tellActionListeners(this, {type:"inventoryUpdated"});
+}
+
+AvatarController.prototype.addItemToInventory = function(map_id, item)
+{
+	item.params.isInvisible = true;
+	this.avatarItem.appendItem(item);
+
+	this.heldItems.push({map_id:map_id, item:item});
+	this.tellActionListeners(this, {type:"inventoryUpdated"});
+}
+
+AvatarController.prototype.setItemSaved = function(item_id)
+{
+	for (var i = 0; i < this.heldItems.length; ++i)
+	{
+		if (this.heldItems[i].item.id == item_id)
+		{
+			this.heldItems[i].item.params.isSaved = true;
+			break;
+		}
+	}
+}
+
+AvatarController.prototype.removeUnsavedItems = function()
+{
+	// Pull items out of the list if they're not tagged as saved.
+	for (var i = 0; i < this.heldItems.length;)
+	{
+		if (!this.heldItems[i].item.params.isSaved)
+		{
+			// Remove this item
+			this.heldItems.splice(i, 1);
+		}
+		else
+			++i;
+	}
+	this.tellActionListeners(this, {type:"inventoryUpdated"});
+}
+
+// Reset the inventory as the items in the xml.
+AvatarController.prototype.resetInventoryFromXML = function(xmlInventory)
+{
+	this.clearInventory();
+    var xmlContentsList = xmlInventory.getElementsByTagName("item");
+    
+    for (var i = 0; i < xmlContentsList.length; i++)
+    {
+        var xmlContents = xmlContentsList.item(i);
+        var avatar_index = parseInt(xmlContents.getAttribute("avatar_index"));
+		if (avatar_index == this.avatarIndex)
+		{
+        	var map_id = xmlContents.getAttribute("map_id");
+			var item = this.controller.itemFactory.makeItemFromXML(xmlContents.firstChild, this.controller.model);
+			item.params.isSaved = true; // The item came from the server, so tag as saved.
+			this.addItemToInventory(map_id, item);
+    	}
+	}   
+}
+
+// Update saved items, given an xml response from the server of the form:
+// <result status="1" ...>
+//   <update item_id=""/>
+//   ...
+//   <delete item_id=""/>
+//   ...
+//   <new item_id=""/>
+//   ...
+// </result>
+//
+// Update any unsaved items to saved if they're on the new list.
+AvatarController.prototype.updateFromXML = function(xml)
+{
+    var xmlContentsList = xml.getElementsByTagName("new");
+    
+    for (var i = 0; i < xmlContentsList.length; i++)
+    {
+        var xmlContents = xmlContentsList.item(i);
+		var item_id = xmlContents.getAttribute("item_id");
+		
+		// Locate the item with this id
+		this.setItemSaved(item_id);
+    }   
+}
+
+// Return a list of ids of saved items in the specified map.
+AvatarController.prototype.getSavedItemIDs = function(map_id)
+{
+	var result = [];
+	for (var i = 0; i < this.heldItems.length; ++i)
+	{
+		if (this.heldItems[i].map_id == map_id && this.heldItems[i].item.params.isSaved)
+			result.push(this.heldItems[i].item.id);
+	}
+	return result;
+}
+
+// Create an HTTP string to add unsaved items
+AvatarController.prototype.getUnsavedItemHTTPString = function()
+{
+	var serverString = "";
+	for (var i = 0; i < this.heldItems.length; ++i)
+	{
+		var currItem = this.heldItems[i].item;
+		if (!currItem.params.isSaved)
+		{
+		    if (currItem.id != null && currItem.params.itemCode != null && currItem.params.isSaveable)
+		    {
+				var itemXML = currItem.toXML();
+				var itemXMLString = (new XMLSerializer()).serializeToString(itemXML);
+
+		        serverString += "&itemId_" + i + "=" + currItem.id + "&itemXML_" + i + "=" + escape(itemXMLString) + "&avatarIndex_" + i + "=" + this.avatarIndex;
+		    }
+		}
+	}
+	return serverString;
+}
+
+AvatarController.prototype.copyItem = function()
+{
+	return this.controller.itemFactory.makeSimpleViewItem(this.avatarItem);
+}
+// Controls a group of avatars
+function AvatarGroupController(controller)
+{
+    AvatarGroupController.baseConstructor.call(this);
+
+	this.controller = controller;
+	
+	// List of avatars
+	this.avatarList = [];
+	this.currentAvatar = null;
+	
+	// The xml version of the inventory. We can reset the inventory to this
+	// when required.
+	this.xmlInventory = null;
+}
+
+KevLinDev.extend(AvatarGroupController, ActionObject);
+
+// Add an avatar to the list
+AvatarGroupController.prototype.addAvatar = function(itemCode)
+{
+	var avatarIndex = this.avatarList.length;
+	var newAvatar = new AvatarController(this.controller, avatarIndex, itemCode);
+	this.avatarList.push(newAvatar);
+	this.currentAvatar = newAvatar;
+	
+	return newAvatar;
+}
+
+// Register all the avatars with the model.
+AvatarGroupController.prototype.registerAvatars = function()
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		this.avatarList[i].registerAvatar();
+	}
+}
+
+AvatarGroupController.prototype.attemptMoveCurrentAvatar = function(direction)
+{
+	if (this.currentAvatar != null)
+		this.currentAvatar.attemptMoveAvatar(direction);
+}
+
+AvatarGroupController.prototype.placeAvatars = function()
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		this.avatarList[i].placeAvatar();
+	}	
+}
+
+AvatarGroupController.prototype.removeAvatars = function()
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		this.avatarList[i].removeAvatar();
+	}
+}
+
+// Get the centre cell that shows the current avatar
+AvatarGroupController.prototype.getAvatarCentreCell = function()
+{
+	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
+		return this.currentAvatar.avatarItem.cellContents;
+	else
+		return null;
+}
+
+// Get all the cells that the avatars can see
+// TODO: For the moment, just make sure the avatar cell itself is visible.
+AvatarGroupController.prototype.getAvatarViewedCells = function()
+{
+	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
+		return [this.currentAvatar.avatarItem.cellContents];
+	else
+		return null;
+}
+
+// Get a list of the avatars that are contributing to the pov
+AvatarGroupController.prototype.getAvatarPOV = function()
+{
+	return [this.currentAvatar.avatarItem];
+}
+
+AvatarGroupController.prototype.clearTalkingAvatars = function()
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		// Clear any existing speech bubbles.
+		this.avatarList[i].avatarItem.setItemParam('speech', null, false);
+	}
+}
+
+// Return any avatar that is at the specified location.
+AvatarGroupController.prototype.getAvatarAt = function(locationString)
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		var currAvatarItem = this.avatarList[i].avatarItem;
+		if (currAvatarItem != null && currAvatarItem.cellContents != null && currAvatarItem.cellContents.getLocationString() == locationString)
+			return this.avatarList[i];
+	}
+	return null;
+}
+
+// Attack the avatar. If there are no living avatars remaining, end the game.
+// TODO: For the moment, just end the game anyway.
+AvatarGroupController.prototype.attackAvatar = function(avatar, attacker)
+{
+    avatar.setItemParam('speech', "Death by " + attacker.params.fullname + "! Press space to restart.", false);
+	this.controller.endGame();   
+
+    // Oh dear. They've lost all their loot since their last save.
+    //this.inventoryController.removeUnsavedItems();
+}
+
+AvatarGroupController.prototype.clear = function()
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		// Clear any existing inventories
+		this.avatarList[i].clear();
+	}
+}
+
+AvatarGroupController.prototype.getUnsavedItemsHTTPString = function()
+{
+	var result = "";
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		// Get the unsaved items from each avatar and concatinate
+		result += this.avatarList[i].getUnsavedItemHTTPString();
+	}
+	return result;
+}
+
+// Update the inventories from the input xml
+AvatarGroupController.prototype.updateFromXML = function(xml)
+{
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		this.avatarList[i].updateFromXML(xml);
+	}
+}
+
+AvatarGroupController.prototype.getSavedItemIDs = function(map_id)
+{
+	var result = [];
+
+	for (var i = 0; i < this.avatarList.length; ++i)
+	{
+		var savedIds = this.avatarList[i].getSavedItemIDs(map_id);
+		result = result.concat(savedIds);
+	}
+
+	return result;
+}
+
+// This is the full inventory for all avatars, as loaded from the server xml.
+AvatarGroupController.prototype.setInventoryXML = function(inventoryXML)
+{
+	this.xmlInventory = inventoryXML;
+	this.resetInventoryFromXML();
+}
+
+AvatarGroupController.prototype.resetInventoryFromXML = function()
+{
+	if (this.xmlInventory != null)
+	{
+		for (var i = 0; i < this.avatarList.length; ++i)
+		{
+			this.avatarList[i].resetInventoryFromXML(this.xmlInventory);
+		}
+	}
+}
+
+// InventoryWindow is used for displaying items the user is holding.
+function InventoryWindow(controller)
+{
+    InventoryWindow.baseConstructor.call(this, "Inventory", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:170, height:170, storePrefix:"MW_InventoryWindow", contentsSpacing:3});
+
+	this.controller = controller;
+	this.avatar = null;
+	
+    this.itemBar = new FlowLayout(0, 0, {minSpacing:5});
+    this.contents.appendChild(this.itemBar);
+
+}
+
+KevLinDev.extend(InventoryWindow, SVGWindow);
+
+InventoryWindow.prototype.clear = function()
+{
+	this.clearAvatar();
+	this.clearInventory();
+}
+
+InventoryWindow.prototype.clearAvatar = function()
+{
+	if (this.avatar != null)
+	{
+		this.avatar.removeActionListener(this);
+		this.avatar = null;
+	}
+}
+
+InventoryWindow.prototype.clearInventory = function()
+{
+	this.itemBar.removeChildren();
+}
+
+// Set the avatar for whom we are showing the inventory
+InventoryWindow.prototype.setAvatar = function(avatar)
+{
+	this.clearAvatar();
+	this.avatar = avatar;
+	this.syncInventory();
+	this.avatar.addActionListener(this);
+}
+
+InventoryWindow.prototype.syncInventory = function()
+{
+	this.clearInventory();
+	if (this.avatar != null)
+	{
+		for (var i = 0; i < this.avatar.heldItems.length; ++i)
+		{
+			this.addItem(this.avatar.heldItems[i].item);
+		}
+	}
+}
+
+InventoryWindow.prototype.addItem = function(item)
+{
+	var itemCopy = this.controller.itemFactory.makeItem(item.params.itemCode);
+
+	var currEl = this.controller.itemFactory.makeViewItem(itemCopy);
+    currEl.itemGraphics.setShadow(0);
+	var elHolder = new SVGElement("g");
+	elHolder.appendChild(currEl);
+
+    var itemAppearanceLabel = new RectLabel(0, 0, null, {fill:"white", stroke:"none", width:40, height:40}, 2);	
+    itemAppearanceLabel.setContents(elHolder);
+    itemCopy.addActionListener(currEl);
+
+	this.itemBar.appendChild(itemAppearanceLabel);
+}
+
+InventoryWindow.prototype.doAction = function(src, evt)
+{
+    InventoryWindow.superClass.doAction.call(this, src, evt);
+
+	if (evt.type == "inventoryUpdated")
+	{
+		this.syncInventory();
+	}
+}
+
+// Interface between the game and the server, using ajax to get xml.
+
+function GameServerInterface(controller)
+{
+	this.controller = controller;
+}
+
+GameServerInterface.prototype.renameWorld = function(newWorldName)
+{
+    var http_string = "update.php";
+    var params = "changemapname=" + escape(newWorldName) + "&" + this.controller.loginController.getHTTPLoginString() + "&map_id=" + this.controller.current_map_id;
+    
+	if (g_config.showServerTransactions)
+	{
+		this.controller.addInfo(params + '\n');
+	}
+
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveRenameWorldResultFromServer(xml);
+            }, 
+            params
+        );
+}
+
+GameServerInterface.prototype.receiveRenameWorldResultFromServer = function(xml)
+{
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+		var map_id = xml.getAttribute("map_id");
+		var map_name = xml.getAttribute("map_name");
+        this.controller.tellActionListeners(this.controller, {type:"serverWorldRenamed", map_id:map_id, map_name:map_name});
+    }
+    else
+    {
+        alert(xml.textContent);
+    }
+}
+
+GameServerInterface.prototype.submitLoadArtworkAndMap = function(artFile)
+{    
+    var me = this;
+    ajax_post(
+            artFile, 
+            function(xml, xmlDoc) 
+            {
+                me.receiveArtworkFromServer(xmlDoc);
+            }, 
+            null
+        );
+}
+
+GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
+{
+    this.controller.artwork = xmlDoc;
+    
+    // Copy all the definitions from the xmlDoc to the current doc
+    // TODO: currently require everything to be put in "defs_external" element.
+    // Is this necessary/useful?
+    var defs = this.controller.artwork.getElementsByTagName("defs");
+    var dest = document.getElementById("defs_external");
+    for (var i = 0; i < defs.length; i++)
+    {
+        for (var j = 0; j < defs[i].children.length; j++)
+        {
+            dest.appendChild(defs[i].children[j].cloneNode(true));
+        }
+    }
+    this.controller.itemFactory.artwork = xmlDoc;
+
+    // We can now use the artwork to setup the edit area
+    this.controller.setupEditArea();
+    updateLayout();
+    
+    // Finally, load the starting map, also loading any saved items
+    this.submitLoadMap(this.controller.loginController.curr_map, true);
+}
+
+// Save items, and optionally teleport to a new map. Set teleportDestination to null
+// if you don't wish to teleport.
+GameServerInterface.prototype.submitSaveItemsAndTeleport = function(teleportDestination)
+{    
+    var http_string = "update.php";
+    var params = "saveitems=1&" + this.controller.loginController.getHTTPLoginString();
+    
+	var saveItemParams = this.controller.avatarGroupController.getUnsavedItemsHTTPString();
+    if (saveItemParams.length == 0)
+    {
+        // Don't bother saving anything; there isn't anything to save.
+        this.submitLoadMap(teleportDestination);
+        return;
+    }
+    
+    params += saveItemParams;
+
+	if (g_config.showServerTransactions)
+	{
+		this.controller.addInfo(params + '\n');
+	}
+	
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveSaveItemsResultFromServer(xml, teleportDestination);
+            }, 
+            params
+        );
+}
+
+GameServerInterface.prototype.receiveSaveItemsResultFromServer = function(xml, teleportDestination)
+{
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+        console.log('save items successful: added ' + xml.getAttribute('added') + ' deleted ' + xml.getAttribute('deleted') + ' updated ' + xml.getAttribute('updated'));
+		
+		this.controller.avatarGroupController.updateFromXML(xml);
+		
+        this.submitLoadMap(teleportDestination, false);
+    }
+    else
+    {
+        alert(xml.textContent);
+    }
+}
+
+GameServerInterface.prototype.submitLoadMap = function(map_id, doGetItems)
+{
+    if (map_id == null)
+        return;
+
+    // We don't teleport if there's unsaved data.
+    // Instead, return to edit mode.
+    if (!this.controller.isMapSaved)
+    {
+		alert("Can't teleport - there is unsaved data.");
+        this.controller.editLevel();
+        return;
+    }
+        
+    document.getElementById("loadingNotification").setAttribute("display", "inline");
+    this.controller.setActive(false);
+
+    var http_string = "update.php";
+    var params = "load=" + escape(map_id) + "&save_level=1&" + this.controller.loginController.getHTTPLoginString();
+    
+    if (!this.controller.hasLoadedVisitedWorlds)
+    {
+        params += "&get_visit=1";
+        this.controller.hasLoadedVisitedWorlds = true;
+    }
+    
+    if (doGetItems)
+        params += "&get_items=1";
+    
+	if (g_config.showServerTransactions)
+	{
+		this.controller.addInfo(params + '\n');
+	}
+
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.receiveMapFromServer(xml);
+            }, 
+            params
+        );
+}
+
+GameServerInterface.prototype.receiveMapFromServer = function(xml)
+{
+    document.getElementById("persMapArea").setAttribute("display", "inline");
+    document.getElementById("loadingNotification").setAttribute("display", "none");
+
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+		// Clear the map and inventory
+		this.controller.currentMap = null;
+		this.controller.avatarGroupController.setInventoryXML(null);
+
+		// Load map and inventory from xml
+		for (var i = 0; i < xml.children.length; ++i)
+		{
+			switch (xml.children[i].nodeName)
+			{
+			case "m":
+        		this.controller.currentMap = xml.children[i];
+				break;
+				
+			case "items":
+				this.controller.avatarGroupController.setInventoryXML(xml.children[i]);
+				break;
+			}
+		}
+
+		this.controller.setMapSavedStatus(true);
+
+        this.controller.getVisitedWorldsFromXML(xml);
+        
+		// Get map info
+	    if (xml.hasAttribute("map_id"))
+	    {
+	        this.controller.current_map_id = xml.getAttribute("map_id");
+	    }
+
+	    if (xml.hasAttribute("map_name"))
+	    {
+	        this.controller.setMapName(xml.getAttribute("map_name"));
+	    }
+
+		// Set whether the level is editable
+		this.controller.enableEditMode(xml.hasAttribute("editable") && xml.getAttribute("editable") == "1");
+
+		// Load the map
+		this.controller.unsavedMap = null;
+		this.controller.initialiseModelFromXML();
+		
+		this.controller.playLevel();
+	}
+    else
+    {
+        alert(xml.textContent);
+    }
+
+    this.controller.setActive(true);
+}
+
+GameServerInterface.prototype.submitSaveMap = function(map)
+{
+    var http_string = "update.php";
+    var params = "save=" + escape(this.controller.current_map_id) + "&map=" + escape(map) + "&" + this.controller.loginController.getHTTPLoginString();
+
+	if (g_config.showServerTransactions)
+	{
+		this.controller.addInfo(params + '\n');
+	}
+	    
+    var me = this;
+    ajax_post(
+            http_string, 
+            function(xml) 
+            {
+                me.sendMapToServer(xml);
+            }, 
+            params
+        );
+}
+
+GameServerInterface.prototype.sendMapToServer = function(xml)
+{
+    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
+    {
+        this.controller.setMapSavedStatus(true);
+		this.controller.unsavedMap = null;
+        alert('sent map OK');
+        if (xml.hasAttribute("map_id"))
+        {
+            this.controller.current_map_id = xml.getAttribute("map_id");
+        }
+    }
+    else
+    {
+        alert(xml.textContent);
+    }
+}
+
+
 // TurnClock keeps track of the time in the game. It starts at zero
 // at the beginning of each level and increments by 1 for each turn.
 function TurnClock()
@@ -10416,6 +11465,8 @@ function GameController(background, itemFactory, model, view, idMap)
     
     // We wish to be notified when there is a "loggedIn" or "loggedOut" action
     this.loginController.addActionListener(this);
+
+	this.gameServerInterface = new GameServerInterface(this);
     
     this.adminWindow = new AdminWindow(this, this.loginController.logoutGroup);
     this.overLayer.appendChild(this.adminWindow);
@@ -10431,6 +11482,12 @@ function GameController(background, itemFactory, model, view, idMap)
     this.worldChooserWindow.hide();
     this.worldChooserWindow.addActionListener(this); 
     this.visitedWorldNotifier.addActionListener(this.worldChooserWindow);
+
+	// Inventory window shows inventory items for the current character.
+    this.inventoryWindow = new InventoryWindow(this, {windowName:"inventory"});
+    this.overLayer.appendChild(this.inventoryWindow);
+    this.inventoryWindow.hide();
+    this.inventoryWindow.addActionListener(this); 
     
     this.editLayer = wrapElementById("editLayer"); 
     this.editLayer.childConstraints = {x:0, y:0, width:1000, height:1000};
@@ -10442,7 +11499,7 @@ function GameController(background, itemFactory, model, view, idMap)
     this.view.addActionListener(this);
     this.idMap = idMap;
    
-    this.currentChar = null;
+    this.avatarGroupController = new AvatarGroupController(this);
     
     // The game is not initially active (ie. listening for events)
     this.isActive = false;
@@ -10458,13 +11515,10 @@ function GameController(background, itemFactory, model, view, idMap)
     // trigger them
     this.actionController = new ActionController(this.model, this, this.turnClock);
     
-    // add the avatar
-    this.currentChar = this.itemFactory.makeItem("b");
-    this.currentChar.params.isTemporary = true;
-    this.currentChar.id = "avatar";
-    this.currentChar.povHeight = 25;
-    this.model.registerItem(this.currentChar);
-    
+    // add the default avatar
+	var currAvatar = this.avatarGroupController.addAvatar("b");
+	this.inventoryWindow.setAvatar(currAvatar);
+	
     this.clearPlayerData();
 }
 
@@ -10478,16 +11532,15 @@ GameController.prototype.clearPlayerData = function()
 
 	// The xml for any unsaved map is stored here.
 	this.unsavedMap = null;
-    
+	
     // part of the map that is currently selected
     this.mapSelect = null;    
     
 	// Keep track of the highlighted items
 	this.highlightedItems = [];	
 	
-	// Keep track of the saved items
-	this.savedItems = [];
-	this.newItems = [];	
+	// Clear avatars
+	this.avatarGroupController.clear();
 	
 	// Keep track of the visited worlds
 	this.visitedWorlds = [];
@@ -10548,41 +11601,6 @@ GameController.prototype.setupEditArea = function()
 	this.editLayer.appendChild(this.editWindow);
 }
 
-GameController.prototype.renameWorld = function(newWorldName)
-{
-    var http_string = "update.php";
-    var params = "changemapname=" + escape(newWorldName) + "&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password) + "&map_id=" + this.current_map_id;
-    
-	if (g_config.showServerTransactions)
-	{
-		this.addInfo(params + '\n');
-	}
-
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.receiveRenameWorldResultFromServer(xml);
-            }, 
-            params
-        );
-}
-
-GameController.prototype.receiveRenameWorldResultFromServer = function(xml)
-{
-    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
-    {
-		var map_id = xml.getAttribute("map_id");
-		var map_name = xml.getAttribute("map_name");
-        this.tellActionListeners(this, {type:"serverWorldRenamed", map_id:map_id, map_name:map_name});
-    }
-    else
-    {
-        alert(xml.textContent);
-    }
-}
-
 GameController.prototype.saveMap = function()
 {
     if (this.loginController.loggedIn)
@@ -10593,7 +11611,7 @@ GameController.prototype.saveMap = function()
         this.actionController.toXML(xml);
     
         var xmlString = (new XMLSerializer()).serializeToString(xml);
-        this.submitSaveMap(xmlString);
+        this.gameServerInterface.submitSaveMap(xmlString);
     }
 }
 
@@ -10607,218 +11625,17 @@ GameController.prototype.addInfo = function(info)
     this.editWindow.infoWindowContents.setValue(this.editWindow.infoWindowContents.getValue() + info);
 }
 
-GameController.prototype.submitLoadArtworkAndMap = function(artFile)
-{    
-    var me = this;
-    ajax_post(
-            artFile, 
-            function(xml, xmlDoc) 
-            {
-                me.receiveArtworkFromServer(xmlDoc);
-            }, 
-            null
-        );
-}
-
-GameController.prototype.receiveArtworkFromServer = function(xmlDoc)
-{
-    this.artwork = xmlDoc;
-    
-    // Copy all the definitions from the xmlDoc to the current doc
-    // TODO: currently require everything to be put in "defs_external" element.
-    // Is this necessary/useful?
-    var defs = this.artwork.getElementsByTagName("defs");
-    var dest = document.getElementById("defs_external");
-    for (var i = 0; i < defs.length; i++)
-    {
-        for (var j = 0; j < defs[i].children.length; j++)
-        {
-            dest.appendChild(defs[i].children[j].cloneNode(true));
-        }
-    }
-    this.itemFactory.artwork = xmlDoc;
-
-    // We can now use the artwork to setup the edit area
-    this.setupEditArea();
-    updateLayout();
-    
-    // Finally, load the starting map, also loading any saved items
-    this.submitLoadMap(this.loginController.curr_map, true);
-}
-
-// Save items, and optionally teleport to a new map. Set teleportDestination to null
-// if you don't wish to teleport.
-GameController.prototype.submitSaveItemsAndTeleport = function(teleportDestination)
-{    
-    var http_string = "update.php";
-    var params = "saveitems=1&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password);
-    
-    if (this.newItems.length == 0)
-    {
-        // Don't bother saving anything; there isn't anything to save.
-        this.submitLoadMap(teleportDestination);
-        return;
-    }
-    
-    var i = 0;
-    for (var currIndex in this.newItems)
-    {
-        if (this.newItems[currIndex].id != null && this.newItems[currIndex].params.itemName != null && this.newItems[currIndex].params.isSaveable)
-        {
-            params += "&itemId_" + i + "=" + this.newItems[currIndex].id + "&itemName_" + i + "=" + this.newItems[currIndex].params.itemName;
-            i++;
-            this.updateSavedItems(this.current_map_id, this.newItems[currIndex].id, this.newItems[currIndex].params.itemName);
-        }
-    }
-
-	if (g_config.showServerTransactions)
-	{
-		this.addInfo(params + '\n');
-	}
-	
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.receiveSaveItemsResultFromServer(xml, teleportDestination);
-            }, 
-            params
-        );
-}
-
-GameController.prototype.receiveSaveItemsResultFromServer = function(xml, teleportDestination)
-{
-    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
-    {
-        alert('save items successful: added ' + xml.getAttribute('added') + ' deleted ' + xml.getAttribute('deleted') + ' updated ' + xml.getAttribute('updated'));
-
-        this.submitLoadMap(teleportDestination, false);
-    }
-    else
-    {
-        alert(xml.textContent);
-    }
-}
-
-GameController.prototype.updateSavedItems = function(map_id, item_id, item_name)
-{
-    this.savedItems.push({map_id:map_id, item_id:item_id, item_name:item_name});        
-}
-
-// Update the saved items list from XML
-GameController.prototype.getSavedItemsFromXML = function(xml)
-{
-    var xmlContentsList = xml.getElementsByTagName("item");
-    
-    for (var i = 0; i < xmlContentsList.length; i++)
-    {
-        var xmlContents = xmlContentsList.item(i);
-        this.updateSavedItems(xmlContents.getAttribute("map_id"), xmlContents.getAttribute("item_id"), xmlContents.getAttribute("item_name"));
-    }   
-}
-
 GameController.prototype.removeSavedItemsFromMap = function()
 {
-    for (var i = 0; i < this.savedItems.length; ++i)
+	var savedItemIDs = this.avatarGroupController.getSavedItemIDs(this.current_map_id);
+    for (var i = 0; i < savedItemIDs.length; ++i)
     {
-        if (this.savedItems[i].map_id == this.current_map_id)
+        var item = this.model.getItemById(savedItemIDs[i]);
+        if (item != null && item.owner != null)
         {
-            var item = this.model.getItemById(this.savedItems[i].item_id);
-
-            if (item != null && item.owner != null)
-            {
-                item.owner.removeItem(item);
-            }
+            item.owner.removeItem(item);
         }
     }
-}
-
-GameController.prototype.submitLoadMap = function(map_id, doGetItems)
-{
-    if (map_id == null)
-        return;
-
-    // We don't teleport if there's unsaved data.
-    // Instead, return to edit mode.
-    if (!this.isMapSaved)
-    {
-        this.editLevel();
-        return;
-    }
-        
-    document.getElementById("loadingNotification").setAttribute("display", "inline");
-    this.setActive(false);
-
-    var http_string = "update.php";
-    var params = "load=" + escape(map_id) + "&save_level=1&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password);
-    
-    if (!this.hasLoadedVisitedWorlds)
-    {
-        params += "&get_visit=1";
-        this.hasLoadedVisitedWorlds = true;
-    }
-    
-    if (doGetItems)
-        params += "&get_items=1";
-    
-	if (g_config.showServerTransactions)
-	{
-		this.addInfo(params + '\n');
-	}
-
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.receiveMapFromServer(xml);
-            }, 
-            params
-        );
-}
-
-GameController.prototype.receiveMapFromServer = function(xml)
-{
-    document.getElementById("persMapArea").setAttribute("display", "inline");
-    document.getElementById("loadingNotification").setAttribute("display", "none");
-
-    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
-    {
-        this.currentMap = xml.firstChild;
-        this.setMapSavedStatus(true);
-
-        this.getVisitedWorldsFromXML(xml);
-        
-		// Get map info
-	    if (xml.hasAttribute("map_id"))
-	    {
-	        this.current_map_id = xml.getAttribute("map_id");
-	    }
-
-	    if (xml.hasAttribute("map_name"))
-	    {
-	        this.setMapName(xml.getAttribute("map_name"));
-	    }
-
-		// Set whether the level is editable
-		this.enableEditMode(xml.hasAttribute("editable") && xml.getAttribute("editable") == "1");
-
-		// List of items that the user has saved
-	    this.getSavedItemsFromXML(xml);	
-		
-		// Load the map
-		this.unsavedMap = null;
-		this.initialiseModelFromXML();
-		
-		this.playLevel();
-	}
-    else
-    {
-        alert(xml.textContent);
-    }
-
-    this.setActive(true);
 }
 
 GameController.prototype.getVisitedWorldsFromXML = function(xml)
@@ -10849,11 +11666,12 @@ GameController.prototype.initialiseModelFromXML = function()
 		xml = this.currentMap;
     }
 
-	this.newItems = [];
     this.model.clear();
 	this.view.clear();
     this.actionController.clear();
-    this.model.registerItem(this.currentChar);
+
+    this.avatarGroupController.registerAvatars();
+    this.avatarGroupController.resetInventoryFromXML();	
     
     this.gameState = "normal";
     this.turnClock.currentTime = 0;
@@ -10861,49 +11679,10 @@ GameController.prototype.initialiseModelFromXML = function()
     this.actionController.fromXML(xml);
 }
 
-GameController.prototype.submitSaveMap = function(map)
-{
-    var http_string = "update.php";
-    var params = "save=" + escape(this.current_map_id) + "&map=" + escape(map) + "&login=" + escape(this.loginController.login) + "&password=" + escape(this.loginController.password);
-
-	if (g_config.showServerTransactions)
-	{
-		this.addInfo(params + '\n');
-	}
-	    
-    var me = this;
-    ajax_post(
-            http_string, 
-            function(xml) 
-            {
-                me.sendMapToServer(xml);
-            }, 
-            params
-        );
-}
-
 GameController.prototype.setMapSavedStatus = function(isMapSaved)
 {
     this.isMapSaved = isMapSaved;
     this.editWindow.saveMapButton.setAble(!this.isMapSaved);
-}
-
-GameController.prototype.sendMapToServer = function(xml)
-{
-    if (xml.nodeName == "result" && xml.getAttribute("status") == "1")
-    {
-        this.setMapSavedStatus(true);
-		this.unsavedMap = null;
-        alert('sent map OK');
-        if (xml.hasAttribute("map_id"))
-        {
-            this.current_map_id = xml.getAttribute("map_id");
-        }
-    }
-    else
-    {
-        alert(xml.textContent);
-    }
 }
 
 GameController.prototype.doAction = function(src, evt)
@@ -10924,7 +11703,7 @@ GameController.prototype.doAction = function(src, evt)
     {
         // User has successfully logged in, so load the artwork and 
         // map from the server
-        this.submitLoadArtworkAndMap("images/gameGraphics.svg");
+        this.gameServerInterface.submitLoadArtworkAndMap("images/gameGraphics.svg");
         this.setActive(true);
     }
     else if (evt.type == "loggedOut")
@@ -10943,7 +11722,7 @@ GameController.prototype.doAction = function(src, evt)
     }
     else if (evt.type == "worldSelected")
     {
-        this.submitLoadMap(evt.value, false);
+        this.gameServerInterface.submitLoadMap(evt.value, false);
     }
     else if (src.src == "adminExpand" && evt.type == "click")
     {
@@ -10995,6 +11774,11 @@ function parseKeycodesAndCharcodes(keyCode, charCode)
         result = "right"     
         break;
 
+	case 105:
+		// i
+		result = "inventory";
+		break;
+		
     case 32:
         // space
         result = "wait";        
@@ -11059,32 +11843,36 @@ GameController.prototype.parseGameAction = function(src, evt)
         switch (parseKeycodesAndCharcodes(evt.keyCode, evt.charCode))
         {
         case "up":
-             this.attemptMoveCurrentChar(0, -1);
-            this.currentChar.setItemParam("direction", "b");
+            this.avatarGroupController.attemptMoveCurrentAvatar("b");
             this.stepTime();        
             break;
 
         case "left":
-            this.attemptMoveCurrentChar(-1, 0);
-            this.currentChar.setItemParam("direction", "r");
+            this.avatarGroupController.attemptMoveCurrentAvatar("r");
             this.stepTime();        
             break;
 
         case "down":
-            this.attemptMoveCurrentChar(0, 1);
-            this.currentChar.setItemParam("direction", "f");
+            this.avatarGroupController.attemptMoveCurrentAvatar("f");
             this.stepTime();        
             break;
             
         case "right":
-            this.attemptMoveCurrentChar(1, 0);
-            this.currentChar.setItemParam("direction", "l");
+            this.avatarGroupController.attemptMoveCurrentAvatar("l");
             this.stepTime();        
             break;
 
         case "wait":
             this.stepTime();        
             break;
+
+		case "inventory":
+			if (this.inventoryWindow.showing)
+				this.inventoryWindow.hide();
+			else
+				this.inventoryWindow.show();
+		    
+			break;
         }    
     }
     else if (evt.type == "click")
@@ -11103,8 +11891,8 @@ GameController.prototype.parseEditAction = function(src, evt)
 {
     if (src.src == this.idMap.buttonName && evt.type == "mouseover")
     {
-        // Make sure the contents are visible
-        this.setVisibleToUser(src.modelContents, 5);
+        // Make sure the cellContents are visible
+        this.setVisibleToUser([src.modelContents], 5);
     
         if (this.editWindow.infoWindow.showing)
         {
@@ -11173,21 +11961,30 @@ GameController.prototype.parseEditAction = function(src, evt)
     }
 }
 
-GameController.prototype.setVisibleToUser = function(contents, offset)
+// Set all the cells in the cellList to be visible
+GameController.prototype.setVisibleToUser = function(cellList, offset)
 {
-    // Make sure the contents are visible
-    var ht = offset;
+	if (cellList == null)
+		return;
+		
+	for (var i = 0; i < cellList.length; ++i)
+	{
+		var currCell = cellList[i];
+		
+	    // Make sure the cell is visible
+	    var ht = offset;
     
-    var topBlock = getTopBlockItem(contents);
-    if (topBlock != null)
-    {
-        ht = topBlock.params.elev + topBlock.params.ht + offset;
-    }
+	    var topBlock = getTopBlockItem(currCell);
+	    if (topBlock != null)
+	    {
+	        ht = topBlock.params.elev + topBlock.params.ht + offset;
+	    }
     
-    this.model.clearInTheWay();
-    contents.setVisibleToUser(ht);
-    this.model.getContents(contents.x, contents.y - 1).setVisibleToUser(ht);
-    this.model.getContents(contents.x + 1, contents.y).setVisibleToUser(ht);
+	    this.model.clearInTheWay();
+	    currCell.setVisibleToUser(ht);
+	    this.model.getContents(currCell.x, currCell.y - 1).setVisibleToUser(ht);
+	    this.model.getContents(currCell.x + 1, currCell.y).setVisibleToUser(ht);
+	}
 }
 
 GameController.prototype.contentSelected = function(src, evt)
@@ -11325,12 +12122,16 @@ GameController.prototype.contentSelected = function(src, evt)
             
             if (item.params.itemCode == "S")
             {
+				// User is placing a start marker.
+				
                 // Remove any existing start items
-                var existingStartItem = this.model.findItemByCode("S");
-                while (existingStartItem != null)
-                {
-                    existingStartItem.owner.removeItem(existingStartItem);
-                    existingStartItem = this.model.findItemByCode("S");
+                var existingStartItemList = this.model.findItemsByCode("S");
+				if (existingStartItemList != null)
+				{
+                	for (var i = 0; i < existingStartItemList.length; ++i)
+                	{
+                    	existingStartItemList[i].owner.removeItem(existingStartItemList[i]);
+					}
                 }
             }
             
@@ -11342,7 +12143,7 @@ GameController.prototype.contentSelected = function(src, evt)
                 var teleportAction = new TeleportAction(this.model, this, item.params.doTeleport);
 				this.actionController.appendAction(teleportAction);
 				
-				var teleportCondition = new HasItemCondition(this.model, this, this.currentChar, false, item);
+				var teleportCondition = new HasItemCondition(this.model, this, null, "tag", item, "avatar");
 		        this.actionController.registerCondition(teleportCondition);
 	    		teleportAction.addCondition(teleportCondition);
 			}
@@ -11375,123 +12176,9 @@ GameController.prototype.appendItem = function(topData, item)
     this.setMapSavedStatus(false);
 }
 
-GameController.prototype.placeAvatar = function()
+GameController.prototype.endGame = function()
 {
-	// Reset the start direction
-	this.currentChar.setItemParam("direction", "f");
-	
-	// Find the start position
-	var startX = 0;
-	var startY = 0;
-
-	// If there is a start marker, use that
-	var startItem = this.model.findItemByCode("S");
-	if (startItem != null)
-	{
-	    startX = startItem.contents.x;
-	    startY = startItem.contents.y;
-	}
-  
-	// Add the avatar to the world
-	var currData = this.model.getContents(startX, startY);
-	var topData = currData.getTopItem();
-	topData.appendItem(this.currentChar);
-}
-
-// Remove the avatar from the board.
-GameController.prototype.removeAvatar = function()
-{
-    if (this.currentChar.owner != null)
-        this.currentChar.owner.removeItem(this.currentChar);
-}
-
-GameController.prototype.endGame = function(endMessage)
-{
-    this.currentChar.setItemParam('speech', endMessage, false);
     this.gameState = "dead";
-
-    // Oh dear. They've lost all their loot since their last save.
-    this.newItems = [];
-}
-
-GameController.prototype.attemptMoveCurrentChar = function(deltaX, deltaY)
-{
-    if (this.currentChar.contents == null)
-        return;
-    
-    var destContents = this.model.getContents(this.currentChar.contents.x + deltaX, this.currentChar.contents.y + deltaY);
-    var topData = destContents.getTopItem();
-
-	if (topData.src == "GridContents")
-		return;
-
-    var climbHeight = 0; // Can't climb at all, by default
-    if (this.currentChar.params.climbHeight != null)
-        climbHeight = this.currentChar.params.climbHeight;
-    
-    var dropHeight = null; // Can drop any distance, by default
-    if (this.currentChar.params.dropHeight != null)
-        dropHeight = this.currentChar.params.dropHeight;
-        
-    if (this.currentChar.canMoveTo(topData, climbHeight, dropHeight))
-    { 
-        this.moveChar(topData);
-    }
-    else if (topData.params.isPushable)
-    {
-        // A pushable item can be pushed if:
-        // - the user would be able to move into its contents
-        //   if the pushable item wasn't there
-        // - the contents that the pushable item would move into
-        //   is the same level or lower than the contents it is
-        //   currently in, and can be stood on.
-        var deltaHeight = topData.params.elev - this.currentChar.params.elev;
-        if (deltaHeight < 20)
-        {
-            // User would be able to move into this contents
-            var pushedDestContents = this.model.getContents(this.currentChar.contents.x + deltaX * 2, this.currentChar.contents.y + deltaY * 2);            
-            while (pushedDestContents.myItems.length > 0)
-            {
-                pushedDestContents = pushedDestContents.myItems[0];
-            }
-            
-            var deltaPushedHeight = pushedDestContents.params.ht + pushedDestContents.params.elev - topData.params.elev;
-            
-            if (deltaPushedHeight <= 0)
-            {
-                topData.moveItem(pushedDestContents);
-                topData = destContents.getTopItem();
-                if (topData.params.canStandOn)
-                {
-                    this.moveChar(topData);
-                }
-            }
-        }
-    }        
-}
-
-GameController.prototype.moveChar = function(destItem)
-{
-    // Check if character is in the model
-    if (this.currentChar.contents == null)
-        return;
-
-    // If there are any takeable items, take them first
-    while (destItem.params.isTakeable)
-    {
-        var owner = destItem.owner;
-        if (owner)
-        {
-            // Add to list
-            this.newItems.push(destItem);
-            
-            // Remove item
-            owner.removeItem(destItem);
-        }
-        destItem = owner;
-    }
-
-    this.currentChar.moveItem(destItem);    
 }
 
 GameController.prototype.stepTime = function()
@@ -11508,11 +12195,14 @@ GameController.prototype.stepTime = function()
     this.turnClock.currentTime++;
 
 	// Finally update the view
-    this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
     this.view.updateView();
     this.view.removeOutsideView();
-    this.view.updatePOV([this.currentChar]);
-    this.setVisibleToUser(this.currentChar.contents, 15);
+
+	var pov = this.avatarGroupController.getAvatarPOV();
+    this.view.updatePOV(pov);
+
+	var viewedCells = this.avatarGroupController.getAvatarViewedCells();
+    this.setVisibleToUser(viewedCells, 15);
 }
 
 GameController.prototype.changeItems = function()
@@ -11526,25 +12216,27 @@ GameController.prototype.changeItems = function()
         if (currRequest == null)
             continue;
         
-        if (destinationList[currRequest.contents.getLocationString()] == null)
+		var requestLocation = currRequest.cellContents.getLocationString();
+        if (destinationList[requestLocation] == null)
         {
-            destinationList[currRequest.contents.getLocationString()] = [];
+            destinationList[requestLocation] = [];
         }
         
-        destinationList[currRequest.contents.getLocationString()].push({item:this.model.moveableItems[i], dest:currRequest});
+        destinationList[requestLocation].push({item:this.model.moveableItems[i], dest:currRequest});
     }
     
     for (var i in destinationList)
     {
-        if (i == this.currentChar.contents.getLocationString())
+		var targetAvatar = this.avatarGroupController.getAvatarAt(i);
+        if (targetAvatar != null)
         {
-            // The item wishes to move into the current character's contents
-            this.endGame("Death by " + destinationList[i][0].item.params.fullname + "! Press space to restart.");
+            // The item wishes to move into the current character's cellContents
+			this.avatarGroupController.attackAvatar(targetAvatar, destinationList[i][0].item);
         }
         else if (destinationList[i].length == 1)
         {
             // Move the item as per its request.
-            var topData = destinationList[i][0].dest.contents.getTopItem();
+            var topData = destinationList[i][0].dest.cellContents.getTopItem();
             destinationList[i][0].item.moveItem(topData);
             destinationList[i][0].item.setItemParam("direction", destinationList[i][0].dest.params.direction);
         }
@@ -11647,13 +12339,14 @@ GameController.prototype.editLevel = function(debugMode)
 
 	if (!debugMode)
 	{
-		// Remove the avatar
-		this.removeAvatar();
+		// Remove the avatars
+		this.avatarGroupController.removeAvatars();
 
 		// Initialise the level from the xml, so that all the actions are reset
 		this.initialiseModelFromXML();
 	}
 	
+    this.view.updateView();
 	this.view.updatePOV(null);
 	this.view.setLighting();
 	this.editLayer.show();
@@ -11690,21 +12383,28 @@ GameController.prototype.playLevel = function()
     this.removeSavedItemsFromMap();
 
     // Add the avatar into the scene
-    this.placeAvatar();
+    this.avatarGroupController.placeAvatars();
 
-	// Setup the board
+	// Set up the board
     this.view.setFixedCellCount(8);
-    this.view.setCellCentre(this.currentChar.contents.x, this.currentChar.contents.y);
+	var centreCell = this.avatarGroupController.getAvatarCentreCell();
+	if (centreCell != null)
+	{
+		this.view.setCellCentre(centreCell.x, centreCell.y);
+	}
+
     this.view.updateView();
-    this.view.updatePOV([this.currentChar]);
+
+	var pov = this.avatarGroupController.getAvatarPOV();
+    this.view.updatePOV(pov);
     this.view.removeOutsideView();
     
 	// Set the background appearance to black.
     var bgrect = document.getElementById("baseBG");
     bgrect.setAttribute("fill", "black");
 
-	// Clear any existing speech bubbles.
-    this.currentChar.setItemParam('speech', null, false);
+	// Clear any existing speech bubbles from avatars.
+    this.avatarGroupController.clearTalkingAvatars();
 
 	// Start the first turn.
     this.stepTime();	
@@ -11752,6 +12452,7 @@ function init()
         T:{itemName:"teleport01", fullname:"Teleport", itemCode:"T", canStandOn:true, doesTeleport:true},
         S:{itemName:"start01", fullname:"Start Square", itemCode:"S", canStandOn:true, isInvisible:true},
         b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, lightStrength:1, lightRadius:4, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
+        t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t"},
         B:{itemName:"barrel01", fullname:"Barrel", itemCode:"B", ht:20, wt:1000, isPushable:true, blockView:true, canStandOn:true}
        };
     

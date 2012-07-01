@@ -1,4 +1,4 @@
-// Content layout view shows a tree of the items at a given contents,
+// Content layout view shows a tree of the items at a given cellContents,
 // and allows the user to click on them.
 function ContentLayoutView(view)
 {
@@ -13,26 +13,26 @@ function ContentLayoutView(view)
 
 KevLinDev.extend(ContentLayoutView, SVGComponent);
 
-ContentLayoutView.prototype.setContents = function(contents)
+ContentLayoutView.prototype.setContents = function(cellContents)
 {
-    var x_posn = this.view.getLayoutX(contents.x, contents.y) * this.view.width;
-    var y_posn = this.view.getLayoutY(contents.x, contents.y) * this.view.height;
+    var x_posn = this.view.getLayoutX(cellContents.x, cellContents.y) * this.view.width;
+    var y_posn = this.view.getLayoutY(cellContents.x, cellContents.y) * this.view.height;
 
     this.setPosition(x_posn, y_posn);
     this.show();
     
-    if (this.contents == contents)
+    if (this.cellContents == cellContents)
         return;
         
-    this.contents = contents;
+    this.cellContents = cellContents;
     this.tree.removeChildren();
         
-    //this.contents.addActionListener(this);
+    //this.cellContents.addActionListener(this);
     
-    // Add the contents
-    for (var i in this.contents.myItems)
+    // Add the cellContents
+    for (var i in this.cellContents.myItems)
     {
-        var currItemView = makeItemLayout(this.view, this.contents.myItems[i]);
+        var currItemView = makeItemLayout(this.view, this.cellContents.myItems[i]);
         this.tree.appendChild(currItemView);
     }
     

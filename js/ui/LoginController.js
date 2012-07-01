@@ -223,3 +223,8 @@ LoginController.prototype.setLoginStatus = function(isLoggedIn)
     }
     this.loggedIn = isLoggedIn;
 }
+
+LoginController.prototype.getHTTPLoginString = function()
+{
+	return "login=" + escape(this.login) + "&password=" + escape(this.password);
+}

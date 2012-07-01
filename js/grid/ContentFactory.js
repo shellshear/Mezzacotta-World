@@ -13,6 +13,11 @@ ContentFactory.prototype.makeItem = function(itemCode)
     return null;
 }
 
+ContentFactory.prototype.makeItemFromXML = function(xml, model)
+{
+	return null;
+}
+
 ContentFactory.prototype.makeViewContents = function(view, x, y, x_index, y_index, modelContents)
 {
     return new GridViewContents(view, x, y, x_index, y_index, modelContents);

@@ -151,7 +151,7 @@ GridView.prototype.drawCell = function(x, y)
         var x_posn = this.getLayoutX(x, y) * this.cellWidth;
         var y_posn = this.getLayoutY(x, y) * this.cellHeight;
 
-        // Update with the model contents
+        // Update with the model cellContents
         var currCell = this.itemFactory.makeViewContents(this, x_posn, y_posn, x, y, modelContents, true);
    
         this.view[x][y] = currCell;
@@ -218,7 +218,7 @@ GridView.prototype.drawCell = function(x, y)
     }
 }
 
-// Remove any view contents that are outside the visible area
+// Remove any view cellContents that are outside the visible area
 GridView.prototype.removeOutsideView = function()
 {
     for (var i in this.view)
@@ -264,7 +264,7 @@ GridView.prototype.clear = function()
 
 GridView.prototype.doAction = function(src, evt)
 {
-    if (evt.type == "contentsUpdate")
+    if (evt.type == "cellContentsUpdate")
     {
        this.drawCell(src.x, src.y);
     }

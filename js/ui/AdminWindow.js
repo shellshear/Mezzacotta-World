@@ -93,7 +93,7 @@ AdminWindow.prototype.doAction = function(src, evt)
 	else if (evt.type == "renameWorld")
 	{
 		// World renamer has returned a new name
-		this.controller.renameWorld(evt.newWorldName);
+		this.controller.gameServerInterface.renameWorld(evt.newWorldName);
 		
 		this.setAble(true);
 		this.removeChild(src);

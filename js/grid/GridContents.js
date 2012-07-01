@@ -15,8 +15,7 @@ KevLinDev.extend(GridContents, ItemContainer);
 
 GridContents.prototype.clear = function()
 {
-    while (this.myItems.length > 0)
-        this.removeItemByIndex(0);
+    this.removeAllItems();
 }
 
 GridContents.prototype.toString = function()
@@ -101,20 +100,9 @@ GridContents.prototype.fromXML = function(xml)
 {
     for (var i = 0; i < xml.childNodes.length; i++)
     {
-        var xmlItem = xml.childNodes.item(i);
-        
-        // We need to know the item code in advance, so the factory
-        // knows what kind of item to make.
-        // The factory uses its template data to preset a bunch
-        // of parameters for the item.
-        var itemCode = xmlItem.getAttribute("c");
-        var currItem = this.model.itemFactory.makeItem(itemCode);
-        
+        var xmlItem = xml.childNodes.item(i);        
+		var currItem = this.model.itemFactory.makeItemFromXML(xmlItem, this.model);
         this.appendItem(currItem);
-
-        // The item itself updates its children and non-template
-        // parameters from the xml.
-        currItem.fromXML(xmlItem);        
     }
 }
 

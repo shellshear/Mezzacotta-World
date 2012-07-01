@@ -1,6 +1,6 @@
 function HasItemConditionEditor(controller, condition)
 {
-    HasItemConditionEditor.baseConstructor.call(this, controller, condition, 170, 109);
+    HasItemConditionEditor.baseConstructor.call(this, controller, condition, 218, 149);
     this.itemTag = "HeldItem";
     this.containerTag = "ContainerItem";
 
@@ -28,16 +28,43 @@ function HasItemConditionEditor(controller, condition)
     this.itemEditButton = new ItemViewSelector(controller, "orange", "heldItem", "topItem");
 	topRow.appendChild(this.itemEditButton);
 
+	this.heldItemTypeRadioGroup = new RadioButtonGroup();
+
     var secondRow = new FlowLayout(0, 0, {minSpacing:3});
     editableContents.appendChild(secondRow);
-
 	var checkboxParams = makeSimpleCheckboxParamButtonIdSet();
 	checkboxParams.width = 10;
 	checkboxParams.height = 10;
-	this.matchHeldByTypeCheckbox = new ParamButton2("matchHeldByTypeCheckbox", checkboxParams);
-	this.matchHeldByTypeCheckbox.setToggle(true);
-	secondRow.appendChild(this.matchHeldByTypeCheckbox);
-	secondRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match held item by type"));
+	this.matchHeldByCodeCheckbox = new ParamButton2("matchHeldByCodeCheckbox", checkboxParams);
+	this.matchHeldByCodeCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByCodeCheckbox);
+	secondRow.appendChild(this.matchHeldByCodeCheckbox);
+	secondRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match any held item that looks the same"));
+	this.matchHeldByCodeCheckbox.addActionListener(this);
+
+    var thirdRow = new FlowLayout(0, 0, {minSpacing:3});
+    editableContents.appendChild(thirdRow);
+	var checkboxParams2 = makeSimpleCheckboxParamButtonIdSet();
+	checkboxParams2.width = 10;
+	checkboxParams2.height = 10;
+	this.matchHeldByIdCheckbox = new ParamButton2("matchHeldByIdCheckbox", checkboxParams2);
+	this.matchHeldByIdCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByIdCheckbox);
+	thirdRow.appendChild(this.matchHeldByIdCheckbox);
+	thirdRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match only this held item"));
+	this.matchHeldByIdCheckbox.addActionListener(this);
+
+    var forthRow = new FlowLayout(0, 0, {minSpacing:3});
+    editableContents.appendChild(forthRow);
+	var checkboxParams3 = makeSimpleCheckboxParamButtonIdSet();
+	checkboxParams3.width = 10;
+	checkboxParams3.height = 10;
+	this.matchHeldByTagCheckbox = new ParamButton2("matchHeldByTagCheckbox", checkboxParams3);
+	this.matchHeldByTagCheckbox.setToggle(true);
+	this.heldItemTypeRadioGroup.addButton(this.matchHeldByTagCheckbox);
+	forthRow.appendChild(this.matchHeldByTagCheckbox);
+	forthRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, "Match any held item with the tag \"avatar\""));
+	this.matchHeldByTagCheckbox.addActionListener(this);
 
 	this.contents.prependChild(editableContents);
 
@@ -51,19 +78,41 @@ HasItemConditionEditor.prototype.initFromCondition = function()
 	this.containerEditButton.setSelectedItem(this.myCondition.containerItem.item);
     this.itemEditButton.setSelectedItem(this.myCondition.heldItem.item);
 
-	this.matchHeldByTypeCheckbox.setSelected(this.myCondition.heldItem.isItemByType);
+	this.matchHeldByCodeCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "code");
+	this.matchHeldByIdCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "id");
+	this.matchHeldByTagCheckbox.setSelected(this.myCondition.heldItem.matchCriterion == "tag");
 }
 
 HasItemConditionEditor.prototype.doAction = function(src, evt)
 {
-	if (evt.type == "click" && src.src == "updateCondition")
+	if (evt.type == "click")
 	{
-		// Commit the updates into the condition
-		this.myCondition.heldItem.setItem(this.itemEditButton.selectedItem);		
-		this.myCondition.heldItem.setItemByType(this.matchHeldByTypeCheckbox.isSelected);
+		if (src.src == "updateCondition")
+		{
+			// Commit the updates into the condition
+			// TODO: Deal with different tags
+			var matchCriterion = 
+				this.matchHeldByCodeCheckbox.isSelected ? "code" : 
+				(this.matchHeldByIdCheckbox.isSelected ? "id" : "tag");
+			var itemTag = (matchCriterion == "tag") ? "avatar" : null;
+			
+			this.myCondition.heldItem.setItem(this.itemEditButton.selectedItem);
+			this.myCondition.heldItem.setItemMatchCriterion(matchCriterion, itemTag);
 
-		this.myCondition.containerItem.setItem(this.containerEditButton.selectedItem);
-	}		
-
+			this.myCondition.containerItem.setItem(this.containerEditButton.selectedItem);
+		}
+		else if (src.src == "matchHeldByCodeCheckbox" || src.src == "matchHeldByIdCheckbox")
+		{
+			// If held item is currently a tag, replace with default
+			if (this.itemEditButton.selectedItem != null && this.itemEditButton.selectedItem.params.itemCode == "t")
+				this.itemEditButton.setSelectedItem(null);
+		}
+		else if (src.src == "matchHeldByTagCheckbox")
+		{
+			// Replace held item with "tag"
+			this.itemEditButton.setSelectedItem(this.controller.model.itemFactory.makeItem("t"));
+		}
+	}
+	
     HasItemConditionEditor.superClass.doAction.call(this, src, evt);
 }

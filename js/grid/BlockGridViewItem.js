@@ -9,7 +9,7 @@ function BlockGridViewItem(modelItem, viewItemFactory, elements)
 KevLinDev.extend(BlockGridViewItem, PerspectiveGridViewItem);
 
 // Update our height when we get added to the view. At this point,
-// we can find the heights of any adjacent contents.
+// we can find the heights of any adjacent cellContents.
 BlockGridViewItem.prototype.onBeingAdded = function()
 {    
     this.updateHeight();
@@ -23,9 +23,9 @@ BlockGridViewItem.prototype.updateHeight = function()
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 
 
-    var contents = this.modelItem.contents;
+    var cellContents = this.modelItem.cellContents;
 
-    var leftContents = contents.model.getContents(contents.x - 1, contents.y);
+    var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
     var topLeftItem = getTopBlockItem(leftContents);
     
     var leftHeight = this.modelItem.params.ht;
@@ -50,7 +50,7 @@ BlockGridViewItem.prototype.updateHeight = function()
         this.elements["left"].hide();
     }
 
-    var frontContents = contents.model.getContents(contents.x, contents.y + 1);
+    var frontContents = cellContents.model.getContents(cellContents.x, cellContents.y + 1);
     var topFrontItem = getTopBlockItem(frontContents);
     
     var frontHeight = this.modelItem.params.ht;
@@ -138,8 +138,8 @@ BlockGridViewItem.prototype.setHighlight = function(doHighlight)
 
 BlockGridViewItem.prototype.updatePOV = function(povList)
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
 
     if (povList == null)
@@ -158,34 +158,34 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         var povRight = false;
         var povFront = false;
         var povBack = false;
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].viewType == "pov")
+            if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
                 for (var k in povList)
                 {
-                    if (povList[k] == contents.seenBy[j].item)
+                    if (povList[k] == cellContents.seenBy[j].item)
                     {
-                        if (contents.seenBy[j].viewElev <= this.modelItem.params.elev)
+                        if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev)
                         {
                             // Pov can see base of item
                             povBottom = true;
                         }                            
 
-                        var srcElev = contents.seenBy[j].item.params.elev + contents.seenBy[j].item.params.ht;
+                        var srcElev = cellContents.seenBy[j].item.params.elev + cellContents.seenBy[j].item.params.ht;
 
-                        if (contents.seenBy[j].viewElev <= modelElev) 
+                        if (cellContents.seenBy[j].viewElev <= modelElev) 
                         {
                             if (srcElev >= modelElev) 
                                 povTop = true;
 
-                            if (contents.seenBy[j].x < contents.x)
+                            if (cellContents.seenBy[j].x < cellContents.x)
                             {
                                 povLeft = true;
                             }
                             
-                            if (contents.seenBy[j].y > contents.y)
+                            if (cellContents.seenBy[j].y > cellContents.y)
                             {
                                 povFront = true;
                             }
@@ -200,9 +200,9 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         
         if (!povLeft)
         {
-            // Can't see the left side, but perhaps we can see the contents
+            // Can't see the left side, but perhaps we can see the cellContents
             // to the left, in which case let's say we can see it anyway.
-            var leftContents = contents.model.getContents(contents.x - 1, contents.y);
+            var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
             for (var j in leftContents.seenBy)
             {
                 if (leftContents.seenBy[j].viewType == "pov")
@@ -216,7 +216,7 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
                             {
                                 // NOTE: we still have to be standing to the
                                 // left of the item to see its left side
-                                if (leftContents.seenBy[j].x < contents.x)
+                                if (leftContents.seenBy[j].x < cellContents.x)
                                 {
                                     povLeft = true;
                                 }
@@ -229,9 +229,9 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
         
         if (!povFront)
         {
-            // Can't see the front side, but perhaps we can see the contents
+            // Can't see the front side, but perhaps we can see the cellContents
             // to the front, in which case let's say we can see it anyway.
-            var frontContents = contents.model.getContents(contents.x, contents.y + 1);
+            var frontContents = cellContents.model.getContents(cellContents.x, cellContents.y + 1);
             for (var j in frontContents.seenBy)
             {
                 if (frontContents.seenBy[j].viewType == "pov")
@@ -245,7 +245,7 @@ BlockGridViewItem.prototype.updatePOV = function(povList)
                             {
                                 // NOTE: we still have to be standing to the
                                 // front of the item to see its front side
-                                if (frontContents.seenBy[j].y > contents.y)
+                                if (frontContents.seenBy[j].y > cellContents.y)
                                 {
                                     povFront = true;
                                 }

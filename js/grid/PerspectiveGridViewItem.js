@@ -24,11 +24,11 @@ PerspectiveGridViewItem.prototype.setLighting = function()
 {
     PerspectiveGridViewItem.superClass.setLighting.call(this);   
 
-    // The light on these contents has changed, so we need to 
+    // The light on these cellContents has changed, so we need to 
     // update the shadows on the verticals for this and adjacent
-    // contents.
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    // cellContents.
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
         
     for (var i in this.elements)
@@ -37,17 +37,17 @@ PerspectiveGridViewItem.prototype.setLighting = function()
             continue;
             
         // See what light sources affect this vertical
-        var lightLevel = contents.ambientLight;
+        var lightLevel = cellContents.ambientLight;
         
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-			var p = contents.seenBy[j].item.params;
+			var p = cellContents.seenBy[j].item.params;
 			
             if (p.lightStrength == null || p.lightStrength == 0)
                 continue;
            
             // It's unlit unless the light reaching it is low enough
-            if (contents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
+            if (cellContents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
                 continue;
 
             if (i == "top")
@@ -56,10 +56,10 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 if (p.elev + p.ht < this.modelItem.params.elev + this.modelItem.params.ht)
                     continue;
                 
-				// The top of the item must be higher than the lowest height of light on this contents
-                //if (contents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
+				// The top of the item must be higher than the lowest height of light on this cellContents
+                //if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
                 //{
-                    var sourceLevel = contents.model.calcLightLevel(contents.seenBy[j].distance, p.lightStrength);
+                    var sourceLevel = cellContents.model.calcLightLevel(cellContents.seenBy[j].distance, p.lightStrength);
                     if (sourceLevel > lightLevel)
                         lightLevel = sourceLevel;
                 //}
@@ -69,7 +69,7 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 // Distance 0 means the current square
                 // which doesn't contribute to the light on the
                 // verticals
-                if (contents.seenBy[j].distance == 0)
+                if (cellContents.seenBy[j].distance == 0)
                     continue;
             
                 // For the verticals, we need to calculate the distances again
@@ -77,20 +77,20 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 if (i == "left")
                 {
                     // This side is unlit unless its x value is less
-                    if (contents.seenBy[j].x >= contents.x)
+                    if (cellContents.seenBy[j].x >= cellContents.x)
                         continue;
                         
-                    dist = contents.model.getDistance(contents.seenBy[j].x, contents.seenBy[j].y, contents.x - 1, contents.y);            
+                    dist = cellContents.model.getDistance(cellContents.seenBy[j].x, cellContents.seenBy[j].y, cellContents.x - 1, cellContents.y);            
                 }
                 else if (i == "front")
                 {
                     // This side is unlit unless its y value is greater
-                    if (contents.seenBy[j].y <= contents.y)
+                    if (cellContents.seenBy[j].y <= cellContents.y)
                         continue;
-                    dist = contents.model.getDistance(contents.seenBy[j].x, contents.seenBy[j].y, contents.x, contents.y + 1);
+                    dist = cellContents.model.getDistance(cellContents.seenBy[j].x, cellContents.seenBy[j].y, cellContents.x, cellContents.y + 1);
                 }
                 
-                var sourceLevel = contents.model.calcLightLevel(dist, contents.seenBy[j].item.params.lightStrength);
+                var sourceLevel = cellContents.model.calcLightLevel(dist, cellContents.seenBy[j].item.params.lightStrength);
                 if (sourceLevel > lightLevel)
                 {
                     lightLevel = sourceLevel;

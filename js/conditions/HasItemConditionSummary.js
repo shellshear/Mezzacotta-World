@@ -23,7 +23,7 @@ function HasItemConditionSummary(controller, condition)
     var hasElement = new SVGElement("text", {"font-size":12, fill:"black", x:5, y:14}, "contains");
     presentationContents.appendChild(hasElement);
 
-    // this|any
+    // this/any/a
     this.thisOrAnyElement = new SVGElement("text", {"font-size":12, fill:"black", x:5, y:14}, "this");
     presentationContents.appendChild(this.thisOrAnyElement);
     
@@ -43,13 +43,17 @@ HasItemConditionSummary.prototype.initFromCondition = function()
 	this.heldLabel.setSelectedItem(this.myCondition.heldItem.item);
     this.containerLabel.setSelectedItem(this.myCondition.containerItem.item);
 
-	if (this.myCondition.heldItem.isItemByType)
+	if (this.myCondition.heldItem.matchCriterion == "code")
 	{
 		this.thisOrAnyElement.setValue("any");
 	}
-	else
+	else if (this.myCondition.heldItem.matchCriterion == "id")
 	{
 		this.thisOrAnyElement.setValue("this");
+	}
+	else
+	{
+		this.thisOrAnyElement.setValue("a");
 	}
 
 	HasItemConditionSummary.superClass.initFromCondition.call(this);    

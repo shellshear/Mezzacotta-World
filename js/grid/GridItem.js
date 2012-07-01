@@ -18,7 +18,7 @@ function GridItem(params)
     GridItem.baseConstructor.call(this);
     this.src = "GridItem";
 
-    this.params = params;
+    this.params = (params == null) ? {} : params;
 	this.params.saveVals = [];
 	
     if (this.params.ht == null)
@@ -38,7 +38,7 @@ function GridItem(params)
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
 		
-    this.contents = null; // doesn't belong to anything yet
+    this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
 }
 
@@ -52,11 +52,8 @@ GridItem.prototype.setOwner = function(owner)
     // Set our elevation based on our owner.
     this.updateElev();
 
-    // Set the contents
+    // Set the cellContents
     this.updateOwnerContents();    
-    
-    this.updateAffectedPOV();
-    this.updatePOV();
 }
 
 // Update the elevation based on our owner's height and elevation
@@ -82,15 +79,15 @@ GridItem.prototype.updateElev = function()
 GridItem.prototype.updateAffectedPOV = function()
 {
     // If we're in the path of any seeing items, update those
-    if (this.contents != null)
+    if (this.cellContents != null)
     {
         // First get a list of the items that will need their povs updated
-        // Note that the contents.seenBy list may change as we update the
+        // Note that the cellContents.seenBy list may change as we update the
         // povs of the items.
         var povItems = [];
-        for (var i in this.contents.seenBy)
+        for (var i in this.cellContents.seenBy)
         {
-            povItems.push(this.contents.seenBy[i].item);
+            povItems.push(this.cellContents.seenBy[i].item);
         }
         
         for (var j in povItems)
@@ -135,9 +132,19 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     // Temporary items shouldn't get saved
     if (this.params.isTemporary)
         return null;
-        
-    var xmlItem = xmlDoc.createElement("i");
-    xmlItem.setAttribute("c", this.params.itemCode);
+
+	var xmlItem = null;
+    if (xmlDoc == null)
+	{
+		xmlDoc = createXMLDoc("i");
+		xmlItem = xmlDoc.firstChild;
+	}
+	else
+	{
+		xmlItem = xmlDoc.createElement("i");		
+	}
+
+	xmlItem.setAttribute("c", this.params.itemCode);
 
 	if (this.params.saveVals.ht != null)
     	xmlItem.setAttribute("h", this.params.saveVals.ht);
@@ -169,67 +176,29 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
     return xmlItem;
 }
 
-
-GridItem.prototype.fromXML = function(xml)
-{
-    if (xml.hasAttribute("id"))
-    {
-        this.id = xml.getAttribute("id");
-        this.contents.model.importItem(this);
-    }
-                
-    this.setHeight(parseInt(xml.getAttribute("h")), true);
-
-	if (xml.hasAttribute("d"))
-	{
-		this.setItemParam("direction", xml.getAttribute("d"), true);
-	}
-
-    // Update all the child items of this item as well
-    for (var i = 0; i < xml.childNodes.length; i++)
-    {
-        var xmlItem = xml.childNodes.item(i);
-        
-        // We need to know the item code in advance, so the factory
-        // knows what kind of item to make.
-        // The factory uses its template data to preset a bunch
-        // of parameters for the item.
-        var itemCode = xmlItem.getAttribute("c");
-        var currItem = this.contents.model.itemFactory.makeItem(itemCode);
-        
-        this.appendItem(currItem);
-        
-        // If the item is moveable, add it to the moveable list.
-        if (currItem.params.moveTowards != null)
-        {
-            this.contents.model.addToMoveableItems(currItem);
-        }
-
-        // The item itself updates its children and non-template
-        // parameters from the xml.
-        currItem.fromXML(xmlItem);        
-    }
-}
-
-// The item is being removed, so clean up any light references and let listeners know
+// The item is being removed, so let listeners know
 GridItem.prototype.cleanup = function()
 {
     GridItem.superClass.cleanup.call(this);   
-    this.clearSeenBy();
+	this.updateCellContents(null);
 	this.tellActionListeners(this, {type:"ItemBeingDeleted", item:this});
 }
 
-// Update the item and its children regarding the contents that
+// Update the item and its children regarding the cellContents that
 // it is part of
 GridItem.prototype.updateOwnerContents = function()
 {
     if (this.owner != null)
     {
         if (this.owner.src == "GridContents")
-            this.contents = this.owner;
-        else
-            this.contents = this.owner.contents;
-    }
+		{
+			this.updateCellContents(this.owner);
+        }
+		else
+        {
+			this.updateCellContents(this.owner.cellContents);
+    	}
+	}
     
     for (var i = 0; i < this.myItems.length; ++i)
     {
@@ -237,19 +206,38 @@ GridItem.prototype.updateOwnerContents = function()
     }
 }
 
+// Update the cellContents for this item.
+// Also handle all the things that happen when the item is placed in a new cell.
+GridItem.prototype.updateCellContents = function(newCellContents)
+{
+	if (this.cellContents != newCellContents)
+	{
+    	this.cellContents = newCellContents;
+		if (this.cellContents != null)
+		{
+			this.updatePOV();
+			this.updateAffectedPOV();
+		}
+		else
+		{
+		    this.clearSeenBy();
+		}
+	}
+}
+
 // Set what is visible to this item.
 //
-// We tell the item what height it can see at each grid contents within the
-// radius, and inform each of the contents that they can be seen by this item
+// We tell the item what height it can see at each grid cellContents within the
+// radius, and inform each of the cellContents that they can be seen by this item
 // at that height.
 // 
-// We calculate the view height at each contents. Anything below that height
-// is not visible. The view height for each viewed contents is a function of the 
+// We calculate the view height at each cellContents. Anything below that height
+// is not visible. The view height for each viewed cellContents is a function of the 
 // viewer elevation, the height of the objects between the viewer
 // and the viewed, and the distance between the viewer and viewed.
-// To simplify matters, we evaluate each viewed contents in an increasing 
+// To simplify matters, we evaluate each viewed cellContents in an increasing 
 // radius, so we never have to evaluate the height using more than just the
-// contents one step away from the viewed contents.
+// cellContents one step away from the viewed cellContents.
 // To calculate what we have to look at, we use the following chart:
 //
 // dddlllllddd  
@@ -283,22 +271,22 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
 {
     this.clearSeenBy(viewType);
     
-    // Start with adjacent contents, the widen the field of view
-    if (this.contents == null)
+    // Start with adjacent cellContents, the widen the field of view
+    if (this.cellContents == null)
         return;
-    var model = this.contents.model;
+    var model = this.cellContents.model;
         
-    var x = this.contents.x;
-    var y = this.contents.y;
+    var x = this.cellContents.x;
+    var y = this.cellContents.y;
     var q = model.quadList;
     var sourceElevation = this.params.elev + this.params.ht;
    
-    this.setVisibility(this.contents, this.params.elev, 0, x, y, viewType);
+    this.setVisibility(this.cellContents, this.params.elev, 0, x, y, viewType);
 
-    // For each contents, set the height that can be seen at that
-    // contents by the viewer.
+    // For each cellContents, set the height that can be seen at that
+    // cellContents by the viewer.
     // This will depend on the height of the viewer, and the height
-    // of objects between the viewer and the contents.
+    // of objects between the viewer and the cellContents.
     for (var i = 1; i <= radius; i++)
     {
         // Test central l
@@ -428,18 +416,18 @@ GridItem.prototype.getViewElevation = function(model, x, y, sourceElevation, dis
     return h - (sourceElevation - h) / distance * 2; // TODO: The *2 is a fudge factor
 }
 
-// This item can see this contents at this elevation
-GridItem.prototype.setVisibility = function(contents, viewElev, distance, x, y, viewType)
+// This item can see this cellContents at this elevation
+GridItem.prototype.setVisibility = function(cellContents, viewElev, distance, x, y, viewType)
 {
-    contents.addSeenBy(this, viewElev, distance, x, y, viewType);
+    cellContents.addSeenBy(this, viewElev, distance, x, y, viewType);
 
     if (this.canSee[viewType] == null)
         this.canSee[viewType] = [];
 
-    if (this.canSee[viewType][contents.x] == null)
-        this.canSee[viewType][contents.x] = [];
+    if (this.canSee[viewType][cellContents.x] == null)
+        this.canSee[viewType][cellContents.x] = [];
    
-    this.canSee[viewType][contents.x][contents.y] = {contents:contents, viewElev:viewElev, distance:distance};
+    this.canSee[viewType][cellContents.x][cellContents.y] = {cellContents:cellContents, viewElev:viewElev, distance:distance};
 }
 
 GridItem.prototype.clearSeenBy = function(viewType)
@@ -452,7 +440,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
             {
                 for (var j in this.canSee[s][i])
                 {
-                    this.canSee[s][i][j].contents.removeSeenBy(this);
+                    this.canSee[s][i][j].cellContents.removeSeenBy(this);
                 }
             }
         }        
@@ -464,7 +452,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
         {
             for (var j in this.canSee[viewType][i])
             {
-                this.canSee[viewType][i][j].contents.removeSeenBy(this);
+                this.canSee[viewType][i][j].cellContents.removeSeenBy(this);
             }
         }
         this.canSee[viewType] = [];
@@ -553,17 +541,18 @@ GridItem.prototype.setHeight = function(height, doSave)
     	items[i].updatePOV();
 	}
 	
-	// Update any items with a POV that touches this contents
+	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
 }
 
 
-// Return true if the item can be moved to the destination contents
-// This is only true if the destination contents can be stood upon, and
-// if the height of the contents is less than the item's current height
+// Return true if the item can be moved to the destination cellContents
+// This is only true if the destination cellContents can be stood upon, and
+// if the height of the cellContents is less than the item's current height
 // plus the delta height specified (ie. can't climb too high)
 GridItem.prototype.canMoveTo = function(destItem, maxClimbHeight, maxDropHeight)
 {
+	// Can only move items onto other items
 	if (destItem.src == "GridContents")
 		return false;
 		
@@ -591,9 +580,9 @@ GridItem.prototype.searchFor = function(itemCode)
         {
             var canSee = this.canSee["pov"][i][j];
             
-            // Find if there are any items in this contents match our request
+            // Find if there are any items in this cellContents match our request
             // TODO: need a find function that gets all results, not just the first.
-            var item = canSee.contents.find("itemCode", itemCode);
+            var item = canSee.cellContents.find("itemCode", itemCode);
 
             // Is it in view?
             if (item != null && item.params.elev + item.params.ht >= canSee.viewElev)
@@ -670,22 +659,22 @@ GridItem.prototype.requestChange = function()
                 for (var j in closestItems)
                 {
                     destContents = this.followSimplePathTo(closestItems[j].item);
-                    sumX += (destContents.x - this.contents.x);
-                    sumY += (destContents.y - this.contents.y);                    
+                    sumX += (destContents.x - this.cellContents.x);
+                    sumY += (destContents.y - this.cellContents.y);                    
                 }
                 
                 if (Math.abs(sumX) > Math.abs(sumY))
                 {
-                    destContents = this.contents.model.getContents(this.contents.x + (sumX > 0 ? 1 : -1), this.contents.y);
+                    destContents = this.cellContents.model.getContents(this.cellContents.x + (sumX > 0 ? 1 : -1), this.cellContents.y);
                 }
                 else if (Math.abs(sumX) < Math.abs(sumY))
                 {
-                    destContents = this.contents.model.getContents(this.contents.x, this.contents.y + (sumY > 0 ? 1 : -1));
+                    destContents = this.cellContents.model.getContents(this.cellContents.x, this.cellContents.y + (sumY > 0 ? 1 : -1));
                 }
                 else if (sumX != 0)
                 {
                     // sumX and sumY are equal - we default to X direction
-                    destContents = this.contents.model.getContents(this.contents.x + (sumX > 0 ? 1 : -1), this.contents.y);
+                    destContents = this.cellContents.model.getContents(this.cellContents.x + (sumX > 0 ? 1 : -1), this.cellContents.y);
                 }
                 else
                 {
@@ -700,8 +689,8 @@ GridItem.prototype.requestChange = function()
     if (destContents != null)
     {
         // Hooray! We have a destination. We'll also want to set the direction label.
-        var dirnLabel = (destContents.x != this.contents.x ? (destContents.x < this.contents.x ? "r" : "l") : (destContents.y < this.contents.y ? "b" : "f"));
-        return {contents: destContents, params:{direction:dirnLabel}};
+        var dirnLabel = (destContents.x != this.cellContents.x ? (destContents.x < this.cellContents.x ? "r" : "l") : (destContents.y < this.cellContents.y ? "b" : "f"));
+        return {cellContents: destContents, params:{direction:dirnLabel}};
     }
     
     return null;
@@ -709,10 +698,10 @@ GridItem.prototype.requestChange = function()
 
 GridItem.prototype.getSimplePathPreferred = function(item, goLong)
 {
-    var deltaX = this.contents.x - item.contents.x;
-    var deltaY = this.contents.y - item.contents.y;
-    var destX = this.contents.x;
-    var destY = this.contents.y;
+    var deltaX = this.cellContents.x - item.cellContents.x;
+    var deltaY = this.cellContents.y - item.cellContents.y;
+    var destX = this.cellContents.x;
+    var destY = this.cellContents.y;
 
     // Try the preferred direction first, with X as default.
     if (goLong == (Math.abs(deltaX) >= Math.abs(deltaY)))
@@ -723,7 +712,7 @@ GridItem.prototype.getSimplePathPreferred = function(item, goLong)
     {
         destY += (deltaY == 0 ? 0 : (deltaY > 0 ? -1 : 1));
     }
-    return this.contents.model.getContents(destX, destY);
+    return this.cellContents.model.getContents(destX, destY);
 }
 
 // Calculate the simple "as the crow flies" direction to go towards the
@@ -736,7 +725,7 @@ GridItem.prototype.followSimplePathTo = function(item)
         return null;
     
     // If we're right next to it, we can move there
-    if (destContents == item.contents)
+    if (destContents == item.cellContents)
     {
         // Need to check whether we'd be able to move to where the item is
         // standing
@@ -754,7 +743,7 @@ GridItem.prototype.followSimplePathTo = function(item)
     
     // Oookay, we'll try the less compelling direction.
     var destContents = this.getSimplePathPreferred(item, false);
-    if (destContents == this.contents)
+    if (destContents == this.cellContents)
     {
         // That's where we are now, so let's not move at all.
         // (This happens if the simple path is a straight line in x or y direction)

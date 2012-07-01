@@ -3,7 +3,7 @@ function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, star
 {
     PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
 
-	this.extraBottomRows = 2; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
+	this.extraBottomRows = 4; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
 
 	this.adjustCellBounds();
 }

@@ -48,6 +48,44 @@ PerspectiveItemFactory.prototype.makeContents = function(model, x, y, baseHeight
     return new PerspectiveGridContents(model, x, y, baseHeight, this.ambientLight);
 }
 
+// Construct the item given the xml.
+// We also provide the model so that it can register moving items and items with ids.
+PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
+{
+    var itemCode = xml.getAttribute("c");
+    var result = this.makeItem(itemCode);
+
+    if (xml.hasAttribute("id"))
+    {
+        result.id = xml.getAttribute("id");
+        model.importItem(result);
+    }
+
+    result.setHeight(parseInt(xml.getAttribute("h")), true);
+
+	if (xml.hasAttribute("d"))
+	{
+		result.setItemParam("direction", xml.getAttribute("d"), true);
+	}
+
+    // Update all the child items of this item as well
+    for (var i = 0; i < xml.childNodes.length; i++)
+    {
+        var xmlItem = xml.childNodes.item(i);
+
+        var currItem = this.makeItemFromXML(xmlItem, model);
+        result.appendItem(currItem);
+
+        // If the item is moveable, add it to the moveable list.
+        if (currItem.params.moveTowards != null)
+        {
+            model.addToMoveableItems(currItem);
+        }
+    }
+
+	return result;
+}
+
 PerspectiveItemFactory.prototype.makeItem = function(itemCode)
 {
     if (itemCode == null)
@@ -82,13 +120,19 @@ PerspectiveItemFactory.prototype.makeViewContents = function(view, x, y, x_index
 
 PerspectiveItemFactory.prototype.makeSimpleViewItem = function(modelItem)
 {
-    var b = this.baseSummary[modelItem.params.itemCode];
-    if (b != null)
+    if (this.baseSummary[modelItem.params.itemCode] != null)
     {
 		return new SimpleBlockGridViewItem(this, modelItem.params.itemCode, modelItem.params.ht);
     }
-    
-    var t = this.itemTemplates[modelItem.params.itemCode];
+    else
+	{
+		return this.makeSimpleViewItemFromCode(modelItem.params.itemCode);
+	}
+}
+
+PerspectiveItemFactory.prototype.makeSimpleViewItemFromCode = function(itemCode)
+{
+    var t = this.itemTemplates[itemCode];
     if (t != null)
     {
 	    var currItem = new SVGElement();

@@ -1,5 +1,5 @@
 // This class applies lighting effects to the GridModel base class.
-// It allows ambient light levels to be set for each contents, and
+// It allows ambient light levels to be set for each cellContents, and
 // for point sources to be defined in GridItems, which radiate light
 // except where they are blocked.
 // GridContents understand about blocking light.

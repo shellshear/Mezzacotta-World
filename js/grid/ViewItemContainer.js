@@ -25,9 +25,9 @@ ViewItemContainer.prototype.doAction = function(src, evt)
 {
     ViewItemContainer.superClass.doAction.call(this, src, evt);   
 
-    if (evt.type == "appendItem")
+    if (evt.type == "appendedItem")
     {
-        this.appendViewItem(this.modelItem.myItems[evt.itemIndex]);
+        this.appendViewItemAndChildren(evt.item);
     }
     else if (evt.type == "removeItem")
     {
@@ -47,13 +47,11 @@ ViewItemContainer.prototype.updateChildrenFromModel = function()
 {
     for (var i = 0; i < this.modelItem.myItems.length; ++i)
     {
-        var viewItem = this.appendViewItem(this.modelItem.myItems[i]);
-        if (viewItem != null)    
-            viewItem.updateChildrenFromModel();
+        this.appendViewItemAndChildren(this.modelItem.myItems[i]);
     }
 }
 
-ViewItemContainer.prototype.appendViewItem = function(item)
+ViewItemContainer.prototype.appendViewItemAndChildren = function(item)
 {
     var viewItem = this.viewItemFactory.makeViewItem(item);
     if (viewItem != null)
@@ -68,7 +66,15 @@ ViewItemContainer.prototype.appendViewItem = function(item)
         viewItem.onBeingAdded();
     }
     
-    return viewItem;
+	// If the item has children, also append those.
+	if (item.myItems != null)
+	{
+		for (var i = 0; i < item.myItems.length; ++i)
+		{
+			viewItem.appendViewItemAndChildren(item.myItems[i]);
+		}
+	}
+	return viewItem;
 }
 
 // Default method called when a ViewItemContainer is itself contained

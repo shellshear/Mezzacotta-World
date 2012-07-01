@@ -29,12 +29,18 @@ KevLinDev.extend(ActionController, ActionObject);
 
 ActionController.prototype.clear = function()
 {
+	for (var i = 0; i < this.itemActionList.length; ++i)
+	{
+		this.itemActionList[i].onDelete();
+	}
 	this.itemActionList = [];
 
-	this.itemIdIndex = 0;
-	this.itemIdList = [];
+	for (var i in this.condIdList)
+	{
+		this.condIdList[i].onDelete();
+	}
 	this.conditionIdIndex = 0;
-	this.condIdList = [];
+	this.condIdList = {};
 	this.clearSpeakingItems();
 	this.tellActionListeners(this, {type:"allActionsAndConditionsDeleted"});
 }
@@ -56,7 +62,7 @@ ActionController.prototype.setItemSpeech = function(item, text)
 
 ActionController.prototype.teleportTo = function(destination)
 {
-    this.parentController.submitLoadMap(destination);
+    this.parentController.gameServerInterface.submitLoadMap(destination);
 }
 
 // Export the actions and conditions into the specified parent XML
@@ -159,6 +165,7 @@ ActionController.prototype.removeAction = function(action)
     {
      	if (this.itemActionList[i] == action)
      	{
+			action.onDelete();
 			action.tellActionListeners(this, {type:"actionDeleted"});
      	    action.controller = null;
          	this.itemActionList.splice(i, 1);

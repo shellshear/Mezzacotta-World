@@ -57,6 +57,21 @@ function htmlspecialchars_decode(string)
     return string.toString().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#0*39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');    
 }
 
+function createXMLDoc(elementName)
+{
+	var result = null;
+	if (document.implementation && document.implementation.createDocument) 
+	{
+	    result = document.implementation.createDocument(null, elementName, null);
+	}
+	else
+	{
+	    result = new ActiveXObject("MSXML2.DOMDocument"); 
+	    result.loadXML("<" + elementName + "/>");
+	}
+	return result;
+}
+
 // Action Listeners respond to any SVG events via the handleEvent
 // method.  They can also be passed on by tellActionListeners.
 function ActionObject()

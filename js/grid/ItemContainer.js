@@ -1,6 +1,3 @@
-// A global item counter, used to give unique ids to items.
-gItemCount = 0;
-
 // Item container holds items
 function ItemContainer()
 {
@@ -20,6 +17,12 @@ ItemContainer.prototype.moveItem = function(target)
         this.owner.removeItem(this);
     }
     target.appendItem(this);
+}
+
+ItemContainer.prototype.removeAllItems = function()
+{
+    while (this.myItems.length > 0)
+        this.removeItemByIndex(0);
 }
 
 ItemContainer.prototype.removeItem = function(item)
@@ -69,8 +72,6 @@ ItemContainer.prototype.removeItemByIndex = function(itemIndex)
     this.myItems.splice(itemIndex, 1);
 
     this.tellActionListeners(this, {type:"removeItem", itemIndex:itemIndex});
-    
-    gItemCount--;
 }
 
 // Clean up, because we're about to be removed from our parent
@@ -92,12 +93,19 @@ ItemContainer.prototype.appendItem = function(item)
 {
     this.myItems.push(item);
     item.setOwner(this);
+    this.tellActionListeners(this, {type:"appendedItem", item:item});
 
-    var evt = new Object();
-    evt.type = "appendItem";
-    evt.itemIndex = this.myItems.length - 1;
-    this.tellActionListeners(this, evt);
-    
-    gItemCount++;
+	//item.notifyAppendItemChildren();
 }
 
+ItemContainer.prototype.notifyAppendItemChildren = function()
+{
+	if (this.myItems == null)
+		return;
+		
+	for (var i = 0; i < this.myItems.length; ++i)
+	{
+	    this.tellActionListeners(this, {type:"appendedItem", item:this.myItems[i]});
+	    this.myItems[i].notifyAppendItemChildren();
+	}
+}

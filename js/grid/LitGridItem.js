@@ -24,7 +24,7 @@ LitGridItem.prototype.updatePOV = function()
             {
                 var evt = new Object();
                 evt.type = "lightChanged";
-                this.canSee.light[i][j].contents.tellActionListeners(this, evt);
+                this.canSee.light[i][j].cellContents.tellActionListeners(this, evt);
             }
         }
     }

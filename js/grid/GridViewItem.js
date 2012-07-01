@@ -12,8 +12,8 @@ function GridViewItem(modelItem, viewItemFactory, itemGraphics)
      
 KevLinDev.extend(GridViewItem, ViewItemContainer);
 
-// Append components of the item contents
-// A view item contents can contain several bits (eg. the item and the
+// Append components of the item cellContents
+// A view item cellContents can contain several bits (eg. the item and the
 // item's shadow)
 GridViewItem.prototype.appendItemContents = function(itemGraphics)
 {
@@ -74,8 +74,8 @@ GridViewItem.prototype.doSpeech = function(text)
 // If the povList is null, show the item anyway.
 GridViewItem.prototype.updatePOV = function(povList)
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
         return;
 
     if (povList == null)
@@ -85,16 +85,16 @@ GridViewItem.prototype.updatePOV = function(povList)
     else if (this.itemGraphics != null)
     {
         var povTop = false;
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].viewType == "pov")
+            if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
                 for (var k in povList)
                 {
-                    if (povList[k] == contents.seenBy[j].item)
+                    if (povList[k] == cellContents.seenBy[j].item)
                     {
-                        if (contents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
+                        if (cellContents.seenBy[j].viewElev <= this.modelItem.params.elev + this.modelItem.params.ht)
                         {
                             povTop = true;
                         }
@@ -118,7 +118,7 @@ GridViewItem.prototype.updatePOV = function(povList)
 GridViewItem.prototype.setVisibilityTop = function(isVisible)
 {
     // Always override if parameter says it's invisible.
-    if (this.modelItem.params.isInvisible && !this.modelItem.contents.model.showInvisible)
+    if (this.modelItem.params.isInvisible && !this.modelItem.cellContents.model.showInvisible)
         isVisible = false;
     
     this.itemGraphics.setVisible(isVisible);

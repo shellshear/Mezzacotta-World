@@ -196,7 +196,7 @@ else if (isset($_REQUEST['load']))
 		// Get all the saved items if requested
 		if (isset($_REQUEST['get_items']) && $_REQUEST['get_items'] == "1")
 		{
-			$query = "SELECT map_id, item_id, item_name FROM map_item WHERE user_id='" . $mtg_access->user_id . "'";
+			$query = "SELECT map_id, avatar_index, item_id, item_xml FROM map_item WHERE user_id='" . $mtg_access->user_id . "'";
 			$items_result = mysql_query($query);
 		}
 		
@@ -224,10 +224,12 @@ else if (isset($_REQUEST['load']))
 			for ($i = 0; $i < mysql_num_rows($items_result); $i++)
 			{
 				$item_id = mysql_result($items_result, $i, "item_id");
-				$item_name = mysql_result($items_result, $i, "item_name");
+				$avatar_index = mysql_result($items_result, $i, "avatar_index");
 				$map_id = mysql_result($items_result, $i, "map_id");
+				$item_xml = stripslashes(mysql_result($items_result, $i, "item_xml"));
 				
-				echo "<item item_id='$item_id' item_name='$item_name' map_id='$map_id'/>";
+				echo "<item item_id='$item_id' avatar_index='$avatar_index' map_id='$map_id'>$item_xml</item>";
+				
 			}
 			echo "</items>";
 		}
@@ -289,44 +291,63 @@ else if (isset($_REQUEST['saveitems']))
 	for ($i = 0; isset($_REQUEST["itemId_" . $i]); $i++)
 	{
 		$save_item_id = mysql_real_escape_string($_REQUEST["itemId_" . $i]);
+		$save_avatar_index = mysql_real_escape_string($_REQUEST["avatarIndex_" . $i]);
 
 		// Does the user have this item already?
-		$query = "SELECT 1 FROM map_item WHERE map_id='$map_id' AND user_id='" . $mtg_access->user_id . "' AND item_id='$save_item_id'";
+		$query = "SELECT 1 FROM map_item WHERE map_id='$map_id' AND user_id='" . $mtg_access->user_id . "' AND item_id='$save_item_id' AND avatar_index='$save_avatar_index'";
 		$has_items_result = mysql_query($query);
 	
 		if ($has_items_result && mysql_num_rows($has_items_result) > 0)
 		{
-			if (isset($_REQUEST["itemName_" . $i]))
+			if (isset($_REQUEST["itemXML_" . $i]))
 			{
 				// Update
-				$save_item_name = mysql_real_escape_string($_REQUEST["itemName_" . $i]);
-				$query = "UPDATE map_item SET item_name='$save_item_name' WHERE user_id='" . $mtg_access->user_id . "' AND map_id='$map_id' AND item_id='$save_item_id'";
+				$save_item_xml = mysql_real_escape_string($_REQUEST["itemXML_" . $i]);
+				$query = "UPDATE map_item SET item_xml='$save_item_xml' WHERE user_id='" . $mtg_access->user_id . "' AND map_id='$map_id' AND item_id='$save_item_id' AND avatar_index='$save_avatar_index'";
 				$update_item_result = mysql_query($query);
 				
 				if ($update_item_result)
+				{
 					$items_updated++;
+					$curr_update_xml = $xmlOutput->createElement('update');
+					$curr_update_xml->setAttribute("item_id", $save_item_id);
+					$curr_update_xml->setAttribute("avatar_index", $save_avatar_index);
+					$xmlOutput->firstChild->appendChild($curr_update_xml);
+				}
 			}
 		    else
 			{
 				// delete
-				$query = "DELETE FROM map_item WHERE user_id='" . $mtg_access->user_id . "' AND map_id='$map_id' AND item_id='$save_item_id'";
+				$query = "DELETE FROM map_item WHERE user_id='" . $mtg_access->user_id . "' AND map_id='$map_id' AND item_id='$save_item_id' AND avatar_index='$save_avatar_index'";
 				$delete_item_result = mysql_query($query);
 
 				if ($delete_item_result)
+				{
 					$items_deleted++;
+					$curr_update_xml = $xmlOutput->createElement('delete');
+					$curr_update_xml->setAttribute("item_id", $save_item_id);
+					$curr_update_xml->setAttribute("avatar_index", $save_avatar_index);
+					$xmlOutput->firstChild->appendChild($curr_update_xml);
+				}
 			}
 		}
 		else
 		{
-			if (isset($_REQUEST["itemName_" . $i]))
+			if (isset($_REQUEST["itemXML_" . $i]))
 			{
 				// create new
-				$save_item_name = mysql_real_escape_string($_REQUEST["itemName_" . $i]);
-				$query = "INSERT INTO map_item (user_id, map_id, item_id, item_name) VALUES ('" . $mtg_access->user_id . "', '$map_id', '$save_item_id', '$save_item_name')";
+				$save_item_xml = mysql_real_escape_string($_REQUEST["itemXML_" . $i]);
+				$query = "INSERT INTO map_item (user_id, map_id, avatar_index, item_id, item_xml) VALUES ('" . $mtg_access->user_id . "', '$map_id', '$save_avatar_index', '$save_item_id', '$save_item_xml')";
 				$insert_item_result = mysql_query($query);
 
 				if ($insert_item_result)
+				{
 					$items_added++;
+					$curr_update_xml = $xmlOutput->createElement('new');
+					$curr_update_xml->setAttribute("item_id", $save_item_id);
+					$curr_update_xml->setAttribute("avatar_index", $save_avatar_index);
+					$xmlOutput->firstChild->appendChild($curr_update_xml);
+				}
 			}
 		    else
 			{

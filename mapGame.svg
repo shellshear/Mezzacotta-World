@@ -77,6 +77,10 @@
 <script type="text/ecmascript" xlink:href="js/ui/TextEditWindow.js"/>
 <script type="text/ecmascript" xlink:href="js/ui/AdminWindow.js"/>
 <script type="text/ecmascript" xlink:href="js/ui/WorldChooserWindow.js"/>
+<script type="text/ecmascript" xlink:href="js/ui/AvatarController.js"/>
+<script type="text/ecmascript" xlink:href="js/ui/AvatarGroupController.js"/>
+<script type="text/ecmascript" xlink:href="js/ui/InventoryWindow.js"/>
+<script type="text/ecmascript" xlink:href="js/ui/GameServerInterface.js"/>
 <script type="text/ecmascript" xlink:href="js/gameController.js"/>
 <script type="text/ecmascript" xlink:href="js/mapGame.js"/> 
 

@@ -2,7 +2,6 @@
 function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
     LitGridViewItem.baseConstructor.call(this, modelItem, viewItemFactory, itemGraphics);
-
     this.setLighting();
 }
 
@@ -10,30 +9,32 @@ KevLinDev.extend(LitGridViewItem, GridViewItem);
 
 LitGridViewItem.prototype.setLighting = function()
 {
-    var contents = this.modelItem.contents;
-    if (contents == null)
+    var cellContents = this.modelItem.cellContents;
+    if (cellContents == null)
+	{
         return;
-
+	}
+	
     if (this.itemGraphics != null)
     {
         // Set the shadow according to ambient light and light sources
         // this item is seen by.
-        var lightLevel = contents.ambientLight;
+        var lightLevel = cellContents.ambientLight;
         
-        for (var j in contents.seenBy)
+        for (var j in cellContents.seenBy)
         {
-            if (contents.seenBy[j].item.params.lightStrength == null || contents.seenBy[j].item.params.lightStrength == 0)
+            if (cellContents.seenBy[j].item.params.lightStrength == null || cellContents.seenBy[j].item.params.lightStrength == 0)
                 continue;
             
-            if (contents.seenBy[j].viewType != "light")
+            if (cellContents.seenBy[j].viewType != "light")
                 continue;
             
             // Not visible if the top isn't visible
-            var elev = contents.seenBy[j].viewElev;
-            if (contents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
+            var elev = cellContents.seenBy[j].viewElev;
+            if (cellContents.seenBy[j].viewElev > this.modelItem.params.elev + this.modelItem.params.ht)
                 continue;
             
-            var sourceLevel = contents.model.calcLightLevel(contents.seenBy[j].distance, contents.seenBy[j].item.params.lightStrength);
+            var sourceLevel = cellContents.model.calcLightLevel(cellContents.seenBy[j].distance, cellContents.seenBy[j].item.params.lightStrength);
             if (sourceLevel > lightLevel)
             {
                 lightLevel = sourceLevel;

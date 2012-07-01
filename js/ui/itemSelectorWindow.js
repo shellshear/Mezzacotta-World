@@ -30,14 +30,18 @@ function ItemSelectorWindow(controller)
 	this.explanationText = new TextLabel("Select an item in the grid", {"font-size":15, fill:"black"}, {maxWidth:160, lineSpacing:0});
     this.contents.appendChild(this.explanationText)
 
-    // Allow the avatar to be selected
-    var avatarElement = this.controller.model.itemFactory.makeSimpleViewItem(this.controller.currentChar);
+    // Allow the avatars to be selected
+	for (var i = 0; i < this.controller.avatarGroupController.avatarList.length; ++i)
+	{
+		var avatarElement = this.controller.avatarGroupController.avatarList[i].copyItem();
 
-    this.avatarButton = new RectButton("avatarButton", 0, 0, avatarElement, {fill:"white", stroke:"green", rx:2, width:40, height:40}, {fill:"yellow"}, {fill:"orange"}, 5, false);
+		// TODO: Handle more than one avatar.
+    	this.avatarButton = new RectButton("avatarButton", 0, 0, avatarElement, {fill:"white", stroke:"green", rx:2, width:40, height:40}, {fill:"yellow"}, {fill:"orange"}, 5, false);
 
-    this.contents.appendChild(this.avatarButton);
-    this.avatarButton.addActionListener(this);
-
+    	this.contents.appendChild(this.avatarButton);
+    	this.avatarButton.addActionListener(this);
+	}
+	
     var okCancelButtons = new FlowLayout(0, 0, {minSpacing:3});
     this.contents.appendChild(okCancelButtons);
 
@@ -64,7 +68,8 @@ ItemSelectorWindow.prototype.doAction = function(src, evt)
     {
         if (src.src == "avatarButton")
         {
-            this.setItem(this.controller.currentChar);
+			// TODO: Cope with more than one avatar.
+            this.setItem(this.controller.avatarGroupController.avatarList[0].avatarItem);
         }
         else if (src.src == "ItemSelectionCancel")
         {
@@ -80,19 +85,19 @@ ItemSelectorWindow.prototype.doAction = function(src, evt)
 }
 
 // User has selected a gridContents, so we choose the top relevent item out of it
-ItemSelectorWindow.prototype.setGridContents = function(contents)
+ItemSelectorWindow.prototype.setGridContents = function(cellContents)
 {
 	var item = null;
 	switch (this.itemType)
 	{
 	case "topBlock":
-		item = getTopBlockItem(contents);
+		item = getTopBlockItem(cellContents);
 		break;
 		
 	case "topItem":
 	case null:
 	default:
-		item = contents.getTopItem();
+		item = cellContents.getTopItem();
 		break;
 	}
 	

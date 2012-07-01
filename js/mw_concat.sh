@@ -72,6 +72,10 @@ cat \
 	ui/TextEditWindow.js \
 	ui/AdminWindow.js \
 	ui/WorldChooserWindow.js \
+	ui/AvatarController.js \
+	ui/AvatarGroupController.js \
+	ui/InventoryWindow.js \
+	ui/GameServerInterface.js \
 	gameController.js \
 	mapGame.js \
     > mw.js

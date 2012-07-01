@@ -11,9 +11,9 @@ KevLinDev.extend(PerspectiveGridItem, LitGridItem);
 
 PerspectiveGridItem.prototype.setInTheWay = function(opacity)
 {
-    if (this.contents != null)
+    if (this.cellContents != null)
     {
-        this.contents.model.itemsInTheWay.push(this);
+        this.cellContents.model.itemsInTheWay.push(this);
         this.tellActionListeners(this, {type:"InTheWay", opacity:opacity});
     }
 }

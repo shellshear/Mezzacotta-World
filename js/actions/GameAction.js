@@ -80,6 +80,12 @@ GameAction.prototype.performAction = function(areConditionsMet)
     return true; // Return false to stop further actions.
 }
 
+// Clean up the action on delete.
+// Default
+GameAction.prototype.onDelete = function()
+{
+}
+
 GameAction.prototype.toXML = function()
 {
     var xmlAction = this.model.xmlDoc.createElement("action");
@@ -176,6 +182,12 @@ SpeechAction.prototype.fromXML = function(xml)
     this.setSpeechArray(speechText.split('|'));
 }
 
+SpeechAction.prototype.onDelete = function()
+{
+	this.speechItem.onDelete();
+	this.speechItem.removeActionListener(this);
+}
+
 function HeightAction(model, controller, item, newHeight)
 {
     this.setHeight(newHeight);
@@ -250,6 +262,12 @@ HeightAction.prototype.fromXML = function(xml)
 	this.setHeight(ht);
 }
 
+HeightAction.prototype.onDelete = function()
+{
+	this.heightItem.onDelete();
+	this.heightItem.removeActionListener(this);
+}
+
 function TeleportAction(model, controller, destination)
 {
     this.setDestination(destination);
@@ -271,7 +289,7 @@ TeleportAction.prototype.performAction = function(areConditionsMet)
     {
         // We don't allow teleport at time 0 - this stops shennanigans with
         // multiple teleports.
-        this.controller.parentController.submitSaveItemsAndTeleport(this.destination);
+        this.controller.parentController.gameServerInterface.submitSaveItemsAndTeleport(this.destination);
         return false; // Stop further actions
     }
     return true;
@@ -341,6 +359,14 @@ MoveAction.prototype.fromXML = function(xml)
     MoveAction.superClass.fromXML.call(this, xml);
     this.targetItem.fromXML(xml);
 	this.destItem.fromXML(xml);
+}
+
+MoveAction.prototype.onDelete = function()
+{
+	this.targetItem.onDelete();
+	this.destItem.onDelete();
+	this.targetItem.removeActionListener(this);
+	this.destItem.removeActionListener(this);
 }
 
 

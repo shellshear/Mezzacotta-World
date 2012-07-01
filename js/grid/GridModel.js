@@ -7,15 +7,7 @@ function GridModel(itemFactory)
     GridModel.baseConstructor.call(this);
     this.src = "GridModel";
 
-    if (document.implementation && document.implementation.createDocument) 
-    {
-        this.xmlDoc = document.implementation.createDocument(null, "m", null);
-    }
-    else
-    {
-        this.xmlDoc = new ActiveXObject("MSXML2.DOMDocument"); 
-        this.xmlDoc.loadXML("<m/>");
-    }
+	this.xmlDoc = createXMLDoc("m");
     this.xmlModel = this.xmlDoc.firstChild;
     
     this.gridData = {};
@@ -32,7 +24,7 @@ function GridModel(itemFactory)
     
     this.quadList = [{x:1,y:1},{x:-1,y:1},{x:-1,y:-1},{x:1,y:-1}];
     
-    // Default list of adjacent contents
+    // Default list of adjacent cellContents
     this.adjList = [
         {x:1,y:0,inFront:false, side:0},
         {x:0,y:1,inFront:true, side:1},
@@ -69,6 +61,8 @@ GridModel.prototype.registerItem = function(item)
     this.itemIdList[item.id] = item;
 }
 
+// Add the item to the itemIdList, so that we can later more easily retrieve items with ids.
+// Also ensure that any new id we create doesn't overlap existing ids.
 GridModel.prototype.importItem = function(item)
 {
     // We only care about items with ids.
@@ -194,9 +188,9 @@ GridModel.prototype.toXML = function()
     {
         for (var j in this.gridData[i])
         {
-            var contentsXML = this.gridData[i][j].toXML(this.xmlDoc);
-            if (contentsXML != null)
-                this.xmlModel.appendChild(contentsXML);
+            var cellContentsXML = this.gridData[i][j].toXML(this.xmlDoc);
+            if (cellContentsXML != null)
+                this.xmlModel.appendChild(cellContentsXML);
         }
     }
     
@@ -215,9 +209,9 @@ GridModel.prototype.fromXML = function(xml)
         var xmlContents = xmlContentsList.item(i);
         var x = parseInt(xmlContents.getAttribute("x"));
         var y = parseInt(xmlContents.getAttribute("y"));
-        var contents = this.getContents(x, y);
+        var cellContents = this.getContents(x, y);
         
-        contents.fromXML(xmlContents);
+        cellContents.fromXML(xmlContents);
     }    
 }
 
@@ -233,23 +227,27 @@ GridModel.prototype.fromString = function(str)
            var bits = nodeList[k].split(",");
            var x = parseInt(bits[0].substr(1)); // skip the "["
            var y = parseInt(bits[1]);
-           var contents = this.getContents(x, y);
-           contents.fromString(bits[2]);
+           var cellContents = this.getContents(x, y);
+           cellContents.fromString(bits[2]);
        }
     }
 }
 
-// Find the first item with the specified item code
-GridModel.prototype.findItemByCode = function(itemCode)
+// Find the items with the specified item code
+GridModel.prototype.findItemsByCode = function(itemCode)
 {
+	var result = [];
     for (var i in this.gridData)
     {
         for (var j in this.gridData[i])
         {
-            var result = this.gridData[i][j].findItemByCode(itemCode);
-            if (result != null)
-                return result;
+            var currItem = this.gridData[i][j].findItemByCode(itemCode);
+            if (currItem != null)
+                result.push(currItem);
         }
     }
-    return null;
+	if (result.length == 0)
+    	return null;
+	else
+		return result;
 }
