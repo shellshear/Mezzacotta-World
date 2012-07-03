@@ -40,13 +40,11 @@ BlockGridViewItem.prototype.updateHeight = function()
     {
         var path = this.viewItemFactory.getVerticalPath(leftHeight, 0);
         this.elements["left"].base.setAttribute("d", path);
-        this.elements["left"].shadow.setAttribute("d", path);
         this.elements["left"].show();
     }
     else
     {
         this.elements["left"].base.removeAttribute("d");
-        this.elements["left"].shadow.removeAttribute("d");
         this.elements["left"].hide();
     }
 
@@ -65,13 +63,11 @@ BlockGridViewItem.prototype.updateHeight = function()
     {            
         var path = this.viewItemFactory.getVerticalPath(frontHeight, 1);
         this.elements["front"].base.setAttribute("d", path);
-        this.elements["front"].shadow.setAttribute("d", path);
         this.elements["front"].show();
     }
     else
     {
         this.elements["front"].base.removeAttribute("d");
-        this.elements["front"].shadow.removeAttribute("d");
         this.elements["front"].hide();
     }
 }

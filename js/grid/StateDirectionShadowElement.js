@@ -3,7 +3,6 @@
 //     <g id="itemId_def" state="def">
 //         <g id="itemId_def_def" [direction="dirn"]>
 //             [graphics describing default state, with default direction]
-//             <path id="itemId_def_def_shadow" d="" type="shadow"/>
 //         </g>
 //         <g id="itemId_def_back" direction="back"/>
 //     </g>
@@ -19,7 +18,7 @@
 function StateDirectionShadowElement(base, state, direction, showInvisible)
 {
     StateDirectionShadowElement.baseConstructor.call
-        (this, base, null, showInvisible);   
+        (this, base, showInvisible);   
 
     this.setState(state);
     this.setDirection(direction);
@@ -75,39 +74,6 @@ StateDirectionShadowElement.prototype.setDirection = function(direction)
             }
         }
     }
-    
-    if (this.directionSVG != null)
-    {
-        // Good, we've found a valid graphic. Look for a shadow.
-        for (var i in this.directionSVG.childNodes)
-        {
-            var currGraphic = this.directionSVG.childNodes[i];
-            if (currGraphic.hasAttribute("type") && currGraphic.getAttribute("type") == "shadow")
-            {
-                currGraphic.show();
-                currGraphic.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-                this.setShadowElement(currGraphic);
-                break;
-            }
-        }
-    }
 }
 
-StateDirectionShadowElement.prototype.setShadowElement = function(shadow)
-{
-    StateDirectionShadowElement.superClass.setShadowElement.call(this, shadow);   
-
-    // If the direction element has any transforms, apply them to the shadow element
-    // as well, because it's been moved from the direction group.
-    // (It got separated because we sometimes want to show the shadow but not the element.)
-    if (this.shadow != null && this.directionSVG != null)
-    {
-        // There may be some transforms on the base
-        // that need to be applied to the shadow
-        if (this.directionSVG.hasAttribute("transform"))
-        {
-            this.shadow.setAttribute("transform", this.directionSVG.getAttribute("transform"));
-        }
-    }
-}
 

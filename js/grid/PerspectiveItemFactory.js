@@ -158,7 +158,6 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // top of the block
         var top = new ShadowElement(
             new SVGElement("path", {d:this.baseRect, fill:this.baseSummary[modelItem.params.itemCode][1], stroke:"none"}),
-            new SVGElement("path", {d:this.baseRect, fill:"black", stroke:"none"}),
             true
             );
 
@@ -167,19 +166,17 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // path for the verticals gets filled out later by setHeight
         var left = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][2], stroke:"none"}),
-            new SVGElement("path", {fill:"black", stroke:"none"}),
             true
             );        
         var front = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][3], stroke:"none"}),
-            new SVGElement("path", {fill:"black", stroke:"none"}),
             true
             );
 		
         left.hide();
         front.hide();
         
-        var bottom = new ShadowElement(null, null, true);
+        var bottom = new ShadowElement(null, true);
         
         var highlight = new SVGElement("path", {d:this.baseRect, fill:"red", stroke:"black", opacity:0.5});
 

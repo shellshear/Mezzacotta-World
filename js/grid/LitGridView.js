@@ -7,7 +7,7 @@ function LitGridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, 
 KevLinDev.extend(LitGridView, GridView);
 
 // Redo the lighting for the entire scene
-// This needs to be done if we change gOpacityScaleFactor, for example.
+// This needs to be done if we change gLightLevelScaleFactor, for example.
 LitGridView.prototype.setLighting = function()
 {
     for (var i in this.view)

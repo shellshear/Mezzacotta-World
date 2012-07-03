@@ -1,23 +1,23 @@
 // Overall opacity of the shadows - if this is less than 1, shadows aren't as dark.
-var gOpacityScaleFactor = 1.0;
+var gLightLevelScaleFactor = 1.0;
 
-// ShadowElement holds the element and its shadow (an svg element, usually the 
-// boundary of the element with a black fill).
-// Note that this is distinct from an item: an item may contain many
-// shadowElements (eg. the perspective base element has two verticals, 
-// each with their own shadow)
+// Keep a list of id indexes, so that we can uniquely light each ShadowElement.
+var gShadowElementIdIndex = 0;
+
+// ShadowElement 
 // The showInvisible parameter determines whether the element is hidden
 // or merely darkened when it is not visible due to lighting conditions.
-function ShadowElement(base, shadow, showInvisible)
+function ShadowElement(base, showInvisible)
 {
     ShadowElement.baseConstructor.call(this, "g");
 
     this.setBaseElement(base);
-    this.setShadowElement(shadow);
     this.showInvisible = showInvisible;
     if (!this.showInvisible)
         this.hide();
     
+	this.shadowID = gShadowElementIdIndex++;
+
     this.isVisible = true;     
 }
 
@@ -33,28 +33,6 @@ ShadowElement.prototype.setBaseElement = function(base)
         this.appendChild(this.base);
 }
 
-ShadowElement.prototype.setShadowElement = function(shadow)
-{
-    if (this.shadow != null)
-        this.shadow.detach();
-
-    this.shadow = shadow;
-    if (this.shadow != null)
-    {
-        this.prependChild(this.shadow);
-    }
-}
-
-ShadowElement.prototype.setShadow = function(opacity)
-{
-    this.opacity = opacity;
-
-    if (this.isVisible)
-    {
-        this.setOpacity(this.opacity);
-    }
-}
-
 // If the shadow element isn't visible, either hide it or
 // show it as dark no matter what the light level
 ShadowElement.prototype.setVisible = function(isVisible)
@@ -64,37 +42,36 @@ ShadowElement.prototype.setVisible = function(isVisible)
     if (this.isVisible)
     {
         this.show();
-        this.setOpacity(this.opacity);
+        this.setLightLevel2(this.lightLevel);
     }
     else if (this.showInvisible)
     {
         this.show();
-        this.setOpacity(1.0);
+        this.setLightLevel2(0.0);
     }
     else
         this.hide();
 }
 
-ShadowElement.prototype.setOpacity = function(opacity)
+ShadowElement.prototype.setLightLevel = function(lightLevel)
 {
-    opacity *= gOpacityScaleFactor;
-    
-    if (this.base != null)
+	if (lightLevel == this.lightLevel)
+		return;
+		
+    this.lightLevel = lightLevel;
+
+    if (this.isVisible)
     {
-        this.base.setAttribute("opacity", 1.0 - opacity);
+        this.setLightLevel2(this.lightLevel);
     }
+}
+
+// Internal method for setting light level.
+ShadowElement.prototype.setLightLevel2 = function(lightLevel)
+{
     if (this.base != null)
     {
-        if (opacity == 1.0)
-        {
-            // We can hide the base because the shadow is fully covering it anyway.
-            // If there's no shadow element, we hide it anyway 'cause otherwise
-            // it'll show up as fully lit even though it can't be seen.
-            this.base.hide();
-        }
-        else
-        {
-            this.base.show();
-        }
+	    lightLevel = lightLevel + (1.0 - lightLevel) * (1.0 - gLightLevelScaleFactor);
+		setLightLevel(this.base.svg, {r:lightLevel, g:lightLevel, b:lightLevel}, "shadow" + this.shadowID);
     }
 }

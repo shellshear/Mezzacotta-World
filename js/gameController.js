@@ -864,7 +864,7 @@ GameController.prototype.setDebugMode = function(debugMode)
         var bgrect = document.getElementById("baseBG");
         bgrect.setAttribute("fill", "white");
 
-        gOpacityScaleFactor = 0.6;
+        gLightLevelScaleFactor = 0.6;
 
 		this.view.updatePOV(null);
         this.view.setLighting();
@@ -898,7 +898,7 @@ GameController.prototype.editLevel = function(debugMode)
 	var bgrect = document.getElementById("baseBG");
 	bgrect.setAttribute("fill", "white");
 
-	gOpacityScaleFactor = 0.6;
+	gLightLevelScaleFactor = 0.6;
 
 	if (!debugMode)
 	{
@@ -936,7 +936,7 @@ GameController.prototype.playLevel = function()
     this.model.showInvisible = false;
     
 	// reset the lighting
-    gOpacityScaleFactor = 1.0;
+    gLightLevelScaleFactor = 1.0;
     this.view.setLighting();
     
     // reset the turn clock

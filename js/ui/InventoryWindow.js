@@ -58,8 +58,7 @@ InventoryWindow.prototype.addItem = function(item)
 {
 	var itemCopy = this.controller.itemFactory.makeItem(item.params.itemCode);
 
-	var currEl = this.controller.itemFactory.makeViewItem(itemCopy);
-    currEl.itemGraphics.setShadow(0);
+	var currEl = this.controller.itemFactory.makeSimpleViewItem(itemCopy);
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
 

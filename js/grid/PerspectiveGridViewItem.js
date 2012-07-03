@@ -97,7 +97,7 @@ PerspectiveGridViewItem.prototype.setLighting = function()
                 }
             }
         }
-        this.elements[i].setShadow(1.0 - lightLevel);
+        this.elements[i].setLightLevel(lightLevel);
     }
 }
 

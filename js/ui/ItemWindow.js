@@ -84,14 +84,14 @@ ItemWindow.prototype.setItem = function(itemCode)
 	this.item = this.controller.itemFactory.makeItem(itemCode);
 	
 	var currEl = this.controller.itemFactory.makeViewItem(this.item);
-    currEl.itemGraphics.setShadow(0);
+    currEl.itemGraphics.setLightLevel(1.0);
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
     this.itemAppearanceLabel.setContents(elHolder);
     this.item.addActionListener(currEl);
 
 	var currEl2 = this.controller.itemFactory.makeViewItem(this.item);
-    currEl2.itemGraphics.setShadow(0);
+    currEl2.itemGraphics.setLightLevel(1.0);
 	var elHolder2 = new SVGElement("g");
 	elHolder2.appendChild(currEl2);
     this.itemAppearanceButton.setContents(elHolder2);

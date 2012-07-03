@@ -41,7 +41,7 @@ LitGridViewItem.prototype.setLighting = function()
             }
         }
     
-        this.itemGraphics.setShadow(1.0 - lightLevel);
+        this.itemGraphics.setLightLevel(lightLevel);
     }
         
     for (var i in this.containedItems.childNodes)

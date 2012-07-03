@@ -19,9 +19,6 @@ function SelectableViewItem(view, item)
 
         // Get the shadow path
         var path = "M0,0 L10,0 10,10 0,10z";
-        var shadow = view.itemFactory.artwork.getElementById(t.itemName + "_def_def_shadow");
-        if (shadow != null)
-            path = shadow.getAttribute("d");
             
         mouseoverElement = new SVGElement("path", {d: path, fill:"red", stroke:"black", opacity:0.5});
         selectElement = new SVGElement("path", {d: path, fill:"red", stroke:"black"});
