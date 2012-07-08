@@ -1,7 +1,7 @@
 // Game controller for the hex version
-function HexGameController(background, templateButtons, model, view, idMap)
+function HexGameController(background, templateButtons, model, view)
 {
-    HexGameController.baseConstructor.call(this, background, templateButtons, model, view, idMap);
+    HexGameController.baseConstructor.call(this, background, templateButtons, model, view);
 }
 
 KevLinDev.extend(HexGameController, GameController);

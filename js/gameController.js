@@ -5,7 +5,7 @@ function TurnClock()
     this.currentTime = 0;
 }
 
-function GameController(background, itemFactory, model, view, idMap)
+function GameController(background, itemFactory, model, view)
 {
     GameController.baseConstructor.call(this);
 	
@@ -60,7 +60,6 @@ function GameController(background, itemFactory, model, view, idMap)
     this.model = model;
     this.view = view;
     this.view.addActionListener(this);
-    this.idMap = idMap;
    
     this.avatarGroupController = new AvatarGroupController(this);
     
@@ -452,7 +451,7 @@ GameController.prototype.parseGameAction = function(src, evt)
 
 GameController.prototype.parseEditAction = function(src, evt)
 {
-    if (src.src == this.idMap.buttonName && evt.type == "mouseover")
+    if (src.src == "gridCell" && evt.type == "mouseover")
     {
         // Make sure the cellContents are visible
         this.setVisibleToUser([src.modelContents], 5);
@@ -482,7 +481,7 @@ GameController.prototype.parseEditAction = function(src, evt)
 			else
 				this.playLevel();
         }
-        else if (src.src == "persView")
+        else if (src.src == "gridCell")
         {
             this.contentSelected(src, evt);
         }

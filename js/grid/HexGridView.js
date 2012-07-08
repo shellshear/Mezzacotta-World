@@ -4,9 +4,9 @@
 //    / 0\__/ 2\__
 //    \__/ 1\__/ 3\
 //       \__/  \__/
-function HexGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
+function HexGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    HexGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+    HexGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);
 }
 
 KevLinDev.extend(HexGridView, GridView);

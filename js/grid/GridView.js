@@ -13,7 +13,7 @@
 //         <g/> // Bonus covers go in here
 //     </svg>
 // </g>
-function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, cellWidth, cellHeight)
+function GridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, cellWidth, cellHeight)
 {
 	// Setup the view area
 	this.cellWidth = cellWidth;
@@ -37,9 +37,6 @@ function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, sta
     this.coverLayer2 = new SVGElement("g"); // svg for the cover2 layer
 	this.transformLayer.appendChild(this.coverLayer2);
     
-	
-	this.idMap = idMap;
-
     this.view = []; // Keep an array for the view elements
    
     // Keep an array for the z-order groups

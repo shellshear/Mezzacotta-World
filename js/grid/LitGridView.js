@@ -1,7 +1,7 @@
 // Handles lighting changes for the grid
-function LitGridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height)
+function LitGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    LitGridView.baseConstructor.call(this, gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height);   
+    LitGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);   
 }
 
 KevLinDev.extend(LitGridView, GridView);

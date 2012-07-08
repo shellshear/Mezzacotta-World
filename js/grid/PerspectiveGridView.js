@@ -1,7 +1,7 @@
 // The view of a perspective grid model
-function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
+function PerspectiveGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+    PerspectiveGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);
 
 	this.extraBottomRows = 4; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
 

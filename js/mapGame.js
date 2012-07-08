@@ -37,46 +37,27 @@ function init()
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
         Z:{itemName:"zombie01", fullname:"Zombie", itemCode:"Z", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
+        Y:{itemName:"zombie02", fullname:"Ghoul", itemCode:"Y", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
         T:{itemName:"teleport01", fullname:"Teleport", itemCode:"T", canStandOn:true, doesTeleport:true},
         S:{itemName:"start01", fullname:"Start Square", itemCode:"S", canStandOn:true, isInvisible:true},
         b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, lightStrength:1, lightRadius:4, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
-        t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t"},
+        t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t", noEdit:true},
         B:{itemName:"barrel01", fullname:"Barrel", itemCode:"B", ht:20, wt:1000, isPushable:true, blockView:true, canStandOn:true}
        };
     
     var itemFactory = new PerspectiveItemFactory(0, 25, 15, itemTemplates, baseSummary);
-    var persIDMap = makeDefaultIdMap("pers");     
    
-    var coverLayer = document.getElementById(persIDMap.coverLayer);
+    var coverLayer = document.getElementById("persCoverLayer");
     var persModel = new PerspectiveGridModel(itemFactory);
 
 	var playArea = wrapElementById("persPlayArea");
-    var persView = new PerspectiveGridView(persModel, persIDMap, itemFactory, 16, 26, 0, 0, 25, 15);
+    var persView = new PerspectiveGridView(persModel, itemFactory, 16, 26, 0, 0, 25, 15);
 	playArea.appendChild(persView);
    
-    gController = new GameController(background, itemFactory, persModel, persView, persIDMap);
+    gController = new GameController(background, itemFactory, persModel, persView);
 
     updateLayout();
     gWindow.onresize = updateLayout;
-}
-
-function makeDefaultIdMap(prefix)
-{
-    var result = {};
-   
-    result.playArea = prefix + "PlayArea";
-    result.updateArea = prefix + "UpdateArea";
-    result.editArea = prefix + "EditArea";
-    result.templateArea = prefix + "TemplateArea";
-    result.buttonName = prefix + "View";
-    result.buttonOutline = "images/" + prefix + "MapView.svg#" + prefix + "Outline";
-    result.buttonMouseover = "images/" + prefix + "MapView.svg#" + prefix + "Mouseover";
-    result.buttonSelect = "images/" + prefix + "MapView.svg#" + prefix + "Select";
-    result.buttonCover = "images/" + prefix + "MapView.svg#" + prefix + "Cover";
-    result.coverLayer = prefix + "CoverLayer";
-    result.objectLayer = prefix + "ObjectLayer";
-   
-    return result;
 }
 
 function updateLayout()
