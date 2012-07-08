@@ -524,17 +524,24 @@ GameController.prototype.parseEditAction = function(src, evt)
     }
 }
 
-// Set all the cells in the cellList to be visible
+// Ensure all the blocks in the cellList are visible to the user
+// by ensuring no blocks are obscuring them (i.e. are in front and higher).
+// offset - how much taller a front block must be in order to obscure the ones behind it.
 GameController.prototype.setVisibleToUser = function(cellList, offset)
 {
 	if (cellList == null)
 		return;
 		
+    this.model.clearInTheWay();
 	for (var i = 0; i < cellList.length; ++i)
 	{
 		var currCell = cellList[i];
 		
-	    // Make sure the cell is visible
+		// Don't need to make a cell visible if it's got nothing in it.
+		if (currCell.myItems.length == 0)
+			continue;
+		
+	    // Make sure the top block is visible
 	    var ht = offset;
     
 	    var topBlock = getTopBlockItem(currCell);
@@ -543,7 +550,6 @@ GameController.prototype.setVisibleToUser = function(cellList, offset)
 	        ht = topBlock.params.elev + topBlock.params.ht + offset;
 	    }
     
-	    this.model.clearInTheWay();
 	    currCell.setVisibleToUser(ht);
 	    this.model.getContents(currCell.x, currCell.y - 1).setVisibleToUser(ht);
 	    this.model.getContents(currCell.x + 1, currCell.y).setVisibleToUser(ht);

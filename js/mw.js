@@ -4150,12 +4150,14 @@ function GridContents(model, x, y)
     this.y = y;
 
     this.seenBy = []; // List of [item, elevation, distance] that can see this contents
+	this.tempParams = {};
 }
 
 KevLinDev.extend(GridContents, ItemContainer);
 
 GridContents.prototype.clear = function()
 {
+	this.tempParams = {};
     this.removeAllItems();
 }
 
@@ -4222,7 +4224,7 @@ GridContents.prototype.toXML = function(xmlDoc, showAll)
 
     if (showAll)
     {
-        for (var i in this.seenBy)
+        for (var i = 0; i < this.seenBy.length; ++i)
         {
             var xmlSeen = xmlDoc.createElement("seen");
             xmlSeen.setAttribute("item", this.seenBy[i].item);
@@ -4261,7 +4263,7 @@ GridContents.prototype.addSeenBy = function(item, viewElev, distance, x, y, view
 
 GridContents.prototype.removeSeenBy = function(item)
 {
-    for (var i in this.seenBy)
+    for (var i = 0; i < this.seenBy.length; ++i)
     {
         if (this.seenBy[i].item == item)
         {
@@ -4323,7 +4325,7 @@ function GridItem(params)
     this.src = "GridItem";
 
     this.params = (params == null) ? {} : params;
-	this.params.saveVals = [];
+	this.params.saveVals = {};
 	
     if (this.params.ht == null)
         this.params.ht = 0; 
@@ -4389,12 +4391,12 @@ GridItem.prototype.updateAffectedPOV = function()
         // Note that the cellContents.seenBy list may change as we update the
         // povs of the items.
         var povItems = [];
-        for (var i in this.cellContents.seenBy)
+        for (var i = 0; i < this.cellContents.seenBy.length; ++i)
         {
             povItems.push(this.cellContents.seenBy[i].item);
         }
         
-        for (var j in povItems)
+        for (var j = 0; j < povItems.length; ++j)
         {
             povItems[j].updatePOV();
         }
@@ -4621,7 +4623,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test d
                 var dist = d * 1.4142;
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * d;
                     var y1 = y + q[j].y * d;
@@ -4635,7 +4637,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test off-diagonal "d"s
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * (d + i);
                     var y1 = y + q[j].y * d;
@@ -4656,7 +4658,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test k
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     // (x-dx,y) || (x-dx,y-dy) && (x,y-dy))
                     var x1 = x + q[j].x * (d + i);
@@ -4691,7 +4693,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test off-centre l
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * (d + i);
                     var y1 = y + q[j].y * d;
@@ -4726,10 +4728,10 @@ GridItem.prototype.setVisibility = function(cellContents, viewElev, distance, x,
     cellContents.addSeenBy(this, viewElev, distance, x, y, viewType);
 
     if (this.canSee[viewType] == null)
-        this.canSee[viewType] = [];
+        this.canSee[viewType] = {};
 
     if (this.canSee[viewType][cellContents.x] == null)
-        this.canSee[viewType][cellContents.x] = [];
+        this.canSee[viewType][cellContents.x] = {};
    
     this.canSee[viewType][cellContents.x][cellContents.y] = {cellContents:cellContents, viewElev:viewElev, distance:distance};
 }
@@ -4748,7 +4750,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
                 }
             }
         }        
-        this.canSee = [];
+        this.canSee = {};
     }
     else
     {
@@ -4759,7 +4761,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
                 this.canSee[viewType][i][j].cellContents.removeSeenBy(this);
             }
         }
-        this.canSee[viewType] = [];
+        this.canSee[viewType] = {};
     }
 }
 
@@ -4839,7 +4841,7 @@ GridItem.prototype.setHeight = function(height, doSave)
 	
 	// Update the POV of this item and each item on top of it
 	var items = this.getFlattenedTree();
-	for (var i in items)
+	for (var i = 0; i < items.length; ++i)
 	{
 		items[i].updateElev();
     	items[i].updatePOV();
@@ -4960,7 +4962,7 @@ GridItem.prototype.requestChange = function()
                 var sumX = 0;
                 var sumY = 0;
                 // Try to get a mean direction
-                for (var j in closestItems)
+                for (var j = 0; j < closestItems.length; ++j)
                 {
                     destContents = this.followSimplePathTo(closestItems[j].item);
                     sumX += (destContents.x - this.cellContents.x);
@@ -5150,12 +5152,12 @@ GridViewItem.prototype.updatePOV = function(povList)
     else if (this.itemGraphics != null)
     {
         var povTop = false;
-        for (var j in cellContents.seenBy)
+        for (var j = 0; j < cellContents.seenBy.length; ++j)
         {
             if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
-                for (var k in povList)
+                for (var k = 0; k < povList.length; ++k)
                 {
                     if (povList[k] == cellContents.seenBy[j].item)
                     {
@@ -5174,7 +5176,7 @@ GridViewItem.prototype.updatePOV = function(povList)
         this.setVisibilityTop(povTop);
     }
     
-    for (var i in this.containedItems.childNodes)
+    for (var i = 0; i < this.containedItems.childNodes.length; ++i)
     {
         this.containedItems.childNodes[i].updatePOV(povList);
     }
@@ -6030,9 +6032,12 @@ KevLinDev.extend(PerspectiveGridContents, LitGridContents);
 // semi-opaque
 PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
 {
-    for (var i = 1; i < 4; i++)
+    for (var i = 1; i < 3; i++)
     {
         var cellContents = this.model.getContents(this.x - i, this.y + i);
+		if (cellContents.tempParams.neverInWay)
+			continue;
+			
         var topData = cellContents;
         while (topData.myItems.length > 0)
         {
@@ -6040,7 +6045,7 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
             if (topData.params.elev + topData.params.ht > 30 * (i - 1) + elevation)
             {
                 // This item is in the way!
-                topData.setInTheWay(0.5);
+                topData.setInTheWay(0.2);
             }
         }
     }
@@ -6336,7 +6341,22 @@ KevLinDev.extend(BlockGridViewItem, PerspectiveGridViewItem);
 // we can find the heights of any adjacent cellContents.
 BlockGridViewItem.prototype.onBeingAdded = function()
 {    
+    this.updateNearbyHeights();
+}
+
+BlockGridViewItem.prototype.updateNearbyHeights = function()
+{
     this.updateHeight();
+        
+	// Also need to update all the items behind and to the right
+	// because some wall heights might need to change
+	if (this.rootContainer.view != null)
+	{
+	    var x = this.rootContainer.x_index;
+	    var y = this.rootContainer.y_index;
+	    this.updateItemHeightsAtContents(this.rootContainer.view, x + 1, y);
+	    this.updateItemHeightsAtContents(this.rootContainer.view, x, y - 1);
+	}
 }
 
 BlockGridViewItem.prototype.updateHeight = function()
@@ -6347,7 +6367,11 @@ BlockGridViewItem.prototype.updateHeight = function()
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 
 
+	// Adjust our left and right heights according to our neighbour block heights
+	
     var cellContents = this.modelItem.cellContents;
+	if (cellContents == null)
+		return;
 
     var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
     var topLeftItem = getTopBlockItem(leftContents);
@@ -6414,17 +6438,7 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
 
     if (evt.type == "paramChanged" && evt.name == "ht")
     {
-        this.updateHeight();
-        
-        // Also need to update all the items behind and to the right
-        // because some wall heights might need to change
-        if (this.rootContainer.view != null)
-        {
-            var x = this.rootContainer.x_index;
-            var y = this.rootContainer.y_index;
-            this.updateItemHeightsAtContents(this.rootContainer.view, x + 1, y);
-            this.updateItemHeightsAtContents(this.rootContainer.view, x, y - 1);
-        }
+        this.updateNearbyHeights();
     }
     else if (evt.type == "otherItemHeight")
     {
@@ -11021,6 +11035,8 @@ AvatarController.prototype.moveAvatar = function(destItem)
     // Check if character is in the model
     if (this.avatarItem.cellContents == null)
         return;
+	else
+		this.avatarItem.cellContents.tempParams.neverInWay = false;
 
     // If there are any takeable items, take them first
     while (destItem.params.isTakeable)
@@ -11037,6 +11053,7 @@ AvatarController.prototype.moveAvatar = function(destItem)
         destItem = owner;
     }
 
+	destItem.cellContents.tempParams.neverInWay = true;
     this.avatarItem.moveItem(destItem);    
 
     this.controller.view.setCellCentre(this.avatarItem.cellContents.x, this.avatarItem.cellContents.y);
@@ -11062,8 +11079,9 @@ AvatarController.prototype.placeAvatar = function()
 	}
   
 	// Add the avatar to the world
-	var currData = this.controller.model.getContents(startX, startY);
-	var topData = currData.getTopItem();
+	var currCell = this.controller.model.getContents(startX, startY);
+	var topData = currCell.getTopItem();
+	currCell.tempParams.neverInWay = true;
 	topData.appendItem(this.avatarItem);
 }
 
@@ -11073,6 +11091,8 @@ AvatarController.prototype.removeAvatar = function()
     if (this.avatarItem.owner != null)
 	{
         this.avatarItem.owner.removeItem(this.avatarItem);
+		if (this.avatarItem.cellContents != null)
+			this.avatarItem.cellContents.tempParams.neverInWay = false;
 	}
 }
 
@@ -11284,7 +11304,28 @@ AvatarGroupController.prototype.getAvatarCentreCell = function()
 AvatarGroupController.prototype.getAvatarViewedCells = function()
 {
 	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
-		return [this.currentAvatar.avatarItem.cellContents];
+	{
+		var visibleCells = [];
+		var avatarViewElev = this.currentAvatar.avatarItem.params.elev + this.currentAvatar.avatarItem.params.ht;
+		for (var i in this.currentAvatar.avatarItem.canSee["pov"])
+	    {
+	        for (var j in this.currentAvatar.avatarItem.canSee["pov"][i])
+	        {
+				var currView = this.currentAvatar.avatarItem.canSee["pov"][i][j];
+				// Add this contents if it has any visible items.
+				for (var k = 0; k < currView.cellContents.seenBy.length; ++k)
+				{
+					var currTarget = currView.cellContents.seenBy[k];
+					if (currTarget.item == this.currentAvatar.avatarItem && currTarget.viewType == "pov" && currTarget.viewElev <= avatarViewElev)
+					{
+		            	visibleCells.push(currView.cellContents);
+						break;
+					}
+				}
+			}
+		}
+		return visibleCells; // [this.currentAvatar.avatarItem.cellContents];
+	}
 	else
 		return null;
 }
@@ -11387,20 +11428,123 @@ AvatarGroupController.prototype.resetInventoryFromXML = function()
 	}
 }
 
+// InventoryViewItem holds a single item that is in the inventory
+function InventoryViewItem(inventoryWindow, gridItem)
+{
+	this.gridItem = gridItem;
+	this.inventoryWindow = inventoryWindow;
+	this.inventorySlot = null;
+	
+	var itemCopy = this.inventoryWindow.controller.itemFactory.makeItem(this.gridItem.params.itemCode);
+	var currEl = this.inventoryWindow.controller.itemFactory.makeSimpleViewItem(itemCopy);
+
+    InventoryViewItem.baseConstructor.call(this, "dragItem", 0, 0, currEl, {fill:"none", stroke:"none", rx:2, width:40, height:40});
+
+	this.addActionListener(this.inventoryWindow);
+}
+
+KevLinDev.extend(InventoryViewItem, RectButton);
+
+InventoryViewItem.prototype.setDragPosition = function(x, y)
+{
+	this.tellActionListeners(this, {type:"viewItemDragMove", x:x, y:y});
+}
+
+InventoryViewItem.prototype.setDragEnd = function()
+{
+	this.tellActionListeners(this, {type:"viewItemDragEnd"});
+}
+
+InventoryViewItem.prototype.setSlot = function(slot)
+{
+	if (this.inventorySlot != null)
+		this.inventorySlot.setViewItem(null);
+		
+	this.inventorySlot = slot;
+	this.inventorySlot.setViewItem(this);
+	this.resetSlotPosition();
+}
+
+InventoryViewItem.prototype.resetSlotPosition = function()
+{
+	if (this.inventorySlot != null)
+	{
+		this.setPosition(this.inventorySlot.x, this.inventorySlot.y);
+	}
+}// InventorySlot holds a single inventory item
+function InventorySlot(inventoryWindow, x, y)
+{
+    InventorySlot.baseConstructor.call(this);
+
+	this.inventoryWindow = inventoryWindow;
+	this.x = x;
+	this.y = y;
+	this.viewItem = null;
+}
+
+KevLinDev.extend(InventorySlot, ActionObject);
+
+InventorySlot.prototype.isEmpty = function()
+{
+	return (this.viewItem == null);
+}
+
+InventorySlot.prototype.setViewItem = function(viewItem)
+{
+	this.viewItem = viewItem;
+}
+
+InventorySlot.prototype.getDistance = function(x, y)
+{
+	return Math.sqrt((this.x - x) * (this.x - x) + (this.y - y) * (this.y - y));
+}
 // InventoryWindow is used for displaying items the user is holding.
 function InventoryWindow(controller)
 {
-    InventoryWindow.baseConstructor.call(this, "Inventory", 5, {fill:"lightGreen", stroke:"green", rx:4}, {width:170, height:170, storePrefix:"MW_InventoryWindow", contentsSpacing:3});
+    InventoryWindow.baseConstructor.call(this, "Inventory", 5, {fill:"none", stroke:"green", rx:4}, {width:382, height:225, storePrefix:"MW_InventoryWindow", contentsSpacing:3});
 
 	this.controller = controller;
 	this.avatar = null;
+	this.snapDistance = 20;
 	
-    this.itemBar = new FlowLayout(0, 0, {minSpacing:5});
-    this.contents.appendChild(this.itemBar);
+	this.inventorySlots = [];
+	this.inventorySlots.push(new InventorySlot(this, 14, 85));
+	this.inventorySlots.push(new InventorySlot(this, 74, 83));
 
+	this.inventorySlots.push(new InventorySlot(this, 147, 23));
+	this.inventorySlots.push(new InventorySlot(this, 147, 85));
+	this.inventorySlots.push(new InventorySlot(this, 147, 142));
+
+	this.inventorySlots.push(new InventorySlot(this, 207, 23));
+	this.inventorySlots.push(new InventorySlot(this, 207, 85));
+	this.inventorySlots.push(new InventorySlot(this, 207, 142));
+
+	this.inventorySlots.push(new InventorySlot(this, 267, 23));
+	this.inventorySlots.push(new InventorySlot(this, 267, 85));
+	this.inventorySlots.push(new InventorySlot(this, 267, 142));
+
+	this.inventorySlots.push(new InventorySlot(this, 327, 23));
+	this.inventorySlots.push(new InventorySlot(this, 327, 85));
+	this.inventorySlots.push(new InventorySlot(this, 327, 142));
+	
+	this.itemArea = new SVGComponent(0, 0);
+	this.contents.appendChild(this.itemArea);
+	this.itemArea.childConstraints = {x:0, y:0, width:382, height:195};
 }
 
 KevLinDev.extend(InventoryWindow, SVGWindow);
+
+InventoryWindow.prototype.setBgImage = function(bgImage)
+{
+	// Add a background image
+	var currItem = new SVGElement();
+	currItem.cloneElement(bgImage);
+	currItem.removeAttribute("display");
+	currItem.removeAttribute("style");
+	currItem.setAttribute("transform", "matrix(5,0,0,5,66,188)");
+	this.prependChild(currItem);
+}
+
 
 InventoryWindow.prototype.clear = function()
 {
@@ -11419,7 +11563,11 @@ InventoryWindow.prototype.clearAvatar = function()
 
 InventoryWindow.prototype.clearInventory = function()
 {
-	this.itemBar.removeChildren();
+	this.itemArea.removeChildren();
+	for (var i = 0; i < this.inventorySlots.length; ++i)
+	{
+		this.inventorySlots[i].setViewItem(null);
+	}
 }
 
 // Set the avatar for whom we are showing the inventory
@@ -11438,31 +11586,102 @@ InventoryWindow.prototype.syncInventory = function()
 	{
 		for (var i = 0; i < this.avatar.heldItems.length; ++i)
 		{
-			this.addItem(this.avatar.heldItems[i].item);
+			this.tryToCarryItem(this.avatar.heldItems[i].item);
 		}
 	}
 }
 
-InventoryWindow.prototype.addItem = function(item)
+// Try to carry the item.
+// Return true if able, false if we couldn't.
+InventoryWindow.prototype.tryToCarryItem = function(item)
 {
-	var itemCopy = this.controller.itemFactory.makeItem(item.params.itemCode);
-
-	var currEl = this.controller.itemFactory.makeSimpleViewItem(itemCopy);
-	var elHolder = new SVGElement("g");
-	elHolder.appendChild(currEl);
-
-    var itemAppearanceLabel = new RectLabel(0, 0, null, {fill:"white", stroke:"none", width:40, height:40}, 2);	
-    itemAppearanceLabel.setContents(elHolder);
-    itemCopy.addActionListener(currEl);
-
-	this.itemBar.appendChild(itemAppearanceLabel);
+	// Find an empty slot
+	// Slots 0 and 1 are reserved for left and right hand.
+	for (var i = 2; i < this.inventorySlots.length; ++i)
+	{
+		if (this.inventorySlots[i].isEmpty())
+		{
+			var newInventoryItem = new InventoryViewItem(this, item);
+			
+			// The itemBar is the thing that actually holds all the items.
+			this.itemArea.appendChild(newInventoryItem);
+			
+			// Add to the inventory slot
+			newInventoryItem.setSlot(this.inventorySlots[i]);
+			break;
+		}
+	}
+	
+	return false; // unable to find an empty slot
 }
 
 InventoryWindow.prototype.doAction = function(src, evt)
 {
     InventoryWindow.superClass.doAction.call(this, src, evt);
 
-	if (evt.type == "inventoryUpdated")
+	if (evt.type == "mousedown" && src.src == "dragItem")
+	{
+		// Allow user to drag button
+        dragndrop_Start(src, evt, src.x, src.y);
+	}
+	else if (evt.type == "viewItemDragMove")
+	{
+		// User is moving item. Make the item "sticky" near inventory slots.
+		var distance = null;
+		var bestSlot = null;
+		for (var i = 0; i < this.inventorySlots.length; ++i)
+		{
+			var currDistance = this.inventorySlots[i].getDistance(evt.x, evt.y);
+			if (distance == null || currDistance < distance)
+			{
+				distance = currDistance;
+				bestSlot = i;
+			}
+		}
+		
+		var x = evt.x;
+		var y = evt.y;
+		if (distance != null && distance < this.snapDistance)
+		{
+			x = this.inventorySlots[bestSlot].x;
+			y = this.inventorySlots[bestSlot].y;
+		}
+		src.setPosition(x, y);
+	}
+	else if (evt.type == "viewItemDragEnd")
+	{
+		// Decide where to put the inventory item
+		var distance = null;
+		var bestSlot = null;
+		for (var i = 0; i < this.inventorySlots.length; ++i)
+		{
+			var currDistance = this.inventorySlots[i].getDistance(src.x, src.y);
+			if (distance == null || currDistance < distance)
+			{
+				distance = currDistance;
+				bestSlot = i;
+			}
+		}
+		
+		if (distance != null && distance < this.snapDistance)
+		{
+			// The user wants to put the item into this slot
+			if (this.inventorySlots[bestSlot].isEmpty())
+			{
+				src.setSlot(this.inventorySlots[bestSlot]);
+			}
+			else
+			{
+				// TODO: Use item with existing item
+				src.resetSlotPosition();
+			}
+		}
+		else
+		{
+			src.resetSlotPosition();
+		}
+	}
+	else if (evt.type == "inventoryUpdated")
 	{
 		this.syncInventory();
 	}
@@ -11540,6 +11759,9 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
         }
     }
     this.controller.itemFactory.artwork = xmlDoc;
+
+	var bgInventoryImage = this.controller.artwork.getElementById("inventory_bg");
+	this.controller.inventoryWindow.setBgImage(bgInventoryImage);
 
     // We can now use the artwork to setup the edit area
     this.controller.setupEditArea();
@@ -12267,17 +12489,24 @@ GameController.prototype.parseEditAction = function(src, evt)
     }
 }
 
-// Set all the cells in the cellList to be visible
+// Ensure all the blocks in the cellList are visible to the user
+// by ensuring no blocks are obscuring them (i.e. are in front and higher).
+// offset - how much taller a front block must be in order to obscure the ones behind it.
 GameController.prototype.setVisibleToUser = function(cellList, offset)
 {
 	if (cellList == null)
 		return;
 		
+    this.model.clearInTheWay();
 	for (var i = 0; i < cellList.length; ++i)
 	{
 		var currCell = cellList[i];
 		
-	    // Make sure the cell is visible
+		// Don't need to make a cell visible if it's got nothing in it.
+		if (currCell.myItems.length == 0)
+			continue;
+		
+	    // Make sure the top block is visible
 	    var ht = offset;
     
 	    var topBlock = getTopBlockItem(currCell);
@@ -12286,7 +12515,6 @@ GameController.prototype.setVisibleToUser = function(cellList, offset)
 	        ht = topBlock.params.elev + topBlock.params.ht + offset;
 	    }
     
-	    this.model.clearInTheWay();
 	    currCell.setVisibleToUser(ht);
 	    this.model.getContents(currCell.x, currCell.y - 1).setVisibleToUser(ht);
 	    this.model.getContents(currCell.x + 1, currCell.y).setVisibleToUser(ht);

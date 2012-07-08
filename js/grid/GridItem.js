@@ -19,7 +19,7 @@ function GridItem(params)
     this.src = "GridItem";
 
     this.params = (params == null) ? {} : params;
-	this.params.saveVals = [];
+	this.params.saveVals = {};
 	
     if (this.params.ht == null)
         this.params.ht = 0; 
@@ -85,12 +85,12 @@ GridItem.prototype.updateAffectedPOV = function()
         // Note that the cellContents.seenBy list may change as we update the
         // povs of the items.
         var povItems = [];
-        for (var i in this.cellContents.seenBy)
+        for (var i = 0; i < this.cellContents.seenBy.length; ++i)
         {
             povItems.push(this.cellContents.seenBy[i].item);
         }
         
-        for (var j in povItems)
+        for (var j = 0; j < povItems.length; ++j)
         {
             povItems[j].updatePOV();
         }
@@ -317,7 +317,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test d
                 var dist = d * 1.4142;
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * d;
                     var y1 = y + q[j].y * d;
@@ -331,7 +331,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test off-diagonal "d"s
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * (d + i);
                     var y1 = y + q[j].y * d;
@@ -352,7 +352,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test k
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     // (x-dx,y) || (x-dx,y-dy) && (x,y-dy))
                     var x1 = x + q[j].x * (d + i);
@@ -387,7 +387,7 @@ GridItem.prototype.updateVisibleWithinRadius = function(radius, viewType)
             {
                 // Test off-centre l
                 var dist = Math.sqrt(d * d + (d + i) * (d + i));
-                for (var j in q)
+                for (var j = 0; j < q.length; ++j)
                 {
                     var x1 = x + q[j].x * (d + i);
                     var y1 = y + q[j].y * d;
@@ -422,10 +422,10 @@ GridItem.prototype.setVisibility = function(cellContents, viewElev, distance, x,
     cellContents.addSeenBy(this, viewElev, distance, x, y, viewType);
 
     if (this.canSee[viewType] == null)
-        this.canSee[viewType] = [];
+        this.canSee[viewType] = {};
 
     if (this.canSee[viewType][cellContents.x] == null)
-        this.canSee[viewType][cellContents.x] = [];
+        this.canSee[viewType][cellContents.x] = {};
    
     this.canSee[viewType][cellContents.x][cellContents.y] = {cellContents:cellContents, viewElev:viewElev, distance:distance};
 }
@@ -444,7 +444,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
                 }
             }
         }        
-        this.canSee = [];
+        this.canSee = {};
     }
     else
     {
@@ -455,7 +455,7 @@ GridItem.prototype.clearSeenBy = function(viewType)
                 this.canSee[viewType][i][j].cellContents.removeSeenBy(this);
             }
         }
-        this.canSee[viewType] = [];
+        this.canSee[viewType] = {};
     }
 }
 
@@ -535,7 +535,7 @@ GridItem.prototype.setHeight = function(height, doSave)
 	
 	// Update the POV of this item and each item on top of it
 	var items = this.getFlattenedTree();
-	for (var i in items)
+	for (var i = 0; i < items.length; ++i)
 	{
 		items[i].updateElev();
     	items[i].updatePOV();
@@ -656,7 +656,7 @@ GridItem.prototype.requestChange = function()
                 var sumX = 0;
                 var sumY = 0;
                 // Try to get a mean direction
-                for (var j in closestItems)
+                for (var j = 0; j < closestItems.length; ++j)
                 {
                     destContents = this.followSimplePathTo(closestItems[j].item);
                     sumX += (destContents.x - this.cellContents.x);

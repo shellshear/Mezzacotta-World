@@ -13,9 +13,12 @@ KevLinDev.extend(PerspectiveGridContents, LitGridContents);
 // semi-opaque
 PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
 {
-    for (var i = 1; i < 4; i++)
+    for (var i = 1; i < 3; i++)
     {
         var cellContents = this.model.getContents(this.x - i, this.y + i);
+		if (cellContents.tempParams.neverInWay)
+			continue;
+			
         var topData = cellContents;
         while (topData.myItems.length > 0)
         {
@@ -23,7 +26,7 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
             if (topData.params.elev + topData.params.ht > 30 * (i - 1) + elevation)
             {
                 // This item is in the way!
-                topData.setInTheWay(0.5);
+                topData.setInTheWay(0.2);
             }
         }
     }

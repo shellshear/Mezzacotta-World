@@ -12,7 +12,22 @@ KevLinDev.extend(BlockGridViewItem, PerspectiveGridViewItem);
 // we can find the heights of any adjacent cellContents.
 BlockGridViewItem.prototype.onBeingAdded = function()
 {    
+    this.updateNearbyHeights();
+}
+
+BlockGridViewItem.prototype.updateNearbyHeights = function()
+{
     this.updateHeight();
+        
+	// Also need to update all the items behind and to the right
+	// because some wall heights might need to change
+	if (this.rootContainer.view != null)
+	{
+	    var x = this.rootContainer.x_index;
+	    var y = this.rootContainer.y_index;
+	    this.updateItemHeightsAtContents(this.rootContainer.view, x + 1, y);
+	    this.updateItemHeightsAtContents(this.rootContainer.view, x, y - 1);
+	}
 }
 
 BlockGridViewItem.prototype.updateHeight = function()
@@ -23,7 +38,11 @@ BlockGridViewItem.prototype.updateHeight = function()
     var translateHeight = -this.modelItem.params.ht;
     this.setPosition(0, translateHeight); 
 
+	// Adjust our left and right heights according to our neighbour block heights
+	
     var cellContents = this.modelItem.cellContents;
+	if (cellContents == null)
+		return;
 
     var leftContents = cellContents.model.getContents(cellContents.x - 1, cellContents.y);
     var topLeftItem = getTopBlockItem(leftContents);
@@ -90,17 +109,7 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
 
     if (evt.type == "paramChanged" && evt.name == "ht")
     {
-        this.updateHeight();
-        
-        // Also need to update all the items behind and to the right
-        // because some wall heights might need to change
-        if (this.rootContainer.view != null)
-        {
-            var x = this.rootContainer.x_index;
-            var y = this.rootContainer.y_index;
-            this.updateItemHeightsAtContents(this.rootContainer.view, x + 1, y);
-            this.updateItemHeightsAtContents(this.rootContainer.view, x, y - 1);
-        }
+        this.updateNearbyHeights();
     }
     else if (evt.type == "otherItemHeight")
     {

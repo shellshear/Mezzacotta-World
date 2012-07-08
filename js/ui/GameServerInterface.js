@@ -71,6 +71,9 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
     }
     this.controller.itemFactory.artwork = xmlDoc;
 
+	var bgInventoryImage = this.controller.artwork.getElementById("inventory_bg");
+	this.controller.inventoryWindow.setBgImage(bgInventoryImage);
+
     // We can now use the artwork to setup the edit area
     this.controller.setupEditArea();
     updateLayout();

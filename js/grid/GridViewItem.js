@@ -85,12 +85,12 @@ GridViewItem.prototype.updatePOV = function(povList)
     else if (this.itemGraphics != null)
     {
         var povTop = false;
-        for (var j in cellContents.seenBy)
+        for (var j = 0; j < cellContents.seenBy.length; ++j)
         {
             if (cellContents.seenBy[j].viewType == "pov")
             {
                 // Check whether this pov is one in the list
-                for (var k in povList)
+                for (var k = 0; k < povList.length; ++k)
                 {
                     if (povList[k] == cellContents.seenBy[j].item)
                     {
@@ -109,7 +109,7 @@ GridViewItem.prototype.updatePOV = function(povList)
         this.setVisibilityTop(povTop);
     }
     
-    for (var i in this.containedItems.childNodes)
+    for (var i = 0; i < this.containedItems.childNodes.length; ++i)
     {
         this.containedItems.childNodes[i].updatePOV(povList);
     }

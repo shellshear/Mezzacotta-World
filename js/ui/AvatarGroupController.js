@@ -72,7 +72,28 @@ AvatarGroupController.prototype.getAvatarCentreCell = function()
 AvatarGroupController.prototype.getAvatarViewedCells = function()
 {
 	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
-		return [this.currentAvatar.avatarItem.cellContents];
+	{
+		var visibleCells = [];
+		var avatarViewElev = this.currentAvatar.avatarItem.params.elev + this.currentAvatar.avatarItem.params.ht;
+		for (var i in this.currentAvatar.avatarItem.canSee["pov"])
+	    {
+	        for (var j in this.currentAvatar.avatarItem.canSee["pov"][i])
+	        {
+				var currView = this.currentAvatar.avatarItem.canSee["pov"][i][j];
+				// Add this contents if it has any visible items.
+				for (var k = 0; k < currView.cellContents.seenBy.length; ++k)
+				{
+					var currTarget = currView.cellContents.seenBy[k];
+					if (currTarget.item == this.currentAvatar.avatarItem && currTarget.viewType == "pov" && currTarget.viewElev <= avatarViewElev)
+					{
+		            	visibleCells.push(currView.cellContents);
+						break;
+					}
+				}
+			}
+		}
+		return visibleCells; // [this.currentAvatar.avatarItem.cellContents];
+	}
 	else
 		return null;
 }

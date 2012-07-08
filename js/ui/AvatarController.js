@@ -114,6 +114,8 @@ AvatarController.prototype.moveAvatar = function(destItem)
     // Check if character is in the model
     if (this.avatarItem.cellContents == null)
         return;
+	else
+		this.avatarItem.cellContents.tempParams.neverInWay = false;
 
     // If there are any takeable items, take them first
     while (destItem.params.isTakeable)
@@ -130,6 +132,7 @@ AvatarController.prototype.moveAvatar = function(destItem)
         destItem = owner;
     }
 
+	destItem.cellContents.tempParams.neverInWay = true;
     this.avatarItem.moveItem(destItem);    
 
     this.controller.view.setCellCentre(this.avatarItem.cellContents.x, this.avatarItem.cellContents.y);
@@ -155,8 +158,9 @@ AvatarController.prototype.placeAvatar = function()
 	}
   
 	// Add the avatar to the world
-	var currData = this.controller.model.getContents(startX, startY);
-	var topData = currData.getTopItem();
+	var currCell = this.controller.model.getContents(startX, startY);
+	var topData = currCell.getTopItem();
+	currCell.tempParams.neverInWay = true;
 	topData.appendItem(this.avatarItem);
 }
 
@@ -166,6 +170,8 @@ AvatarController.prototype.removeAvatar = function()
     if (this.avatarItem.owner != null)
 	{
         this.avatarItem.owner.removeItem(this.avatarItem);
+		if (this.avatarItem.cellContents != null)
+			this.avatarItem.cellContents.tempParams.neverInWay = false;
 	}
 }
 

@@ -9,12 +9,14 @@ function GridContents(model, x, y)
     this.y = y;
 
     this.seenBy = []; // List of [item, elevation, distance] that can see this contents
+	this.tempParams = {};
 }
 
 KevLinDev.extend(GridContents, ItemContainer);
 
 GridContents.prototype.clear = function()
 {
+	this.tempParams = {};
     this.removeAllItems();
 }
 
@@ -81,7 +83,7 @@ GridContents.prototype.toXML = function(xmlDoc, showAll)
 
     if (showAll)
     {
-        for (var i in this.seenBy)
+        for (var i = 0; i < this.seenBy.length; ++i)
         {
             var xmlSeen = xmlDoc.createElement("seen");
             xmlSeen.setAttribute("item", this.seenBy[i].item);
@@ -120,7 +122,7 @@ GridContents.prototype.addSeenBy = function(item, viewElev, distance, x, y, view
 
 GridContents.prototype.removeSeenBy = function(item)
 {
-    for (var i in this.seenBy)
+    for (var i = 0; i < this.seenBy.length; ++i)
     {
         if (this.seenBy[i].item == item)
         {

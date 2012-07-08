@@ -74,6 +74,8 @@ cat \
 	ui/WorldChooserWindow.js \
 	ui/AvatarController.js \
 	ui/AvatarGroupController.js \
+	ui/InventoryViewItem.js \
+	ui/InventorySlot.js \
 	ui/InventoryWindow.js \
 	ui/GameServerInterface.js \
 	gameController.js \
