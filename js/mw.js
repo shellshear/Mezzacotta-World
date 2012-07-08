@@ -5195,28 +5195,19 @@ GridViewItem.prototype.setVisibilityTop = function(isVisible)
 
 function GridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {
-    var bg = new SVGElement("use", {"xlink:href": view.idMap.buttonOutline});
-    
-    // mouseover is an SVGComponent because we may wish to move the mouseover
-    // graphic according to the contents of the button
-    var mouseover = new SVGComponent(0, 0);
-    var mouseoverContents = new SVGElement("use", {"xlink:href": view.idMap.buttonMouseover});
-    mouseover.appendChild(mouseoverContents);
-
-    var select = new SVGElement("use", {"xlink:href": view.idMap.buttonSelect});
-    var cover = new SVGElement("use", {"xlink:href": view.idMap.buttonCover});
-   
+    this.view = view;
+    this.modelContents = modelContents;
+      
     // These indexes are so that user input events know which grid point
     // they're on.
     this.x_index = x_index;
     this.y_index = y_index;
    
-    this.view = view;
-    this.modelContents = modelContents;
-      
+	// this.button_* are all defined by subclasses
+
     GridViewContents.baseConstructor.call
-       (this, view.idMap.buttonName, x, y, 
-        bg, mouseover, select, cover, doSeparateCoverLayer
+       (this, "gridCell", x, y, 
+        this.button_bg, this.button_mouseover, this.button_select, this.button_cover, doSeparateCoverLayer
        );   
     this.viewItems = new ViewItemContainer(0, 0, modelContents, this.view.itemFactory);
     this.viewItems.rootContainer = this;
@@ -5294,7 +5285,7 @@ GridViewContents.prototype.clear = function()
 //         <g/> // Bonus covers go in here
 //     </svg>
 // </g>
-function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, cellWidth, cellHeight)
+function GridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, cellWidth, cellHeight)
 {
 	// Setup the view area
 	this.cellWidth = cellWidth;
@@ -5318,9 +5309,6 @@ function GridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, sta
     this.coverLayer2 = new SVGElement("g"); // svg for the cover2 layer
 	this.transformLayer.appendChild(this.coverLayer2);
     
-	
-	this.idMap = idMap;
-
     this.view = []; // Keep an array for the view elements
    
     // Keep an array for the z-order groups
@@ -5795,9 +5783,9 @@ LitGridViewContents.prototype.setLighting = function()
 }
 
 // Handles lighting changes for the grid
-function LitGridView(gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height)
+function LitGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    LitGridView.baseConstructor.call(this, gridModel, idMap, itemFactory, numCols, numRows, startCol, startRow, width, height);   
+    LitGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);   
 }
 
 KevLinDev.extend(LitGridView, GridView);
@@ -5935,9 +5923,9 @@ KevLinDev.extend(HexGridModel, GridModel);
 //    / 0\__/ 2\__
 //    \__/ 1\__/ 3\
 //       \__/  \__/
-function HexGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
+function HexGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    HexGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+    HexGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);
 }
 
 KevLinDev.extend(HexGridView, GridView);
@@ -5961,9 +5949,9 @@ function RectGridModel(ambientLight, itemProperties)
 KevLinDev.extend(RectGridModel, GridModel);
 
 // View of rectangular grid
-function RectGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
+function RectGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    RectGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+    RectGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);
 }
 
 KevLinDev.extend(RectGridView, GridView);
@@ -6072,9 +6060,9 @@ PerspectiveGridItem.prototype.setInTheWay = function(opacity)
 }
 
 // The view of a perspective grid model
-function PerspectiveGridView(gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height)
+function PerspectiveGridView(gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height)
 {
-    PerspectiveGridView.baseConstructor.call(this, gridModel, idMap, itemIdMap, numCols, numRows, startCol, startRow, width, height);
+    PerspectiveGridView.baseConstructor.call(this, gridModel, itemFactory, numCols, numRows, startCol, startRow, width, height);
 
 	this.extraBottomRows = 4; // Draw some extra bottom rows to avoid visual cutoff issues at the bottom.
 
@@ -6218,6 +6206,18 @@ PerspectiveGridView.prototype.inView = function(i, j)
 // Contents of a perspective grid
 function PerspectiveGridViewContents(view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer)
 {
+    this.button_bg = new SVGElement("path", {d:"M -25,0 0,-15 25,0 0,15 -25,0 z", fill:"none", stroke:"black"});
+    
+    // mouseover is an SVGComponent because we may wish to move the mouseover
+    // graphic according to the contents of the button
+    this.button_mouseover = new SVGComponent(0, 0);
+    var mouseoverContents = new SVGElement("path", {d:"m 16.424175,0 a 16.424175,9.4351654 0 1 1 -32.84835,0 16.424175,9.4351654 0 1 1 32.84835,0 z", opacity:"0.6", fill:"#ff2a2a", stroke:"none"});
+    this.button_mouseover.appendChild(mouseoverContents);
+
+    this.button_select = new SVGElement("path", {d:"M -25,0 0,-15 25,0 0,15 -25,0 z", fill:"#ff2a2a", "fill-opacity":"0.56", stroke:"black"});
+
+    this.button_cover = new SVGElement("path", {d:"M -25,0 0,-15 25,0 0,15 -25,0 z", fill:"white", opacity:"0", stroke:"none"});
+
     PerspectiveGridViewContents.baseConstructor.call
        (this, view, x, y, x_index, y_index, modelContents, doSeparateCoverLayer);
 }
@@ -11970,7 +11970,7 @@ function TurnClock()
     this.currentTime = 0;
 }
 
-function GameController(background, itemFactory, model, view, idMap)
+function GameController(background, itemFactory, model, view)
 {
     GameController.baseConstructor.call(this);
 	
@@ -12025,7 +12025,6 @@ function GameController(background, itemFactory, model, view, idMap)
     this.model = model;
     this.view = view;
     this.view.addActionListener(this);
-    this.idMap = idMap;
    
     this.avatarGroupController = new AvatarGroupController(this);
     
@@ -12417,7 +12416,7 @@ GameController.prototype.parseGameAction = function(src, evt)
 
 GameController.prototype.parseEditAction = function(src, evt)
 {
-    if (src.src == this.idMap.buttonName && evt.type == "mouseover")
+    if (src.src == "gridCell" && evt.type == "mouseover")
     {
         // Make sure the cellContents are visible
         this.setVisibleToUser([src.modelContents], 5);
@@ -12447,7 +12446,7 @@ GameController.prototype.parseEditAction = function(src, evt)
 			else
 				this.playLevel();
         }
-        else if (src.src == "persView")
+        else if (src.src == "gridCell")
         {
             this.contentSelected(src, evt);
         }
@@ -12983,46 +12982,27 @@ function init()
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
         Z:{itemName:"zombie01", fullname:"Zombie", itemCode:"Z", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
+        Y:{itemName:"zombie02", fullname:"Ghoul", itemCode:"Y", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
         T:{itemName:"teleport01", fullname:"Teleport", itemCode:"T", canStandOn:true, doesTeleport:true},
         S:{itemName:"start01", fullname:"Start Square", itemCode:"S", canStandOn:true, isInvisible:true},
         b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, lightStrength:1, lightRadius:4, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
-        t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t"},
+        t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t", noEdit:true},
         B:{itemName:"barrel01", fullname:"Barrel", itemCode:"B", ht:20, wt:1000, isPushable:true, blockView:true, canStandOn:true}
        };
     
     var itemFactory = new PerspectiveItemFactory(0, 25, 15, itemTemplates, baseSummary);
-    var persIDMap = makeDefaultIdMap("pers");     
    
-    var coverLayer = document.getElementById(persIDMap.coverLayer);
+    var coverLayer = document.getElementById("persCoverLayer");
     var persModel = new PerspectiveGridModel(itemFactory);
 
 	var playArea = wrapElementById("persPlayArea");
-    var persView = new PerspectiveGridView(persModel, persIDMap, itemFactory, 16, 26, 0, 0, 25, 15);
+    var persView = new PerspectiveGridView(persModel, itemFactory, 16, 26, 0, 0, 25, 15);
 	playArea.appendChild(persView);
    
-    gController = new GameController(background, itemFactory, persModel, persView, persIDMap);
+    gController = new GameController(background, itemFactory, persModel, persView);
 
     updateLayout();
     gWindow.onresize = updateLayout;
-}
-
-function makeDefaultIdMap(prefix)
-{
-    var result = {};
-   
-    result.playArea = prefix + "PlayArea";
-    result.updateArea = prefix + "UpdateArea";
-    result.editArea = prefix + "EditArea";
-    result.templateArea = prefix + "TemplateArea";
-    result.buttonName = prefix + "View";
-    result.buttonOutline = "images/" + prefix + "MapView.svg#" + prefix + "Outline";
-    result.buttonMouseover = "images/" + prefix + "MapView.svg#" + prefix + "Mouseover";
-    result.buttonSelect = "images/" + prefix + "MapView.svg#" + prefix + "Select";
-    result.buttonCover = "images/" + prefix + "MapView.svg#" + prefix + "Cover";
-    result.coverLayer = prefix + "CoverLayer";
-    result.objectLayer = prefix + "ObjectLayer";
-   
-    return result;
 }
 
 function updateLayout()
