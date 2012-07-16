@@ -7,7 +7,7 @@ var gShadowElementIdIndex = 0;
 // ShadowElement 
 // The showInvisible parameter determines whether the element is hidden
 // or merely darkened when it is not visible due to lighting conditions.
-function ShadowElement(base, showInvisible)
+function ShadowElement(base, showInvisible, showInvisibleHidden)
 {
     ShadowElement.baseConstructor.call(this, "g");
 
@@ -15,6 +15,8 @@ function ShadowElement(base, showInvisible)
     this.showInvisible = showInvisible;
     if (!this.showInvisible)
         this.hide();
+
+	this.showInvisibleHidden = showInvisibleHidden;
     
 	this.shadowID = gShadowElementIdIndex++;
 
@@ -44,7 +46,7 @@ ShadowElement.prototype.setVisible = function(isVisible)
         this.show();
         this.setLightLevel2(this.lightLevel);
     }
-    else if (this.showInvisible)
+    else if (this.showInvisible && this.showInvisibleHidden)
     {
         this.show();
         this.setLightLevel2(0.0);

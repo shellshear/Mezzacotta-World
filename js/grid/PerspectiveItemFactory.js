@@ -65,7 +65,7 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
 
 	if (xml.hasAttribute("d"))
 	{
-		result.setItemParam("direction", xml.getAttribute("d"), true);
+		result.setDirection(xml.getAttribute("d"), true);
 	}
 
     // Update all the child items of this item as well
@@ -158,7 +158,8 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // top of the block
         var top = new ShadowElement(
             new SVGElement("path", {d:this.baseRect, fill:this.baseSummary[modelItem.params.itemCode][1], stroke:"none"}),
-            true
+            true, 
+			true
             );
 
         // Only bother with the left and front vertical sides
@@ -166,17 +167,19 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // path for the verticals gets filled out later by setHeight
         var left = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][2], stroke:"none"}),
-            true
+            true,
+			true
             );        
         var front = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][3], stroke:"none"}),
-            true
+            true,
+			true
             );
 		
         left.hide();
         front.hide();
         
-        var bottom = new ShadowElement(null, true);
+        var bottom = new ShadowElement(null, true, true);
         
         var highlight = new SVGElement("path", {d:this.baseRect, fill:"red", stroke:"black", opacity:0.5});
 
@@ -204,7 +207,7 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
     	        showInvisible = false;
     	    
     	    // Set a default state and direction
-    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible);
+    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible, false);
     	    
             return new StateGridViewItem(modelItem, this, stateItem);
         }

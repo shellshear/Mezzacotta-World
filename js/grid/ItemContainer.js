@@ -14,9 +14,20 @@ ItemContainer.prototype.moveItem = function(target)
 {
     if (this.owner)
     {
-        this.owner.removeItem(this);
+		// Find the index
+	    for (var i = 0; i < this.owner.myItems.length; ++i)
+	    {
+	        if (this.owner.myItems[i] == this)
+	        {
+				// Found the item - remove it from the current owner.
+			    this.owner.myItems.splice(i, 1);
+			    this.owner.tellActionListeners(this.owner, {type:"removeItem", itemIndex:i});
+	            break;
+	        }    
+	    }
     }
-    target.appendItem(this);
+
+	target.appendItem(this);
 }
 
 ItemContainer.prototype.removeAllItems = function()
@@ -94,8 +105,6 @@ ItemContainer.prototype.appendItem = function(item)
     this.myItems.push(item);
     item.setOwner(this);
     this.tellActionListeners(this, {type:"appendedItem", item:item});
-
-	//item.notifyAppendItemChildren();
 }
 
 ItemContainer.prototype.notifyAppendItemChildren = function()

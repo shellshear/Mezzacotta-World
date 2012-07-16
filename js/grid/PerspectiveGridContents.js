@@ -26,7 +26,11 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
             if (topData.params.elev + topData.params.ht > 30 * (i - 1) + elevation)
             {
                 // This item is in the way!
-                topData.setInTheWay(0.2);
+				var itemOpacity = 0;
+				if (this.model.getContents(this.x - i - 1, this.y + i + 1).tempParams.avatarSees)
+                	itemOpacity = 0.8;
+            	
+				topData.setInTheWay(itemOpacity);
             }
         }
     }

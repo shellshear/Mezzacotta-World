@@ -84,7 +84,12 @@ function LoginController(background, loginArea, username, password)
         this.login = localStorage.getItem('MW_Login');
         this.password = localStorage.getItem('MW_Password');
     }
-    
+}
+
+KevLinDev.extend(LoginController, ActionObject);
+
+LoginController.prototype.start = function()
+{
     if (this.login != null && this.password != null)
     {
         this.submitLogin(this.login, this.password);
@@ -96,8 +101,6 @@ function LoginController(background, loginArea, username, password)
         this.checkLogin();
     }
 }
-
-KevLinDev.extend(LoginController, ActionObject);
 
 LoginController.prototype.submitLogin = function(login, password)
 {

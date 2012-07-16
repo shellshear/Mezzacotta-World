@@ -76,7 +76,7 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
 
     // We can now use the artwork to setup the edit area
     this.controller.setupEditArea();
-    updateLayout();
+    //updateLayout();
     
     // Finally, load the starting map, also loading any saved items
     this.submitLoadMap(this.controller.loginController.curr_map, true);

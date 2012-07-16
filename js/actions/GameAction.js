@@ -129,10 +129,10 @@ GameAction.prototype.doAction = function(src, evt)
 
 function SpeechAction(model, controller, item, speechArray)
 {
-	this.setSpeechArray(speechArray);
-	
-    this.currentIndex = 0;
     SpeechAction.baseConstructor.call(this, model, controller);
+
+	this.setSpeechArray(speechArray);	
+    this.currentIndex = 0;
     this.type = "Speech";
 
     this.speechItem = new ACItemHandler(this.model, item, this.type);
@@ -190,9 +190,9 @@ SpeechAction.prototype.onDelete = function()
 
 function HeightAction(model, controller, item, newHeight)
 {
-    this.setHeight(newHeight);
-    
-    SpeechAction.baseConstructor.call(this, model, controller);
+    HeightAction.baseConstructor.call(this, model, controller);
+
+    this.setHeight(newHeight);    
     this.type = "Height";
 
     this.heightItem = new ACItemHandler(this.model, item, this.type);
@@ -270,8 +270,8 @@ HeightAction.prototype.onDelete = function()
 
 function TeleportAction(model, controller, destination)
 {
-    this.setDestination(destination);
     TeleportAction.baseConstructor.call(this, model, controller);
+    this.setDestination(destination);
     this.type = "Teleport";
 }
 

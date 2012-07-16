@@ -25,8 +25,10 @@ InventoryViewItem.prototype.setDragEnd = function()
 	this.tellActionListeners(this, {type:"viewItemDragEnd"});
 }
 
+// Put this item into the specified slot.
 InventoryViewItem.prototype.setSlot = function(slot)
 {
+	// If this item already has a slot, tell that slot it's now empty.
 	if (this.inventorySlot != null)
 		this.inventorySlot.setViewItem(null);
 		

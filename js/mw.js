@@ -162,7 +162,7 @@ ActionObject.prototype.addActionListener = function(actionListener)
 
 ActionObject.prototype.removeActionListener = function(actionListener)
 {
-    for (var i in this.actionListeners)
+    for (var i = 0; i < this.actionListeners.length; ++i)
     {
      	if (this.actionListeners[i] == actionListener)
      	{
@@ -185,7 +185,7 @@ ActionObject.prototype.handleEvent = function(evt)
 ActionObject.prototype.tellActionListeners = function(src, evt)
 {
     // Tell the action listeners
-    for (var i in this.actionListeners)
+    for (var i = 0; i < this.actionListeners.length; ++i)
     {
      	this.actionListeners[i].doAction(src, evt);
     }
@@ -198,7 +198,7 @@ ActionObject.prototype.addResizeListener = function(resizeListener)
 
 ActionObject.prototype.removeResizeListener = function(resizeListener)
 {
-    for (var i in this.resizeListeners)
+    for (var i = 0; i < this.resizeListeners.length; ++i)
     {
      	if (this.resizeListeners[i] == resizeListener)
      	{
@@ -216,7 +216,7 @@ ActionObject.prototype.clearResizeListeners = function()
 ActionObject.prototype.tellResizeListeners = function(src)
 {
     // Tell the action listeners
-    for (var i in this.resizeListeners)
+    for (var i = 0; i < this.resizeListeners.length; ++i)
     {
      	this.resizeListeners[i].notifyResize(src);
     }
@@ -758,7 +758,7 @@ SVGComponent.prototype.setPosition = function(x, y)
 
     this.svg.setAttribute("transform", scaleString + "translate(" + this.x + "," + this.y + ") ");
     
-    for (var i in this.auxiliaryComponents)
+    for (var i = 0; i < this.auxiliaryComponents.length; ++i)
     {
         this.auxiliaryComponents[i].setPosition(x, y);
     }
@@ -777,7 +777,7 @@ SVGComponent.prototype.setScale = function(scale)
 
     this.svg.setAttribute("transform", scaleString + "translate(" + this.x + "," + this.y + ") ");
     
-    for (var i in this.auxiliaryComponents)
+    for (var i = 0; i < this.auxiliaryComponents.length; ++i)
     {
         this.auxiliaryComponents[i].setScale(scale);
     }
@@ -905,7 +905,7 @@ SVGComponent.prototype.addFocusListener = function(focusListener)
 
 SVGComponent.prototype.removeFocusListener = function(focusListener)
 {
-    for (var i in this.focusListeners)
+    for (var i = 0; i < this.focusListeners.length; ++i)
     {
      if (this.focusListeners[i] == focusListener)
      {
@@ -923,7 +923,7 @@ SVGComponent.prototype.clearFocusListeners = function()
 SVGComponent.prototype.tellFocusListeners = function(src)
 {
     // Tell the focus listeners
-    for (var i in this.focusListeners)
+    for (var i = 0; i < this.focusListeners.length; ++i)
     {
      this.focusListeners[i].focusChangeRequest(src);
     }
@@ -941,7 +941,7 @@ SVGComponent.prototype.focusChangeRequest = function(src)
 SVGComponent.prototype.toXML = function()
 {
     var str = "<base src='" + this.src + "'>";
-    for (var i in this.actionListeners)
+    for (var i = 0; i < this.actionListeners.length; ++i)
     {
      str += "<listener src='" + this.actionListeners[i].src + "'/>";
     }
@@ -3697,9 +3697,20 @@ ItemContainer.prototype.moveItem = function(target)
 {
     if (this.owner)
     {
-        this.owner.removeItem(this);
+		// Find the index
+	    for (var i = 0; i < this.owner.myItems.length; ++i)
+	    {
+	        if (this.owner.myItems[i] == this)
+	        {
+				// Found the item - remove it from the current owner.
+			    this.owner.myItems.splice(i, 1);
+			    this.owner.tellActionListeners(this.owner, {type:"removeItem", itemIndex:i});
+	            break;
+	        }    
+	    }
     }
-    target.appendItem(this);
+
+	target.appendItem(this);
 }
 
 ItemContainer.prototype.removeAllItems = function()
@@ -3777,8 +3788,6 @@ ItemContainer.prototype.appendItem = function(item)
     this.myItems.push(item);
     item.setOwner(this);
     this.tellActionListeners(this, {type:"appendedItem", item:item});
-
-	//item.notifyAppendItemChildren();
 }
 
 ItemContainer.prototype.notifyAppendItemChildren = function()
@@ -3829,7 +3838,7 @@ ViewItemContainer.prototype.doAction = function(src, evt)
         
         // First remove the viewItem from the item's action listeners
         var viewItem = this.containedItems.childNodes[evt.itemIndex];
-        viewItem.modelItem.removeActionListener(viewItem);
+        viewItem.removeActionListeners();
         
         // Remove the viewItem
         this.containedItems.removeChildByIndex(evt.itemIndex);
@@ -4343,9 +4352,11 @@ function GridItem(params)
         this.params.isInvisible = false; 
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
-		
+	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
+
+	this.dirns = ['r', 'b', 'l', 'f']; // default directions
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -4359,7 +4370,7 @@ GridItem.prototype.setOwner = function(owner)
     this.updateElev();
 
     // Set the cellContents
-    this.updateOwnerContents();    
+    this.updateOwnerContents();
 }
 
 // Update the elevation based on our owner's height and elevation
@@ -4376,7 +4387,7 @@ GridItem.prototype.updateElev = function()
         if (this.owner.params.elev != null)
             this.params.elev = this.owner.params.elev;
     
-        if (this.owner.params.ht != null)
+        if (this.owner.params.ht != null && !this.params.isCarried)
             this.params.elev += this.owner.params.ht;
     }
 }
@@ -4801,8 +4812,46 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
+// Set the direction of this item.
+// Also update the direction of all its children, by rotating them correspondingly.
+GridItem.prototype.setDirection = function(direction, doSave)
+{
+	var delta = this.getDirectionDelta(this.params.direction, direction);
+	this.setItemParam("direction", direction, doSave);
+	
+	// Rotate all our children
+	for (var i = 0; i < this.myItems.length; ++i)
+    {
+		this.myItems[i].rotateItem(delta, false); // Don't save the child direction rotations.
+    }
+}
+
+// Find the delta between the src and dest
+GridItem.prototype.getDirectionDelta = function(src, dest)
+{
+	// Find the index of the src
+	var srcIndex = 0;
+	for (var i = 0; i < this.dirns.length; ++i)
+	{
+		if (this.dirns[i] == src)
+		{
+			srcIndex = i;
+			break;
+		}
+	}
+
+	// Find the index of the dest relative to the src
+	for (var i = 0; i < this.dirns.length; i++)
+	{
+		if (this.dirns[i] == dest)
+			return (i - srcIndex + this.dirns.length) % this.dirns.length;
+	}
+	
+	return 0;
+}
+
 // Rotate the specified item to the right, by the specified amount (-1 to turn left)
-GridItem.prototype.rotateItem = function(rotation)
+GridItem.prototype.rotateItem = function(rotation, doSave)
 {
 	// Check if the item has no direction specified
 	if (this.params.direction == null)
@@ -4810,19 +4859,17 @@ GridItem.prototype.rotateItem = function(rotation)
 		this.params.direction = "f";
 	}
 	
-	// The directions are right, back, left, and forwards (by default).
-	var dirns = ['r', 'b', 'l', 'f'];
-	for (var i = 0; i < dirns.length; ++i)
+	for (var i = 0; i < this.dirns.length; ++i)
 	{
-		if (dirns[i] == this.params.direction)
+		if (this.dirns[i] == this.params.direction)
 		{
 			// Rotate to the specified direction
 			i += rotation;
-			i = i % dirns.length;
+			i = i % this.dirns.length;
 			while (i < 0)
-				i += dirns.length;
+				i += this.dirns.length;
 			
-			this.setItemParam("direction", dirns[i], true);
+			this.setDirection(this.dirns[i], doSave);
 			
 			break;
 		}
@@ -4850,7 +4897,6 @@ GridItem.prototype.setHeight = function(height, doSave)
 	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
 }
-
 
 // Return true if the item can be moved to the destination cellContents
 // This is only true if the destination cellContents can be stood upon, and
@@ -5109,6 +5155,10 @@ GridViewItem.prototype.doAction = function(src, evt)
             // This item says something
             this.doSpeech(evt.value);
         }
+		else if (evt.name == 'isInvisible')
+		{
+			this.setVisibilityTop(!evt.value);
+		}
     }
 }
 
@@ -5185,7 +5235,7 @@ GridViewItem.prototype.updatePOV = function(povList)
 GridViewItem.prototype.setVisibilityTop = function(isVisible)
 {
     // Always override if parameter says it's invisible.
-    if (this.modelItem.params.isInvisible && !this.modelItem.cellContents.model.showInvisible)
+    if (this.modelItem.params.isInvisible && (!this.modelItem.cellContents || !this.modelItem.cellContents.model.showInvisible))
         isVisible = false;
     
     this.itemGraphics.setVisible(isVisible);
@@ -5842,7 +5892,7 @@ var gShadowElementIdIndex = 0;
 // ShadowElement 
 // The showInvisible parameter determines whether the element is hidden
 // or merely darkened when it is not visible due to lighting conditions.
-function ShadowElement(base, showInvisible)
+function ShadowElement(base, showInvisible, showInvisibleHidden)
 {
     ShadowElement.baseConstructor.call(this, "g");
 
@@ -5850,6 +5900,8 @@ function ShadowElement(base, showInvisible)
     this.showInvisible = showInvisible;
     if (!this.showInvisible)
         this.hide();
+
+	this.showInvisibleHidden = showInvisibleHidden;
     
 	this.shadowID = gShadowElementIdIndex++;
 
@@ -5879,7 +5931,7 @@ ShadowElement.prototype.setVisible = function(isVisible)
         this.show();
         this.setLightLevel2(this.lightLevel);
     }
-    else if (this.showInvisible)
+    else if (this.showInvisible && this.showInvisibleHidden)
     {
         this.show();
         this.setLightLevel2(0.0);
@@ -6033,7 +6085,11 @@ PerspectiveGridContents.prototype.setVisibleToUser = function(elevation)
             if (topData.params.elev + topData.params.ht > 30 * (i - 1) + elevation)
             {
                 // This item is in the way!
-                topData.setInTheWay(0.2);
+				var itemOpacity = 0;
+				if (this.model.getContents(this.x - i - 1, this.y + i + 1).tempParams.avatarSees)
+                	itemOpacity = 0.8;
+            	
+				topData.setInTheWay(itemOpacity);
             }
         }
     }
@@ -6657,64 +6713,127 @@ SimpleBlockGridViewItem.prototype.setHeight = function(height)
 // If a state X is provided, the subset of items under the id "itemId_X"
 // are used. If not, the default state is "def".
 // If a direction D is provided, the item with the id "itemId_X_D" is used.
-function StateDirectionShadowElement(base, state, direction, showInvisible)
+function StateDirectionShadowElement(base, stateName, directionName, showInvisible, showInvisibleHidden)
 {
     StateDirectionShadowElement.baseConstructor.call
-        (this, base, showInvisible);   
+        (this, base, showInvisible, showInvisibleHidden);   
 
-    this.setState(state);
-    this.setDirection(direction);
+	this.itemStates = {}; // List of all item states, and directions
+	
+	this.itemState = null; // Current item state
+	this.stateName = null; // Current item state name
+	this.itemStateDirection = null; // Current item direction
+	this.directionName = null; // Current item direction name
+	
+	for (var i = 0; i < this.base.childNodes.length; ++i)
+    {
+        var currState = this.base.childNodes[i];
+        if (currState.hasAttribute("state"))
+		{
+			var currStateName = currState.getAttribute("state");
+	    	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+			currState.hide();
+			this.itemStates[currStateName] = {};
+			this.itemStates[currStateName].state = currState;
+
+			// Also setup the directions for this state
+			var directionSet = {};
+	        for (var j = 0; j < currState.childNodes.length; ++j)
+	        {
+	            var currDirn = currState.childNodes[j];
+	            if (currDirn.hasAttribute("direction"))
+	            {
+					var directionStrings = currDirn.getAttribute("direction");
+	            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+	            	currDirn.hide();
+					for (var k = 0; k < directionStrings.length; ++k)
+					{
+						directionSet[directionStrings[k]] = currDirn;
+					}
+	            }
+	        }
+			this.itemStates[currStateName].directions = directionSet;
+		}
+    }
+
+    this.setState(stateName, directionName);
 }
 
 KevLinDev.extend(StateDirectionShadowElement, ShadowElement);
 
-// Show the graphics corresponding to the state, and hide the others.
-StateDirectionShadowElement.prototype.setState = function(state)
+// Show the graphics corresponding to the state based on what our parent is
+StateDirectionShadowElement.prototype.setStateBasedOnParentTag = function(parentTags)
 {
-    this.state = state;
-    this.stateSVG = null;
+	// Try to find a match between the parent tags and the possible states of this item
+	for (var i = 0; i < parentTags.length; ++i)
+	{
+		for (var j in this.itemStates)
+		{
+			if (this.itemStates[j].state.hasAttribute("parentTag") && this.itemStates[j].state.getAttribute("parentTag") == parentTags[i])
+			{
+				// Change to this state
+				this.setState(j);
+				break;
+			}
+		}
+	}
+}
+
+// Show the graphics corresponding to the state, and hide the others.
+// If you don't specify directionName, the existing direction will be used.
+StateDirectionShadowElement.prototype.setState = function(stateName, directionName)
+{
+	// If a direction name isn't provided, use the current direction
+	if (directionName == null)
+		directionName = this.directionName;
+	
+	// Update the state based on the name
+	if (this.stateName != stateName) 
+	{
+		if (this.itemState != null)
+		{
+			// We're going to change states, so hide the current one.
+			this.itemState.state.hide();
+			
+			if (this.itemDirection != null)
+				this.itemDirection.hide();
+		}
+		
+	    this.stateName = stateName;
+	    this.itemState = null;
     
-    for (var i in this.base.childNodes)
-    {
-        var currState = this.base.childNodes[i];
-        if (currState.hasAttribute("state") && currState.getAttribute("state") == state)
-        {
-        	currState.show();
-        	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-            this.stateSVG = currState;
-        }
-        else
-        {
-            currState.hide();
-        }
-    }
+	    if (this.itemStates[this.stateName] != null)
+	    {
+	        this.itemState = this.itemStates[this.stateName];
+	    	this.itemState.state.show();
+	    }
+	
+		// Clear the existing direction
+		this.setDirection(null);
+	}
+
+	this.setDirection(directionName);
 }
 
 // Show the graphics corresponding to the direction, and hide the others.
 // Show the first direction that is contained in the direction string.
 // The intention is that if the direction requested is "f" for forward, 
 // a graphic with direction "fb" (eg. a door) would match.
-StateDirectionShadowElement.prototype.setDirection = function(direction)
+StateDirectionShadowElement.prototype.setDirection = function(directionName)
 {
-    this.direction = direction;
-    this.directionSVG = null;
+	if (this.directionName == directionName)
+		return;
+	
+	if (this.directionName != null)
+		this.itemStateDirection.hide();
+		
+    this.directionName = directionName;
+    this.itemStateDirection = null;
     
-    if (this.stateSVG != null)
+    if (this.itemState != null && this.itemState.directions[this.directionName] != null)
     {
-        for (var i in this.stateSVG.childNodes)
-        {
-            var currDirn = this.stateSVG.childNodes[i];
-            if (currDirn.hasAttribute("direction") && currDirn.getAttribute("direction").indexOf(direction) >= 0)
-            {
-            	currDirn.show();
-            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-                this.directionSVG = currDirn;
-            }
-            else
-            {
-                currDirn.hide();
-            }
-        }
+		this.itemStateDirection = this.itemState.directions[this.directionName];
+		this.itemStateDirection.show();
     }
 }
 
@@ -6733,6 +6852,9 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
     this.setPosition(0, translateHeight); 
     
     this.itemGraphics.setAttribute("transform", "translate(0, " + this.modelItem.params.ht + ")");
+	
+	if (this.modelItem.owner != null && this.modelItem.owner.params != null && this.modelItem.owner.params.itemTags != null)
+		this.stateItem.setStateBasedOnParentTag(this.modelItem.owner.params.itemTags);
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
@@ -6872,7 +6994,7 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
 
 	if (xml.hasAttribute("d"))
 	{
-		result.setItemParam("direction", xml.getAttribute("d"), true);
+		result.setDirection(xml.getAttribute("d"), true);
 	}
 
     // Update all the child items of this item as well
@@ -6965,7 +7087,8 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // top of the block
         var top = new ShadowElement(
             new SVGElement("path", {d:this.baseRect, fill:this.baseSummary[modelItem.params.itemCode][1], stroke:"none"}),
-            true
+            true, 
+			true
             );
 
         // Only bother with the left and front vertical sides
@@ -6973,17 +7096,19 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
         // path for the verticals gets filled out later by setHeight
         var left = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][2], stroke:"none"}),
-            true
+            true,
+			true
             );        
         var front = new ShadowElement(
             new SVGElement("path", {fill:this.baseSummary[modelItem.params.itemCode][3], stroke:"none"}),
-            true
+            true,
+			true
             );
 		
         left.hide();
         front.hide();
         
-        var bottom = new ShadowElement(null, true);
+        var bottom = new ShadowElement(null, true, true);
         
         var highlight = new SVGElement("path", {d:this.baseRect, fill:"red", stroke:"black", opacity:0.5});
 
@@ -7011,7 +7136,7 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
     	        showInvisible = false;
     	    
     	    // Set a default state and direction
-    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible);
+    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible, false);
     	    
             return new StateGridViewItem(modelItem, this, stateItem);
         }
@@ -7353,10 +7478,10 @@ GameAction.prototype.doAction = function(src, evt)
 
 function SpeechAction(model, controller, item, speechArray)
 {
-	this.setSpeechArray(speechArray);
-	
-    this.currentIndex = 0;
     SpeechAction.baseConstructor.call(this, model, controller);
+
+	this.setSpeechArray(speechArray);	
+    this.currentIndex = 0;
     this.type = "Speech";
 
     this.speechItem = new ACItemHandler(this.model, item, this.type);
@@ -7414,9 +7539,9 @@ SpeechAction.prototype.onDelete = function()
 
 function HeightAction(model, controller, item, newHeight)
 {
-    this.setHeight(newHeight);
-    
-    SpeechAction.baseConstructor.call(this, model, controller);
+    HeightAction.baseConstructor.call(this, model, controller);
+
+    this.setHeight(newHeight);    
     this.type = "Height";
 
     this.heightItem = new ACItemHandler(this.model, item, this.type);
@@ -7494,8 +7619,8 @@ HeightAction.prototype.onDelete = function()
 
 function TeleportAction(model, controller, destination)
 {
-    this.setDestination(destination);
     TeleportAction.baseConstructor.call(this, model, controller);
+    this.setDestination(destination);
     this.type = "Teleport";
 }
 
@@ -9806,7 +9931,12 @@ function LoginController(background, loginArea, username, password)
         this.login = localStorage.getItem('MW_Login');
         this.password = localStorage.getItem('MW_Password');
     }
-    
+}
+
+KevLinDev.extend(LoginController, ActionObject);
+
+LoginController.prototype.start = function()
+{
     if (this.login != null && this.password != null)
     {
         this.submitLogin(this.login, this.password);
@@ -9818,8 +9948,6 @@ function LoginController(background, loginArea, username, password)
         this.checkLogin();
     }
 }
-
-KevLinDev.extend(LoginController, ActionObject);
 
 LoginController.prototype.submitLogin = function(login, password)
 {
@@ -10941,6 +11069,7 @@ function AvatarController(controller, avatarIndex, avatarCode)
     
 	// List of items held by this avatar
 	this.heldItems = [];
+	this.weildedItem = null;
 }
 
 KevLinDev.extend(AvatarController, ActionObject);
@@ -10953,7 +11082,7 @@ AvatarController.prototype.registerAvatar = function()
 
 AvatarController.prototype.attemptMoveAvatar = function(direction)
 {
-	this.avatarItem.setItemParam("direction", direction);
+	this.avatarItem.setDirection(direction);
 
     if (this.avatarItem.cellContents == null)
         return;
@@ -11062,7 +11191,7 @@ AvatarController.prototype.moveAvatar = function(destItem)
 AvatarController.prototype.placeAvatar = function()
 {
 	// Reset the start direction
-	this.avatarItem.setItemParam("direction", "f");
+	this.avatarItem.setDirection("f");
 	
 	// Find the start position
 	var startX = 0;
@@ -11114,7 +11243,11 @@ AvatarController.prototype.clearInventory = function()
 AvatarController.prototype.addItemToInventory = function(map_id, item)
 {
 	item.params.isInvisible = true;
+	item.params.isCarried = true;
 	this.avatarItem.appendItem(item);
+	
+	// Set the item's direction to correspond to the avatar
+	item.setDirection(this.avatarItem.params.direction); 
 
 	this.heldItems.push({map_id:map_id, item:item});
 	this.tellActionListeners(this, {type:"inventoryUpdated"});
@@ -11230,7 +11363,26 @@ AvatarController.prototype.copyItem = function()
 {
 	return this.controller.itemFactory.makeSimpleViewItem(this.avatarItem);
 }
-// Controls a group of avatars
+
+AvatarController.prototype.setWeilding = function(item)
+{
+	if (item == this.weildedItem)
+		return;
+		
+	// Tell the avatar it is holding the specified item, and should therefore
+	// attempt to change its state.
+	if (this.weildedItem != null)
+	{
+		this.weildedItem.setItemParam("isInvisible", true);
+	}
+	
+	this.weildedItem = item;
+	
+	if (this.weildedItem != null)
+	{
+		this.weildedItem.setItemParam("isInvisible", false);
+	}
+}// Controls a group of avatars
 function AvatarGroupController(controller)
 {
     AvatarGroupController.baseConstructor.call(this);
@@ -11240,6 +11392,9 @@ function AvatarGroupController(controller)
 	// List of avatars
 	this.avatarList = [];
 	this.currentAvatar = null;
+	
+	// List of cells visible to the avatars
+	this.visibleCells = [];
 	
 	// The xml version of the inventory. We can reset the inventory to this
 	// when required.
@@ -11300,31 +11455,38 @@ AvatarGroupController.prototype.getAvatarCentreCell = function()
 }
 
 // Get all the cells that the avatars can see
-// TODO: For the moment, just make sure the avatar cell itself is visible.
-AvatarGroupController.prototype.getAvatarViewedCells = function()
+AvatarGroupController.prototype.updateAvatarViewedCells = function()
 {
+	// Clear the existing viewed cells
+	for (var i = 0; i < this.visibleCells.length; ++i)
+	{
+		this.visibleCells[i].tempParams.avatarSees = null;
+	}
+	
+	// Find cells containing visible items
 	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
 	{
-		var visibleCells = [];
+		this.visibleCells = [];
 		var avatarViewElev = this.currentAvatar.avatarItem.params.elev + this.currentAvatar.avatarItem.params.ht;
 		for (var i in this.currentAvatar.avatarItem.canSee["pov"])
 	    {
 	        for (var j in this.currentAvatar.avatarItem.canSee["pov"][i])
 	        {
 				var currView = this.currentAvatar.avatarItem.canSee["pov"][i][j];
-				// Add this contents if it has any visible items.
+				// Add this contents if it has any items visible to the avatar.
 				for (var k = 0; k < currView.cellContents.seenBy.length; ++k)
 				{
 					var currTarget = currView.cellContents.seenBy[k];
 					if (currTarget.item == this.currentAvatar.avatarItem && currTarget.viewType == "pov" && currTarget.viewElev <= avatarViewElev)
 					{
-		            	visibleCells.push(currView.cellContents);
+		            	this.visibleCells.push(currView.cellContents);
+						currView.cellContents.tempParams.avatarSees = true;
 						break;
 					}
 				}
 			}
 		}
-		return visibleCells; // [this.currentAvatar.avatarItem.cellContents];
+		return this.visibleCells; // [this.currentAvatar.avatarItem.cellContents];
 	}
 	else
 		return null;
@@ -11455,8 +11617,10 @@ InventoryViewItem.prototype.setDragEnd = function()
 	this.tellActionListeners(this, {type:"viewItemDragEnd"});
 }
 
+// Put this item into the specified slot.
 InventoryViewItem.prototype.setSlot = function(slot)
 {
+	// If this item already has a slot, tell that slot it's now empty.
 	if (this.inventorySlot != null)
 		this.inventorySlot.setViewItem(null);
 		
@@ -11472,7 +11636,7 @@ InventoryViewItem.prototype.resetSlotPosition = function()
 		this.setPosition(this.inventorySlot.x, this.inventorySlot.y);
 	}
 }// InventorySlot holds a single inventory item
-function InventorySlot(inventoryWindow, x, y)
+function InventorySlot(inventoryWindow, x, y, slotIndex)
 {
     InventorySlot.baseConstructor.call(this);
 
@@ -11480,6 +11644,7 @@ function InventorySlot(inventoryWindow, x, y)
 	this.x = x;
 	this.y = y;
 	this.viewItem = null;
+	this.slotIndex = slotIndex;
 }
 
 KevLinDev.extend(InventorySlot, ActionObject);
@@ -11489,9 +11654,26 @@ InventorySlot.prototype.isEmpty = function()
 	return (this.viewItem == null);
 }
 
+InventorySlot.prototype.canAcceptItem = function(viewItem)
+{
+	// If this is the "weild item" slot, refuse items that can't be weilded.
+	if (this.slotIndex == 1 && !viewItem.gridItem.params.canWeild)
+		return false;
+		
+	// Otherwise, we can accept an item as long as there isn't an item already here.
+	return this.isEmpty();
+}
+
 InventorySlot.prototype.setViewItem = function(viewItem)
 {
 	this.viewItem = viewItem;
+
+	if (this.slotIndex == 1)
+	{
+		// This is the "weild slot"
+		// Tell the avatar it is now weilding the item
+		this.inventoryWindow.setWeilding((this.viewItem == null) ? null : this.viewItem.gridItem);
+	}
 }
 
 InventorySlot.prototype.getDistance = function(x, y)
@@ -11508,24 +11690,24 @@ function InventoryWindow(controller)
 	this.snapDistance = 20;
 	
 	this.inventorySlots = [];
-	this.inventorySlots.push(new InventorySlot(this, 14, 85));
-	this.inventorySlots.push(new InventorySlot(this, 74, 83));
+	this.inventorySlots.push(new InventorySlot(this, 14, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 74, 83, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 147, 23));
-	this.inventorySlots.push(new InventorySlot(this, 147, 85));
-	this.inventorySlots.push(new InventorySlot(this, 147, 142));
+	this.inventorySlots.push(new InventorySlot(this, 147, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 147, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 147, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 207, 23));
-	this.inventorySlots.push(new InventorySlot(this, 207, 85));
-	this.inventorySlots.push(new InventorySlot(this, 207, 142));
+	this.inventorySlots.push(new InventorySlot(this, 207, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 207, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 207, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 267, 23));
-	this.inventorySlots.push(new InventorySlot(this, 267, 85));
-	this.inventorySlots.push(new InventorySlot(this, 267, 142));
+	this.inventorySlots.push(new InventorySlot(this, 267, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 267, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 267, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 327, 23));
-	this.inventorySlots.push(new InventorySlot(this, 327, 85));
-	this.inventorySlots.push(new InventorySlot(this, 327, 142));
+	this.inventorySlots.push(new InventorySlot(this, 327, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 327, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 327, 142, this.inventorySlots.length));
 	
 	this.itemArea = new SVGComponent(0, 0);
 	this.contents.appendChild(this.itemArea);
@@ -11665,16 +11847,8 @@ InventoryWindow.prototype.doAction = function(src, evt)
 		
 		if (distance != null && distance < this.snapDistance)
 		{
-			// The user wants to put the item into this slot
-			if (this.inventorySlots[bestSlot].isEmpty())
-			{
-				src.setSlot(this.inventorySlots[bestSlot]);
-			}
-			else
-			{
-				// TODO: Use item with existing item
+			if (!this.tryToPlaceItemInSlot(bestSlot, src))
 				src.resetSlotPosition();
-			}
 		}
 		else
 		{
@@ -11687,6 +11861,25 @@ InventoryWindow.prototype.doAction = function(src, evt)
 	}
 }
 
+InventoryWindow.prototype.tryToPlaceItemInSlot = function(slot, viewItem)
+{
+	var result = false;
+	
+	// Ask the slot if its okay for this item to be placed there
+	if (this.inventorySlots[slot].canAcceptItem(viewItem))
+	{
+		viewItem.setSlot(this.inventorySlots[slot]);
+		result = true;
+	}
+
+	return result;
+}
+
+InventoryWindow.prototype.setWeilding = function(item)
+{
+	if (this.avatar != null)
+		this.avatar.setWeilding(item);
+}
 // Interface between the game and the server, using ajax to get xml.
 
 function GameServerInterface(controller)
@@ -11765,7 +11958,7 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
 
     // We can now use the artwork to setup the edit area
     this.controller.setupEditArea();
-    updateLayout();
+    //updateLayout();
     
     // Finally, load the starting map, also loading any saved items
     this.submitLoadMap(this.controller.loginController.curr_map, true);
@@ -12050,6 +12243,11 @@ function GameController(background, itemFactory, model, view)
 }
 
 KevLinDev.extend(GameController, ActionObject);
+
+GameController.prototype.start = function()
+{
+	this.loginController.start();
+}
 
 GameController.prototype.clearPlayerData = function()
 {
@@ -12613,7 +12811,8 @@ GameController.prototype.contentSelected = function(src, evt)
             if (topItem != null)
             {
 				// Rotate the item to the left
-				topItem.rotateItem(-1);
+				var doSaveValue = true;
+				topItem.rotateItem(-1, doSaveValue);
             }
             this.setMapSavedStatus(false);
         }
@@ -12625,7 +12824,8 @@ GameController.prototype.contentSelected = function(src, evt)
             if (topItem != null)
             {
 				// Rotate the item to the left
-				topItem.rotateItem(1);
+				var doSaveValue = true;
+				topItem.rotateItem(1, doSaveValue);
             }
             this.setMapSavedStatus(false);
         }
@@ -12734,7 +12934,7 @@ GameController.prototype.stepTime = function()
 	var pov = this.avatarGroupController.getAvatarPOV();
     this.view.updatePOV(pov);
 
-	var viewedCells = this.avatarGroupController.getAvatarViewedCells();
+	var viewedCells = this.avatarGroupController.updateAvatarViewedCells();
     this.setVisibleToUser(viewedCells, 15);
 }
 
@@ -12771,7 +12971,7 @@ GameController.prototype.changeItems = function()
             // Move the item as per its request.
             var topData = destinationList[i][0].dest.cellContents.getTopItem();
             destinationList[i][0].item.moveItem(topData);
-            destinationList[i][0].item.setItemParam("direction", destinationList[i][0].dest.params.direction);
+            destinationList[i][0].item.setDirection(destinationList[i][0].dest.params.direction);
         }
         else 
         {
@@ -12780,7 +12980,7 @@ GameController.prototype.changeItems = function()
             
             // However, they all at least turn in the direction they
             // want to move.
-            destinationList[i][0].item.setItemParam("direction", destinationList[i][0].dest.params.direction);
+            destinationList[i][0].item.setDirection(destinationList[i][0].dest.params.direction);
         }
     }    
 }
@@ -12978,6 +13178,7 @@ function init()
         z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, lightStrength:1, lightRadius:3},
         i:{itemName:"coin01", fullname:"Coin", itemCode:"i", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
         k:{itemName:"key01", fullname:"Key", itemCode:"k", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
+        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true},
         j:{itemName:"ghost01", fullname:"Ghost", itemCode:"j", ht:10, povRange:4},
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
@@ -13003,6 +13204,8 @@ function init()
 
     updateLayout();
     gWindow.onresize = updateLayout;
+
+	gController.start();
 }
 
 function updateLayout()

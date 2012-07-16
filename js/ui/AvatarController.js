@@ -20,6 +20,7 @@ function AvatarController(controller, avatarIndex, avatarCode)
     
 	// List of items held by this avatar
 	this.heldItems = [];
+	this.weildedItem = null;
 }
 
 KevLinDev.extend(AvatarController, ActionObject);
@@ -32,7 +33,7 @@ AvatarController.prototype.registerAvatar = function()
 
 AvatarController.prototype.attemptMoveAvatar = function(direction)
 {
-	this.avatarItem.setItemParam("direction", direction);
+	this.avatarItem.setDirection(direction);
 
     if (this.avatarItem.cellContents == null)
         return;
@@ -141,7 +142,7 @@ AvatarController.prototype.moveAvatar = function(destItem)
 AvatarController.prototype.placeAvatar = function()
 {
 	// Reset the start direction
-	this.avatarItem.setItemParam("direction", "f");
+	this.avatarItem.setDirection("f");
 	
 	// Find the start position
 	var startX = 0;
@@ -193,7 +194,11 @@ AvatarController.prototype.clearInventory = function()
 AvatarController.prototype.addItemToInventory = function(map_id, item)
 {
 	item.params.isInvisible = true;
+	item.params.isCarried = true;
 	this.avatarItem.appendItem(item);
+	
+	// Set the item's direction to correspond to the avatar
+	item.setDirection(this.avatarItem.params.direction); 
 
 	this.heldItems.push({map_id:map_id, item:item});
 	this.tellActionListeners(this, {type:"inventoryUpdated"});
@@ -308,4 +313,24 @@ AvatarController.prototype.getUnsavedItemHTTPString = function()
 AvatarController.prototype.copyItem = function()
 {
 	return this.controller.itemFactory.makeSimpleViewItem(this.avatarItem);
+}
+
+AvatarController.prototype.setWeilding = function(item)
+{
+	if (item == this.weildedItem)
+		return;
+		
+	// Tell the avatar it is holding the specified item, and should therefore
+	// attempt to change its state.
+	if (this.weildedItem != null)
+	{
+		this.weildedItem.setItemParam("isInvisible", true);
+	}
+	
+	this.weildedItem = item;
+	
+	if (this.weildedItem != null)
+	{
+		this.weildedItem.setItemParam("isInvisible", false);
+	}
 }

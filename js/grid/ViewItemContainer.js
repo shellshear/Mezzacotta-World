@@ -35,7 +35,7 @@ ViewItemContainer.prototype.doAction = function(src, evt)
         
         // First remove the viewItem from the item's action listeners
         var viewItem = this.containedItems.childNodes[evt.itemIndex];
-        viewItem.modelItem.removeActionListener(viewItem);
+        viewItem.removeActionListeners();
         
         // Remove the viewItem
         this.containedItems.removeChildByIndex(evt.itemIndex);

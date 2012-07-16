@@ -42,6 +42,10 @@ GridViewItem.prototype.doAction = function(src, evt)
             // This item says something
             this.doSpeech(evt.value);
         }
+		else if (evt.name == 'isInvisible')
+		{
+			this.setVisibilityTop(!evt.value);
+		}
     }
 }
 
@@ -118,7 +122,7 @@ GridViewItem.prototype.updatePOV = function(povList)
 GridViewItem.prototype.setVisibilityTop = function(isVisible)
 {
     // Always override if parameter says it's invisible.
-    if (this.modelItem.params.isInvisible && !this.modelItem.cellContents.model.showInvisible)
+    if (this.modelItem.params.isInvisible && (!this.modelItem.cellContents || !this.modelItem.cellContents.model.showInvisible))
         isVisible = false;
     
     this.itemGraphics.setVisible(isVisible);

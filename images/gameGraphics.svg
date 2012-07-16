@@ -1557,7 +1557,6 @@
         <g
            direction="r"
            style="display:none"
-           display="none"
            id="avatar02_def_def">
           <path
              style="fill:#7a7a7a;fill-opacity:1;stroke:none"
@@ -1587,7 +1586,6 @@
         </g>
         <g
            id="avatar02_def_back"
-           display="none"
            style="display:none"
            direction="b">
           <path
@@ -1604,7 +1602,6 @@
         <g
            direction="l"
            style="display:none"
-           display="none"
            id="avatar02_def_left"
            transform="matrix(-0.9960687,0,0,1,-0.36159238,0)">
           <path
@@ -1620,7 +1617,6 @@
         </g>
         <g
            id="avatar02_def_forward"
-           display="none"
            style="display:none"
            direction="f"
            transform="matrix(-1.0071913,0,0,1,0.54013691,0)">
@@ -1680,43 +1676,6 @@
              id="path3932"
              d="m -4.6512565,-19.699779 c -0.1526891,0.104538 -0.9074987,0.314999 -1.3364441,0.4375 -1.1498604,0.328384 -1.3356483,-1.957383 -1.3196696,-0.856294 0.016022,1.104044 -0.069653,1.21836 1.0001364,1.916358 1.0463854,-0.268967 1.9009006,-0.961202 2.8170979,-1.521508 0.3222793,-0.186962 0.8061119,-0.597503 1.0696695,-0.891775 -0.829746,0.135578 -1.4110043,0.749728 -2.2307901,0.915719 z"
              style="font-size:medium;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-indent:0;text-align:start;text-decoration:none;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;text-anchor:start;color:#000000;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" />
-        </g>
-      </g>
-    </g>
-    <g
-       id="stick01">
-      <g
-         id="stick01_def" />
-      <g
-         id="stick01_held">
-        <g
-           style="display:none"
-           id="stick01_held_def">
-          <path
-             sodipodi:nodetypes="ccccc"
-             id="path3952"
-             d="m 4.8408488,-11.563547 c 0,0 -5.57029177,3.381963 -5.57029177,3.381963 l 0.79575597,0.66313 5.1061008,-3.31565 -0.331565,-0.729443 z"
-             style="fill:#93681b;fill-opacity:1;stroke:none" />
-          <path
-             style="fill:#573e10;fill-opacity:1;stroke:none"
-             d="m 5.0397878,-11.165669 c 0,0 -5.43766578,3.249337 -5.43766578,3.249337 l 0.46419098,0.397878 5.1061008,-3.31565 -0.132626,-0.331565 z"
-             id="path3956-3"
-             sodipodi:nodetypes="ccccc" />
-          <path
-             sodipodi:nodetypes="ccccc"
-             id="path3954-8"
-             d="m 6.1671088,-12.558242 -0.132626,0.994695 1.3925729,-0.795756 -0.265252,-0.729443 -0.9946949,0.530504 z"
-             style="fill:#93681b;fill-opacity:1;stroke:none" />
-          <path
-             style="fill:#664813;fill-opacity:1;stroke:none"
-             d="m 6.1007954,-12.160364 -0.066313,0.596817 1.3925729,-0.795756 -0.1668159,-0.388814 -1.1594444,0.587753 z"
-             id="path3958"
-             sodipodi:nodetypes="ccccc" />
-          <path
-             style="fill:#000000;fill-opacity:0;stroke:none"
-             d="m 7.15625,-13.09375 -1,0.53125 -0.0625,0.40625 -0.0625,0.59375 1.40625,-0.78125 -0.28125,-0.75 z m -2.3125,1.53125 -5.5625,3.375 0.3125,0.28125 0.46875,0.375 5.125,-3.3125 -0.15625,-0.3125 -0.1875,-0.40625 z"
-             id="path3983"
-             class="shadow" />
         </g>
       </g>
     </g>
@@ -1864,6 +1823,134 @@
              sodipodi:ry="1.0646757"
              d="m 17.176767,7.4895244 a 1.703481,1.0646757 0 1 1 -3.406962,0 1.703481,1.0646757 0 1 1 3.406962,0 z"
              transform="translate(-4.4006593,-3.1230485)" />
+        </g>
+      </g>
+    </g>
+    <g
+       id="stick01">
+      <g
+         id="stick01_def"
+         state="def">
+        <g
+           id="stick01_def_def"
+           direction="fblr"
+           style="display:none">
+          <path
+             style="fill:#443f21;fill-opacity:1;stroke:none"
+             d="m -11.934692,1.7663614 c -1.621567,0.2886339 -2.833994,-1.9651425 -0.685901,-2.26347606 6.5945349,-0.91586844 13.27852179,-1.39709114 20.3712836,-2.94937784 1.2699135,-0.065981 2.0412872,1.0043781 1.920525,1.9205251 -0.1600035,0.75453224 -0.7352293,1.09384219 -1.4403938,1.30321349 L -11.934692,1.7663614 z"
+             id="path6406"
+             sodipodi:nodetypes="cscccz" />
+          <path
+             style="fill:none;stroke:#403113;stroke-width:1.29999995;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+             d="M -12.757775,1.0118694 C -3.3544134,0.42102336 4.6800639,-0.08920522 8.7795434,-1.0458361"
+             id="path6408"
+             sodipodi:nodetypes="cc" />
+        </g>
+      </g>
+      <g
+         id="stick01_held"
+         state="held"
+         held_by="avatar02_def"
+         parentTag="avatar">
+        <g
+           style="display:none"
+           id="stick01_held_def"
+           direction="r">
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path3952"
+             d="m 4.8408488,-11.563547 c 0,0 -5.57029177,3.381963 -5.57029177,3.381963 l 0.79575597,0.66313 5.1061008,-3.31565 -0.331565,-0.729443 z"
+             style="fill:#93681b;fill-opacity:1;stroke:none" />
+          <path
+             style="fill:#573e10;fill-opacity:1;stroke:none"
+             d="m 5.0397878,-11.165669 c 0,0 -5.43766578,3.249337 -5.43766578,3.249337 l 0.46419098,0.397878 5.1061008,-3.31565 -0.132626,-0.331565 z"
+             id="path3956-3"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path3954-8"
+             d="m 6.1671088,-12.558242 -0.132626,0.994695 1.3925729,-0.795756 -0.265252,-0.729443 -0.9946949,0.530504 z"
+             style="fill:#93681b;fill-opacity:1;stroke:none" />
+          <path
+             style="fill:#664813;fill-opacity:1;stroke:none"
+             d="m 6.1007954,-12.160364 -0.066313,0.596817 1.3925729,-0.795756 -0.1668159,-0.388814 -1.1594444,0.587753 z"
+             id="path3958"
+             sodipodi:nodetypes="ccccc" />
+        </g>
+        <g
+           direction="b"
+           id="stick01_held_back"
+           style="display:none">
+          <path
+             style="fill:#93681b;fill-opacity:1;stroke:none"
+             d="m -5.1733178,-14.101384 c 0,0 -6.3247842,-2.173842 -6.3247842,-2.173842 l -0.438867,0.800311 6.6836751,2.308745 0.079976,-0.935214 z"
+             id="path6420"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6422"
+             d="m -5.3859199,-13.703506 c 0,0 -6.4665181,-2.375058 -6.4665181,-2.375058 l -0.290301,0.603649 6.7522647,2.514515 0.00455,-0.743106 z"
+             style="fill:#573e10;fill-opacity:1;stroke:none" />
+          <path
+             style="fill:#93681b;fill-opacity:1;stroke:none"
+             d="m -3.915648,-13.518505 -0.2698064,1.131876 1.5983435,0.233097 0.2148793,-0.729443 -1.5434164,-0.63553 z"
+             id="path6424"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6426"
+             d="m -4.050552,-12.846266 0.00228,0.528227 0.9810318,0.370277 0.3133154,-0.457404 -1.2966248,-0.4411 z"
+             style="fill:#664813;fill-opacity:1;stroke:none" />
+        </g>
+        <g
+           style="display:none"
+           id="stick01_held_left"
+           direction="l">
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6432"
+             d="m 2.1658317,-17.736663 c 0,0 -0.3574379,0.158224 -0.3574379,0.158224 l 0.041264,0.73172 0.5791488,-0.09191 -0.2629748,-0.798033 z"
+             style="fill:#93681b;fill-opacity:1;stroke:none" />
+          <path
+             style="fill:#573e10;fill-opacity:1;stroke:none"
+             d="m 2.2275903,-17.475966 c 0,0 -0.2934021,0.162779 -0.2934021,0.162779 l -0.01594,0.603649 0.4419684,-0.09191 -0.132626,-0.674516 z"
+             id="path6434"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6436"
+             d="m -3.5726971,-15.50762 -0.064036,0.583154 0.7752613,-0.04126 0.00911,-0.729443 -0.7203342,0.187553 z"
+             style="fill:#93681b;fill-opacity:1;stroke:none" />
+          <path
+             style="fill:#93681b;fill-opacity:1;stroke:none"
+             d="m -6.3163033,-14.341583 0.2103236,0.72033 1.392573,-0.727161 -0.1280704,-0.729443 -1.4748262,0.736274 z"
+             id="path6454"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             style="fill:#664813;fill-opacity:1;stroke:none"
+             d="m -3.5704207,-15.178332 -0.203493,0.322456 0.7752613,0.02733 -0.029635,-0.457404 -0.5421328,0.107622 z"
+             id="path6438"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6456"
+             d="m -6.2454373,-14.012295 0.2766378,0.322452 1.1868024,-0.658572 -0.029635,-0.251633 -1.4338052,0.587753 z"
+             style="fill:#664813;fill-opacity:1;stroke:none" />
+        </g>
+        <g
+           direction="f"
+           id="stick01_held_forward"
+           style="display:none">
+          <path
+             style="fill:#93681b;fill-opacity:1;stroke:none"
+             d="m 5.4581604,-13.415482 c 0,0 6.9817116,3.107602 6.9817116,3.107602 l 0.109854,-0.708673 -6.4856398,-2.904109 -0.6059258,0.50518 z"
+             id="path6444"
+             sodipodi:nodetypes="ccccc" />
+          <path
+             sodipodi:nodetypes="ccccc"
+             id="path6446"
+             d="m 5.7256896,-13.017604 c 0,0 6.2226654,3.0435665 6.2226654,3.0435665 l 0.464191,-0.6309745 -6.6914107,-2.972699 0.00455,0.560107 z"
+             style="fill:#573e10;fill-opacity:1;stroke:none" />
         </g>
       </g>
     </g>

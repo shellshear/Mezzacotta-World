@@ -37,9 +37,11 @@ function GridItem(params)
         this.params.isInvisible = false; 
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
-		
+	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
+
+	this.dirns = ['r', 'b', 'l', 'f']; // default directions
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -53,7 +55,7 @@ GridItem.prototype.setOwner = function(owner)
     this.updateElev();
 
     // Set the cellContents
-    this.updateOwnerContents();    
+    this.updateOwnerContents();
 }
 
 // Update the elevation based on our owner's height and elevation
@@ -70,7 +72,7 @@ GridItem.prototype.updateElev = function()
         if (this.owner.params.elev != null)
             this.params.elev = this.owner.params.elev;
     
-        if (this.owner.params.ht != null)
+        if (this.owner.params.ht != null && !this.params.isCarried)
             this.params.elev += this.owner.params.ht;
     }
 }
@@ -495,8 +497,46 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
+// Set the direction of this item.
+// Also update the direction of all its children, by rotating them correspondingly.
+GridItem.prototype.setDirection = function(direction, doSave)
+{
+	var delta = this.getDirectionDelta(this.params.direction, direction);
+	this.setItemParam("direction", direction, doSave);
+	
+	// Rotate all our children
+	for (var i = 0; i < this.myItems.length; ++i)
+    {
+		this.myItems[i].rotateItem(delta, false); // Don't save the child direction rotations.
+    }
+}
+
+// Find the delta between the src and dest
+GridItem.prototype.getDirectionDelta = function(src, dest)
+{
+	// Find the index of the src
+	var srcIndex = 0;
+	for (var i = 0; i < this.dirns.length; ++i)
+	{
+		if (this.dirns[i] == src)
+		{
+			srcIndex = i;
+			break;
+		}
+	}
+
+	// Find the index of the dest relative to the src
+	for (var i = 0; i < this.dirns.length; i++)
+	{
+		if (this.dirns[i] == dest)
+			return (i - srcIndex + this.dirns.length) % this.dirns.length;
+	}
+	
+	return 0;
+}
+
 // Rotate the specified item to the right, by the specified amount (-1 to turn left)
-GridItem.prototype.rotateItem = function(rotation)
+GridItem.prototype.rotateItem = function(rotation, doSave)
 {
 	// Check if the item has no direction specified
 	if (this.params.direction == null)
@@ -504,19 +544,17 @@ GridItem.prototype.rotateItem = function(rotation)
 		this.params.direction = "f";
 	}
 	
-	// The directions are right, back, left, and forwards (by default).
-	var dirns = ['r', 'b', 'l', 'f'];
-	for (var i = 0; i < dirns.length; ++i)
+	for (var i = 0; i < this.dirns.length; ++i)
 	{
-		if (dirns[i] == this.params.direction)
+		if (this.dirns[i] == this.params.direction)
 		{
 			// Rotate to the specified direction
 			i += rotation;
-			i = i % dirns.length;
+			i = i % this.dirns.length;
 			while (i < 0)
-				i += dirns.length;
+				i += this.dirns.length;
 			
-			this.setItemParam("direction", dirns[i], true);
+			this.setDirection(this.dirns[i], doSave);
 			
 			break;
 		}
@@ -544,7 +582,6 @@ GridItem.prototype.setHeight = function(height, doSave)
 	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
 }
-
 
 // Return true if the item can be moved to the destination cellContents
 // This is only true if the destination cellContents can be stood upon, and

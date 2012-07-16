@@ -8,24 +8,24 @@ function InventoryWindow(controller)
 	this.snapDistance = 20;
 	
 	this.inventorySlots = [];
-	this.inventorySlots.push(new InventorySlot(this, 14, 85));
-	this.inventorySlots.push(new InventorySlot(this, 74, 83));
+	this.inventorySlots.push(new InventorySlot(this, 14, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 74, 83, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 147, 23));
-	this.inventorySlots.push(new InventorySlot(this, 147, 85));
-	this.inventorySlots.push(new InventorySlot(this, 147, 142));
+	this.inventorySlots.push(new InventorySlot(this, 147, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 147, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 147, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 207, 23));
-	this.inventorySlots.push(new InventorySlot(this, 207, 85));
-	this.inventorySlots.push(new InventorySlot(this, 207, 142));
+	this.inventorySlots.push(new InventorySlot(this, 207, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 207, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 207, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 267, 23));
-	this.inventorySlots.push(new InventorySlot(this, 267, 85));
-	this.inventorySlots.push(new InventorySlot(this, 267, 142));
+	this.inventorySlots.push(new InventorySlot(this, 267, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 267, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 267, 142, this.inventorySlots.length));
 
-	this.inventorySlots.push(new InventorySlot(this, 327, 23));
-	this.inventorySlots.push(new InventorySlot(this, 327, 85));
-	this.inventorySlots.push(new InventorySlot(this, 327, 142));
+	this.inventorySlots.push(new InventorySlot(this, 327, 23, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 327, 85, this.inventorySlots.length));
+	this.inventorySlots.push(new InventorySlot(this, 327, 142, this.inventorySlots.length));
 	
 	this.itemArea = new SVGComponent(0, 0);
 	this.contents.appendChild(this.itemArea);
@@ -165,16 +165,8 @@ InventoryWindow.prototype.doAction = function(src, evt)
 		
 		if (distance != null && distance < this.snapDistance)
 		{
-			// The user wants to put the item into this slot
-			if (this.inventorySlots[bestSlot].isEmpty())
-			{
-				src.setSlot(this.inventorySlots[bestSlot]);
-			}
-			else
-			{
-				// TODO: Use item with existing item
+			if (!this.tryToPlaceItemInSlot(bestSlot, src))
 				src.resetSlotPosition();
-			}
 		}
 		else
 		{
@@ -187,3 +179,22 @@ InventoryWindow.prototype.doAction = function(src, evt)
 	}
 }
 
+InventoryWindow.prototype.tryToPlaceItemInSlot = function(slot, viewItem)
+{
+	var result = false;
+	
+	// Ask the slot if its okay for this item to be placed there
+	if (this.inventorySlots[slot].canAcceptItem(viewItem))
+	{
+		viewItem.setSlot(this.inventorySlots[slot]);
+		result = true;
+	}
+
+	return result;
+}
+
+InventoryWindow.prototype.setWeilding = function(item)
+{
+	if (this.avatar != null)
+		this.avatar.setWeilding(item);
+}

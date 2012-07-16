@@ -9,6 +9,9 @@ function AvatarGroupController(controller)
 	this.avatarList = [];
 	this.currentAvatar = null;
 	
+	// List of cells visible to the avatars
+	this.visibleCells = [];
+	
 	// The xml version of the inventory. We can reset the inventory to this
 	// when required.
 	this.xmlInventory = null;
@@ -68,31 +71,38 @@ AvatarGroupController.prototype.getAvatarCentreCell = function()
 }
 
 // Get all the cells that the avatars can see
-// TODO: For the moment, just make sure the avatar cell itself is visible.
-AvatarGroupController.prototype.getAvatarViewedCells = function()
+AvatarGroupController.prototype.updateAvatarViewedCells = function()
 {
+	// Clear the existing viewed cells
+	for (var i = 0; i < this.visibleCells.length; ++i)
+	{
+		this.visibleCells[i].tempParams.avatarSees = null;
+	}
+	
+	// Find cells containing visible items
 	if (this.currentAvatar != null && this.currentAvatar.avatarItem != null)
 	{
-		var visibleCells = [];
+		this.visibleCells = [];
 		var avatarViewElev = this.currentAvatar.avatarItem.params.elev + this.currentAvatar.avatarItem.params.ht;
 		for (var i in this.currentAvatar.avatarItem.canSee["pov"])
 	    {
 	        for (var j in this.currentAvatar.avatarItem.canSee["pov"][i])
 	        {
 				var currView = this.currentAvatar.avatarItem.canSee["pov"][i][j];
-				// Add this contents if it has any visible items.
+				// Add this contents if it has any items visible to the avatar.
 				for (var k = 0; k < currView.cellContents.seenBy.length; ++k)
 				{
 					var currTarget = currView.cellContents.seenBy[k];
 					if (currTarget.item == this.currentAvatar.avatarItem && currTarget.viewType == "pov" && currTarget.viewElev <= avatarViewElev)
 					{
-		            	visibleCells.push(currView.cellContents);
+		            	this.visibleCells.push(currView.cellContents);
+						currView.cellContents.tempParams.avatarSees = true;
 						break;
 					}
 				}
 			}
 		}
-		return visibleCells; // [this.currentAvatar.avatarItem.cellContents];
+		return this.visibleCells; // [this.currentAvatar.avatarItem.cellContents];
 	}
 	else
 		return null;

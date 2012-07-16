@@ -86,6 +86,11 @@ function GameController(background, itemFactory, model, view)
 
 KevLinDev.extend(GameController, ActionObject);
 
+GameController.prototype.start = function()
+{
+	this.loginController.start();
+}
+
 GameController.prototype.clearPlayerData = function()
 {
     // The xml for the map is stored here.
@@ -648,7 +653,8 @@ GameController.prototype.contentSelected = function(src, evt)
             if (topItem != null)
             {
 				// Rotate the item to the left
-				topItem.rotateItem(-1);
+				var doSaveValue = true;
+				topItem.rotateItem(-1, doSaveValue);
             }
             this.setMapSavedStatus(false);
         }
@@ -660,7 +666,8 @@ GameController.prototype.contentSelected = function(src, evt)
             if (topItem != null)
             {
 				// Rotate the item to the left
-				topItem.rotateItem(1);
+				var doSaveValue = true;
+				topItem.rotateItem(1, doSaveValue);
             }
             this.setMapSavedStatus(false);
         }
@@ -769,7 +776,7 @@ GameController.prototype.stepTime = function()
 	var pov = this.avatarGroupController.getAvatarPOV();
     this.view.updatePOV(pov);
 
-	var viewedCells = this.avatarGroupController.getAvatarViewedCells();
+	var viewedCells = this.avatarGroupController.updateAvatarViewedCells();
     this.setVisibleToUser(viewedCells, 15);
 }
 
@@ -806,7 +813,7 @@ GameController.prototype.changeItems = function()
             // Move the item as per its request.
             var topData = destinationList[i][0].dest.cellContents.getTopItem();
             destinationList[i][0].item.moveItem(topData);
-            destinationList[i][0].item.setItemParam("direction", destinationList[i][0].dest.params.direction);
+            destinationList[i][0].item.setDirection(destinationList[i][0].dest.params.direction);
         }
         else 
         {
@@ -815,7 +822,7 @@ GameController.prototype.changeItems = function()
             
             // However, they all at least turn in the direction they
             // want to move.
-            destinationList[i][0].item.setItemParam("direction", destinationList[i][0].dest.params.direction);
+            destinationList[i][0].item.setDirection(destinationList[i][0].dest.params.direction);
         }
     }    
 }
