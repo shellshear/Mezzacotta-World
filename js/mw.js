@@ -4373,25 +4373,6 @@ GridItem.prototype.setOwner = function(owner)
     this.updateOwnerContents();
 }
 
-// Update the elevation based on our owner's height and elevation
-GridItem.prototype.updateElev = function()
-{
-    // The owner could be a GridContents or a GridItem
-    // If the owner is a GridItem, we are sitting on top of it.
-    if (this.owner == null)
-    {
-        this.params.elev = 0;
-    }
-    else if (this.owner.params != null)
-    {
-        if (this.owner.params.elev != null)
-            this.params.elev = this.owner.params.elev;
-    
-        if (this.owner.params.ht != null && !this.params.isCarried)
-            this.params.elev += this.owner.params.ht;
-    }
-}
-
 // Update any POV affected by changes to this grid item
 GridItem.prototype.updateAffectedPOV = function()
 {
@@ -4812,6 +4793,28 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
+// Update the elevation based on our owner's height and elevation
+GridItem.prototype.updateElev = function()
+{
+    // The owner could be a GridContents or a GridItem
+    // If the owner is a GridItem, we are sitting on top of it.
+    if (this.owner == null)
+    {
+        this.setItemParam("elev", 0);
+    }
+    else if (this.owner.params != null && this.owner.params.elev != null)
+    {
+        if (this.owner.params.ht != null && !this.params.isCarried)
+       		this.setItemParam("elev", this.owner.params.elev + this.owner.params.ht);
+   		else
+       		this.setItemParam("elev", this.owner.params.elev);
+	}
+	
+	// Also update elevations of all our children
+	for (var i = 0; i < this.myItems.length; ++i)
+		this.myItems[i].updateElev();
+}
+
 // Set the direction of this item.
 // Also update the direction of all its children, by rotating them correspondingly.
 GridItem.prototype.setDirection = function(direction, doSave)
@@ -5113,9 +5116,10 @@ GridItem.prototype.followSimplePathTo = function(item)
 }
 function GridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
-    this.itemGraphics = null; // The item graphics, as distinct from the item's children
-    
     GridViewItem.baseConstructor.call(this, 0, 0, modelItem, viewItemFactory);
+    
+    this.itemGraphics = new SVGElement("g"); // The item graphics, as distinct from the item's children
+    this.insertBefore(this.itemGraphics, this.containedItems); 
     
     this.appendItemContents(itemGraphics);
     
@@ -5125,23 +5129,10 @@ function GridViewItem(modelItem, viewItemFactory, itemGraphics)
      
 KevLinDev.extend(GridViewItem, ViewItemContainer);
 
-// Append components of the item cellContents
-// A view item cellContents can contain several bits (eg. the item and the
-// item's shadow)
-GridViewItem.prototype.appendItemContents = function(itemGraphics)
+// Append components of the item
+GridViewItem.prototype.appendItemContents = function(newItemGraphics)
 {
-    if (itemGraphics != null)
-    {
-        if (this.itemGraphics == null)
-        {
-            this.itemGraphics = itemGraphics;
-            this.insertBefore(this.itemGraphics, this.containedItems); 
-        }
-        else
-        {
-            this.itemGraphics.appendChild(itemGraphics);
-        }
-    }
+    this.itemGraphics.appendChild(newItemGraphics);
 }
 
 GridViewItem.prototype.doAction = function(src, evt)
@@ -5238,7 +5229,7 @@ GridViewItem.prototype.setVisibilityTop = function(isVisible)
     if (this.modelItem.params.isInvisible && (!this.modelItem.cellContents || !this.modelItem.cellContents.model.showInvisible))
         isVisible = false;
     
-    this.itemGraphics.setVisible(isVisible);
+    this.itemGraphics.firstChild.setVisible(isVisible);
 }
 
 // Draw the grid button and contents
@@ -5752,6 +5743,16 @@ function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 
 KevLinDev.extend(LitGridViewItem, GridViewItem);
 
+// Set light level for this item
+LitGridViewItem.prototype.setLightLevel = function(level)
+{
+	// TODO: At some point, we may need to set the light levels on
+	// all relevant children, but currently there are some children 
+	// we add that aren't ShadowItem (e.g. item selection highlight).
+	this.itemGraphics.childNodes[0].setLightLevel(level);
+}
+
+// Set the lighting from the item information
 LitGridViewItem.prototype.setLighting = function()
 {
     var cellContents = this.modelItem.cellContents;
@@ -5786,7 +5787,7 @@ LitGridViewItem.prototype.setLighting = function()
             }
         }
     
-        this.itemGraphics.setLightLevel(lightLevel);
+        this.setLightLevel(lightLevel);
     }
         
     for (var i in this.containedItems.childNodes)
@@ -6419,9 +6420,7 @@ BlockGridViewItem.prototype.updateHeight = function()
 {
     var y = -this.modelItem.params.elev - this.modelItem.params.ht;
     this.rootContainer.setMouseoverPosition(0, y);
-
-    var translateHeight = -this.modelItem.params.ht;
-    this.setPosition(0, translateHeight); 
+    this.itemGraphics.setAttribute("transform", "translate(0, " + y + ")");
 
 	// Adjust our left and right heights according to our neighbour block heights
 	
@@ -6492,9 +6491,20 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
 {
     BlockGridViewItem.superClass.doAction.call(this, src, evt);   
 
-    if (evt.type == "paramChanged" && evt.name == "ht")
+    if (evt.type == "paramChanged")
     {
-        this.updateNearbyHeights();
+		if (evt.name == "ht")
+		{
+	        this.updateNearbyHeights();
+		}
+		else if (evt.name == "isHighlighted")
+		{
+			this.setHighlight(evt.value);
+		}
+		else if (evt.name == "elev")
+		{
+			this.updateHeight();
+		}
     }
     else if (evt.type == "otherItemHeight")
     {
@@ -6508,10 +6518,6 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
     }
     else if (evt.type == "paramChanged")
     {
-		if (evt.name == "isHighlighted")
-		{
-			this.setHighlight(evt.value);
-		}
 	}
 }
 
@@ -6839,6 +6845,7 @@ StateDirectionShadowElement.prototype.setDirection = function(directionName)
 
 
 // Handle the view of an item that has multiple states
+// NOTE: This is not yet a PerspectiveGridViewItem, but probably should be at some point.
 function StateGridViewItem(modelItem, viewItemFactory, stateItem)
 {
     this.stateItem = stateItem;
@@ -6846,18 +6853,21 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
     StateGridViewItem.baseConstructor.call
         (this, modelItem, viewItemFactory, this.stateItem);   
 
-    // We set the base position to be the height of the object
-    // so that items that go on top of it are correctly placed
-    var translateHeight = -this.modelItem.params.ht;
-    this.setPosition(0, translateHeight); 
-    
-    this.itemGraphics.setAttribute("transform", "translate(0, " + this.modelItem.params.ht + ")");
+	this.updateElevation();
 	
 	if (this.modelItem.owner != null && this.modelItem.owner.params != null && this.modelItem.owner.params.itemTags != null)
 		this.stateItem.setStateBasedOnParentTag(this.modelItem.owner.params.itemTags);
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
+
+StateGridViewItem.prototype.updateElevation = function()
+{
+    // We set the base position to be the height of the object
+    // so that items that go on top of it are correctly placed
+    var translateHeight = -this.modelItem.params.elev;    
+    this.itemGraphics.setAttribute("transform", "translate(0, " + translateHeight + ")");
+}
 
 StateGridViewItem.prototype.doAction = function(src, evt)
 {
@@ -6873,6 +6883,10 @@ StateGridViewItem.prototype.doAction = function(src, evt)
         {
             this.stateItem.setDirection(evt.value);
         }
+		else if (evt.name == "elev")
+		{
+			this.updateElevation();
+		}
     }
 }
 
@@ -10467,14 +10481,14 @@ ItemWindow.prototype.setItem = function(itemCode)
 	this.item = this.controller.itemFactory.makeItem(itemCode);
 	
 	var currEl = this.controller.itemFactory.makeViewItem(this.item);
-    currEl.itemGraphics.setLightLevel(1.0);
+    currEl.setLightLevel(1.0); // Hack to set the light level directly
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
     this.itemAppearanceLabel.setContents(elHolder);
     this.item.addActionListener(currEl);
 
 	var currEl2 = this.controller.itemFactory.makeViewItem(this.item);
-    currEl2.itemGraphics.setLightLevel(1.0);
+    currEl2.setLightLevel(1.0); // Hack to set the light level directly
 	var elHolder2 = new SVGElement("g");
 	elHolder2.appendChild(currEl2);
     this.itemAppearanceButton.setContents(elHolder2);
