@@ -58,25 +58,6 @@ GridItem.prototype.setOwner = function(owner)
     this.updateOwnerContents();
 }
 
-// Update the elevation based on our owner's height and elevation
-GridItem.prototype.updateElev = function()
-{
-    // The owner could be a GridContents or a GridItem
-    // If the owner is a GridItem, we are sitting on top of it.
-    if (this.owner == null)
-    {
-        this.params.elev = 0;
-    }
-    else if (this.owner.params != null)
-    {
-        if (this.owner.params.elev != null)
-            this.params.elev = this.owner.params.elev;
-    
-        if (this.owner.params.ht != null && !this.params.isCarried)
-            this.params.elev += this.owner.params.ht;
-    }
-}
-
 // Update any POV affected by changes to this grid item
 GridItem.prototype.updateAffectedPOV = function()
 {
@@ -495,6 +476,28 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
 
     // Tell our listeners
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
+}
+
+// Update the elevation based on our owner's height and elevation
+GridItem.prototype.updateElev = function()
+{
+    // The owner could be a GridContents or a GridItem
+    // If the owner is a GridItem, we are sitting on top of it.
+    if (this.owner == null)
+    {
+        this.setItemParam("elev", 0);
+    }
+    else if (this.owner.params != null && this.owner.params.elev != null)
+    {
+        if (this.owner.params.ht != null && !this.params.isCarried)
+       		this.setItemParam("elev", this.owner.params.elev + this.owner.params.ht);
+   		else
+       		this.setItemParam("elev", this.owner.params.elev);
+	}
+	
+	// Also update elevations of all our children
+	for (var i = 0; i < this.myItems.length; ++i)
+		this.myItems[i].updateElev();
 }
 
 // Set the direction of this item.

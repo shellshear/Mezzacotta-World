@@ -7,6 +7,16 @@ function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 
 KevLinDev.extend(LitGridViewItem, GridViewItem);
 
+// Set light level for this item
+LitGridViewItem.prototype.setLightLevel = function(level)
+{
+	// TODO: At some point, we may need to set the light levels on
+	// all relevant children, but currently there are some children 
+	// we add that aren't ShadowItem (e.g. item selection highlight).
+	this.itemGraphics.childNodes[0].setLightLevel(level);
+}
+
+// Set the lighting from the item information
 LitGridViewItem.prototype.setLighting = function()
 {
     var cellContents = this.modelItem.cellContents;
@@ -41,7 +51,7 @@ LitGridViewItem.prototype.setLighting = function()
             }
         }
     
-        this.itemGraphics.setLightLevel(lightLevel);
+        this.setLightLevel(lightLevel);
     }
         
     for (var i in this.containedItems.childNodes)

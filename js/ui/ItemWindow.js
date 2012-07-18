@@ -84,14 +84,14 @@ ItemWindow.prototype.setItem = function(itemCode)
 	this.item = this.controller.itemFactory.makeItem(itemCode);
 	
 	var currEl = this.controller.itemFactory.makeViewItem(this.item);
-    currEl.itemGraphics.setLightLevel(1.0);
+    currEl.setLightLevel(1.0); // Hack to set the light level directly
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
     this.itemAppearanceLabel.setContents(elHolder);
     this.item.addActionListener(currEl);
 
 	var currEl2 = this.controller.itemFactory.makeViewItem(this.item);
-    currEl2.itemGraphics.setLightLevel(1.0);
+    currEl2.setLightLevel(1.0); // Hack to set the light level directly
 	var elHolder2 = new SVGElement("g");
 	elHolder2.appendChild(currEl2);
     this.itemAppearanceButton.setContents(elHolder2);

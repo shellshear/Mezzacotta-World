@@ -1,8 +1,9 @@
 function GridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
-    this.itemGraphics = null; // The item graphics, as distinct from the item's children
-    
     GridViewItem.baseConstructor.call(this, 0, 0, modelItem, viewItemFactory);
+    
+    this.itemGraphics = new SVGElement("g"); // The item graphics, as distinct from the item's children
+    this.insertBefore(this.itemGraphics, this.containedItems); 
     
     this.appendItemContents(itemGraphics);
     
@@ -12,23 +13,10 @@ function GridViewItem(modelItem, viewItemFactory, itemGraphics)
      
 KevLinDev.extend(GridViewItem, ViewItemContainer);
 
-// Append components of the item cellContents
-// A view item cellContents can contain several bits (eg. the item and the
-// item's shadow)
-GridViewItem.prototype.appendItemContents = function(itemGraphics)
+// Append components of the item
+GridViewItem.prototype.appendItemContents = function(newItemGraphics)
 {
-    if (itemGraphics != null)
-    {
-        if (this.itemGraphics == null)
-        {
-            this.itemGraphics = itemGraphics;
-            this.insertBefore(this.itemGraphics, this.containedItems); 
-        }
-        else
-        {
-            this.itemGraphics.appendChild(itemGraphics);
-        }
-    }
+    this.itemGraphics.appendChild(newItemGraphics);
 }
 
 GridViewItem.prototype.doAction = function(src, evt)
@@ -125,6 +113,6 @@ GridViewItem.prototype.setVisibilityTop = function(isVisible)
     if (this.modelItem.params.isInvisible && (!this.modelItem.cellContents || !this.modelItem.cellContents.model.showInvisible))
         isVisible = false;
     
-    this.itemGraphics.setVisible(isVisible);
+    this.itemGraphics.firstChild.setVisible(isVisible);
 }
 

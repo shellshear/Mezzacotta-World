@@ -34,9 +34,7 @@ BlockGridViewItem.prototype.updateHeight = function()
 {
     var y = -this.modelItem.params.elev - this.modelItem.params.ht;
     this.rootContainer.setMouseoverPosition(0, y);
-
-    var translateHeight = -this.modelItem.params.ht;
-    this.setPosition(0, translateHeight); 
+    this.itemGraphics.setAttribute("transform", "translate(0, " + y + ")");
 
 	// Adjust our left and right heights according to our neighbour block heights
 	
@@ -107,9 +105,20 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
 {
     BlockGridViewItem.superClass.doAction.call(this, src, evt);   
 
-    if (evt.type == "paramChanged" && evt.name == "ht")
+    if (evt.type == "paramChanged")
     {
-        this.updateNearbyHeights();
+		if (evt.name == "ht")
+		{
+	        this.updateNearbyHeights();
+		}
+		else if (evt.name == "isHighlighted")
+		{
+			this.setHighlight(evt.value);
+		}
+		else if (evt.name == "elev")
+		{
+			this.updateHeight();
+		}
     }
     else if (evt.type == "otherItemHeight")
     {
@@ -123,10 +132,6 @@ BlockGridViewItem.prototype.doAction = function(src, evt)
     }
     else if (evt.type == "paramChanged")
     {
-		if (evt.name == "isHighlighted")
-		{
-			this.setHighlight(evt.value);
-		}
 	}
 }
 
