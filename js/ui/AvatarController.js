@@ -10,8 +10,6 @@ function AvatarController(controller, avatarIndex, avatarCode)
     this.avatarItem = this.controller.itemFactory.makeItem(avatarCode);
     this.avatarItem.params.isTemporary = true;
 
-	if (this.avatarItem.params.itemTags == null)
-		this.avatarItem.params.itemTags = [];
 	this.avatarItem.params.itemTags.push("avatar"); 
 	
     this.avatarItem.id = "avatar_" + this.avatarIndex;
@@ -107,7 +105,16 @@ AvatarController.prototype.attemptMoveAvatar = function(direction)
                 }
             }
         }
-    }        
+    }   
+    else
+	{
+		// Attempt to use the topData
+		if (this.weildedItem == null || !this.weildedItem.useItemWith(topData))
+		{
+			// If the weilded item failed to do anything, try with the avatar directly.
+			this.avatarItem.useItemWith(topData);
+		}
+	}
 }
 
 AvatarController.prototype.moveAvatar = function(destItem)

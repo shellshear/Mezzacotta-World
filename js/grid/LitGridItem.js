@@ -30,3 +30,11 @@ LitGridItem.prototype.updatePOV = function()
     }
 }
 
+LitGridItem.prototype.setItemParam = function(name, value, doSave)
+{
+    LitGridItem.superClass.setItemParam.call(this, name, value, doSave);   
+
+	// If the user is setting lightRadius, we'll need to update pov
+	if (name == "lightRadius" || name == "lightStrength")
+		this.updatePOV();
+}

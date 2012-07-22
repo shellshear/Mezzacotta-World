@@ -2,11 +2,14 @@
 function InventoryViewItem(inventoryWindow, gridItem)
 {
 	this.gridItem = gridItem;
+	this.gridItem.addActionListener(this);
+	
 	this.inventoryWindow = inventoryWindow;
 	this.inventorySlot = null;
 	
-	var itemCopy = this.inventoryWindow.controller.itemFactory.makeItem(this.gridItem.params.itemCode);
-	var currEl = this.inventoryWindow.controller.itemFactory.makeSimpleViewItem(itemCopy);
+	this.itemCopy = this.inventoryWindow.controller.itemFactory.makeItem(this.gridItem.params.itemCode);
+	var currEl = this.inventoryWindow.controller.itemFactory.makeViewItem(this.itemCopy);
+	this.itemCopy.addActionListener(currEl);
 
     InventoryViewItem.baseConstructor.call(this, "dragItem", 0, 0, currEl, {fill:"none", stroke:"none", rx:2, width:40, height:40});
 
@@ -42,5 +45,15 @@ InventoryViewItem.prototype.resetSlotPosition = function()
 	if (this.inventorySlot != null)
 	{
 		this.setPosition(this.inventorySlot.x, this.inventorySlot.y);
+	}
+}
+
+InventoryViewItem.prototype.doAction = function(src, evt)
+{
+    InventoryViewItem.superClass.doAction.call(this, src, evt);   
+
+    if (evt.type == "tagAdded")
+    {
+		this.itemCopy.setItemTag(evt.value);
 	}
 }

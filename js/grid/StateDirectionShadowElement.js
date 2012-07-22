@@ -1,96 +1,142 @@
 // StateDirectionShadowElement handles svg from a graphics file that has the following layout:
 // <g id="itemId">
-//     <g id="itemId_def" state="def">
-//         <g id="itemId_def_def" [direction="dirn"]>
+//     <g [myTag=""] [parentTag=""]>
+//         <g direction="f"> // direction can be any of fblr, or combinations thereof.
 //             [graphics describing default state, with default direction]
 //         </g>
-//         <g id="itemId_def_back" direction="back"/>
+//         <g direction="b"/>
+//         <g direction="l"/>
+//         <g direction="r"/>
 //     </g>
-//     <g id="itemId_state2" state="state2"/>
+//     <g [myTag=""] [parentTag=""]/>
+//         <g direction="fblr"/>
+//     </g>
 // </g>
 // 
-// The only compulsory item is the id="itemId_def_def", which is 
-// the default graphic used if no other information is provided about
-// direction or state.
-// If a state X is provided, the subset of items under the id "itemId_X"
-// are used. If not, the default state is "def".
-// If a direction D is provided, the item with the id "itemId_X_D" is used.
-function StateDirectionShadowElement(base, stateName, directionName, showInvisible, showInvisibleHidden)
+// The default state used is the first grandchild of the itemId group.
+// If a direction is provided, find the corresponding direction.
+// If tags and/or parentTags are provided, find the first match 
+// 
+// The myTag and parentTag attributes indicate states that should be used if those
+// tags are set for the item and its parent. Their rule for use is:
+// - if this.ta
+function StateDirectionShadowElement(base, showInvisible, showInvisibleHidden)
 {
     StateDirectionShadowElement.baseConstructor.call
         (this, base, showInvisible, showInvisibleHidden);   
 
-	this.itemStates = {}; // List of all item states, and directions
+	this.itemStates = []; // List of all item states, and directions
 	
 	this.itemState = null; // Current item state
-	this.stateName = null; // Current item state name
 	this.itemStateDirection = null; // Current item direction
-	this.directionName = null; // Current item direction name
+	this.directionName = null; // Initial item direction name
 	
 	for (var i = 0; i < this.base.childNodes.length; ++i)
     {
         var currState = this.base.childNodes[i];
-        if (currState.hasAttribute("state"))
+
+    	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+		currState.hide();
+		
+		var stateInfo = {};
+		stateInfo.state = currState;
+		
+		if (currState.hasAttribute("parentTag"))
 		{
-			var currStateName = currState.getAttribute("state");
-	    	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-			currState.hide();
-			this.itemStates[currStateName] = {};
-			this.itemStates[currStateName].state = currState;
-
-			// Also setup the directions for this state
-			var directionSet = {};
-	        for (var j = 0; j < currState.childNodes.length; ++j)
-	        {
-	            var currDirn = currState.childNodes[j];
-	            if (currDirn.hasAttribute("direction"))
-	            {
-					var directionStrings = currDirn.getAttribute("direction");
-	            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-	            	currDirn.hide();
-					for (var k = 0; k < directionStrings.length; ++k)
-					{
-						directionSet[directionStrings[k]] = currDirn;
-					}
-	            }
-	        }
-			this.itemStates[currStateName].directions = directionSet;
+			stateInfo.parentTag = currState.getAttribute("parentTag");
 		}
-    }
 
-    this.setState(stateName, directionName);
+		if (currState.hasAttribute("myTag"))
+		{
+			stateInfo.myTag = currState.getAttribute("myTag");
+		}
+
+		// Also setup the directions for this state
+		var directionSet = {};
+        for (var j = 0; j < currState.childNodes.length; ++j)
+        {
+            var currDirn = currState.childNodes[j];
+            if (currDirn.hasAttribute("direction"))
+            {
+				var directionStrings = currDirn.getAttribute("direction");
+            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+            	currDirn.hide();
+				for (var k = 0; k < directionStrings.length; ++k)
+				{
+					directionSet[directionStrings[k]] = currDirn;
+				}
+            }
+        }
+		stateInfo.directions = directionSet;
+		this.itemStates.push(stateInfo);
+	}
 }
 
 KevLinDev.extend(StateDirectionShadowElement, ShadowElement);
 
-// Show the graphics corresponding to the state based on what our parent is
-StateDirectionShadowElement.prototype.setStateBasedOnParentTag = function(parentTags)
-{
-	// Try to find a match between the parent tags and the possible states of this item
-	for (var i = 0; i < parentTags.length; ++i)
-	{
-		for (var j in this.itemStates)
-		{
-			if (this.itemStates[j].state.hasAttribute("parentTag") && this.itemStates[j].state.getAttribute("parentTag") == parentTags[i])
-			{
-				// Change to this state
-				this.setState(j);
-				break;
-			}
-		}
-	}
-}
-
 // Show the graphics corresponding to the state, and hide the others.
 // If you don't specify directionName, the existing direction will be used.
-StateDirectionShadowElement.prototype.setState = function(stateName, directionName)
+StateDirectionShadowElement.prototype.setState = function(directionName, parentTags, myTags)
 {
 	// If a direction name isn't provided, use the current direction
+	// If no current direction has been set, choose the default of "f"
 	if (directionName == null)
-		directionName = this.directionName;
+	{
+		if (this.directionName == null)
+		{
+			directionName = "f";
+		}
+		else
+		{
+			directionName = this.directionName;
+		}
+	}
+		
 	
-	// Update the state based on the name
-	if (this.stateName != stateName) 
+	// Update the state based on myTags and parentTags.
+	// Find a state whose parentTag is in our parentTags list, 
+	// and whose myTags is in our myTags list (provided the parentTag matches)
+	// If there's no parentTag requirement, try to find a match with myTags.
+	// If there's no requirements, choose the first state with no requirements.
+	var itemTagMatched = false;
+	var parentTagMatched = false;
+	var result = null;
+
+	for (var i = 0; i < this.itemStates.length; ++i)
+	{
+		// Item state's parentTag and myTag must be matched.
+		if (this.itemStates[i].parentTag == null && this.itemStates[i].myTag == null && result == null)
+		{
+			// This state has no requisite tag matches.
+			// Only set the result if nothing else has claimed it.
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag != null && this.itemStates[i].myTag == null && !parentTagMatched && parentTags != null && parentTags.indexOf(this.itemStates[i].parentTag) >= 0)
+		{
+			// This state requires a parentTag match, but no myTag match.
+			parentTagMatched = true;
+			itemTagMatched = false; // A previous match may have been made with just an item tag.
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag == null && this.itemStates[i].myTag != null && !parentTagMatched && !itemTagMatched && myTags != null && myTags.indexOf(this.itemStates[i].myTag) >= 0)
+		{
+			// This state requires a myTag match, but no parentTag match.
+			// Ignore this if there's already a parentTag match. ParentTags matches
+			// are always preferable to myTag matches.
+			itemTagMatched = true;
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag != null && this.itemStates[i].myTag != null && !(parentTagMatched && itemTagMatched) && parentTags != null && myTags != null && parentTags.indexOf(this.itemStates[i].parentTag) >= 0 && myTags.indexOf(this.itemStates[i].myTag) >= 0)
+		{
+			// This state requires both a parentTag and a myTag match.
+			itemTagMatched = true;
+			parentTagMatched = true;
+			result = this.itemStates[i];
+		}
+	}
+	
+	// Update the state
+	if (this.itemState != result) 
 	{
 		if (this.itemState != null)
 		{
@@ -101,12 +147,9 @@ StateDirectionShadowElement.prototype.setState = function(stateName, directionNa
 				this.itemDirection.hide();
 		}
 		
-	    this.stateName = stateName;
-	    this.itemState = null;
-    
-	    if (this.itemStates[this.stateName] != null)
+	    this.itemState = result;    
+	    if (this.itemState != null)
 	    {
-	        this.itemState = this.itemStates[this.stateName];
 	    	this.itemState.state.show();
 	    }
 	
@@ -117,13 +160,29 @@ StateDirectionShadowElement.prototype.setState = function(stateName, directionNa
 	this.setDirection(directionName);
 }
 
+StateDirectionShadowElement.prototype.stateMatchesTags = function(currTag, tagList)
+{
+	if (currTag != null && tagList != null)
+	{
+		for (var i = 0; i < tagList.length; ++i)
+		{
+			if (tagList[i] == currTag)
+			{
+				// Found a perfect match
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 // Show the graphics corresponding to the direction, and hide the others.
 // Show the first direction that is contained in the direction string.
 // The intention is that if the direction requested is "f" for forward, 
 // a graphic with direction "fb" (eg. a door) would match.
 StateDirectionShadowElement.prototype.setDirection = function(directionName)
 {
-	if (this.directionName == directionName)
+	if (this.directionName == directionName && this.directionName != null)
 		return;
 	
 	if (this.directionName != null)

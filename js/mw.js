@@ -4352,11 +4352,19 @@ function GridItem(params)
         this.params.isInvisible = false; 
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
+	if (this.params.itemTags == null)
+		this.params.itemTags = [];
 	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
 
 	this.dirns = ['r', 'b', 'l', 'f']; // default directions
+
+	// Initialise all the item tag params
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		this.setItemTagParam(this.params.itemTags[i]);
+	}
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -4793,6 +4801,50 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
+GridItem.prototype.setItemTag = function(tagName)
+{
+    // If there's already an itemTag with this name, don't do anything.
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		if (this.params.itemTags[i] == tagName)
+			return;
+	}
+	
+    this.params.itemTags.push(tagName);
+
+    // Tell our listeners
+    this.tellActionListeners(this, {type:"tagAdded", value:tagName});
+
+	this.setItemTagParam(tagName);
+}
+
+// An itemTagParam is an item parameter associated with a particular tag.
+// Whenever you set the tag, the associated itemTagParams get set as well.
+// Whenever you remove the tag, the original values of the params are restored.
+GridItem.prototype.setItemTagParam = function(tagName)
+{
+	// check if there are any tagParams to set
+	if (this.params.tagParams[tagName] != null)
+	{
+		for (var j in this.params.tagParams[tagName])
+		{
+			// We're going to set an item param using the tagParams
+			
+			// Save the original item parameter away for later use
+			if (this.params.tagParamOriginals == null)
+			{
+				this.params.tagParamOriginals = {};
+				this.params.tagParamOriginals[tagName] = {};
+			}
+			
+			this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
+			
+			// Update the item param with the tag param.
+			this.setItemParam(j, this.params.tagParams[tagName][j]);
+		}
+	}
+}
+
 // Update the elevation based on our owner's height and elevation
 GridItem.prototype.updateElev = function()
 {
@@ -4899,6 +4951,34 @@ GridItem.prototype.setHeight = function(height, doSave)
 	
 	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
+}
+
+// Attempt to use this item with another item.
+// Any item that has one or more useAction params affects other items,
+// adding, updating, or removing tags on the other item.
+// e.g. useActions:[{otherTag:"fire", addTag:"burning"}]
+GridItem.prototype.useItemWith = function(item)
+{
+	var result = false;
+	if (this.params.useActions != null)
+	{
+		for (var i = 0; i < this.params.useActions.length; ++i)
+		{
+			var currUseAction = this.params.useActions[i];
+			
+			// Does the other item have the appropriate tag?
+			for (var j = 0; j < item.params.itemTags.length; ++j)
+			{
+				if (currUseAction.otherTag == item.params.itemTags[j])
+				{
+					// Found a match
+					this.setItemTag(currUseAction.addTag);
+					result = true;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 // Return true if the item can be moved to the destination cellContents
@@ -6704,97 +6784,143 @@ SimpleBlockGridViewItem.prototype.setHeight = function(height)
 
 // StateDirectionShadowElement handles svg from a graphics file that has the following layout:
 // <g id="itemId">
-//     <g id="itemId_def" state="def">
-//         <g id="itemId_def_def" [direction="dirn"]>
+//     <g [myTag=""] [parentTag=""]>
+//         <g direction="f"> // direction can be any of fblr, or combinations thereof.
 //             [graphics describing default state, with default direction]
 //         </g>
-//         <g id="itemId_def_back" direction="back"/>
+//         <g direction="b"/>
+//         <g direction="l"/>
+//         <g direction="r"/>
 //     </g>
-//     <g id="itemId_state2" state="state2"/>
+//     <g [myTag=""] [parentTag=""]/>
+//         <g direction="fblr"/>
+//     </g>
 // </g>
 // 
-// The only compulsory item is the id="itemId_def_def", which is 
-// the default graphic used if no other information is provided about
-// direction or state.
-// If a state X is provided, the subset of items under the id "itemId_X"
-// are used. If not, the default state is "def".
-// If a direction D is provided, the item with the id "itemId_X_D" is used.
-function StateDirectionShadowElement(base, stateName, directionName, showInvisible, showInvisibleHidden)
+// The default state used is the first grandchild of the itemId group.
+// If a direction is provided, find the corresponding direction.
+// If tags and/or parentTags are provided, find the first match 
+// 
+// The myTag and parentTag attributes indicate states that should be used if those
+// tags are set for the item and its parent. Their rule for use is:
+// - if this.ta
+function StateDirectionShadowElement(base, showInvisible, showInvisibleHidden)
 {
     StateDirectionShadowElement.baseConstructor.call
         (this, base, showInvisible, showInvisibleHidden);   
 
-	this.itemStates = {}; // List of all item states, and directions
+	this.itemStates = []; // List of all item states, and directions
 	
 	this.itemState = null; // Current item state
-	this.stateName = null; // Current item state name
 	this.itemStateDirection = null; // Current item direction
-	this.directionName = null; // Current item direction name
+	this.directionName = null; // Initial item direction name
 	
 	for (var i = 0; i < this.base.childNodes.length; ++i)
     {
         var currState = this.base.childNodes[i];
-        if (currState.hasAttribute("state"))
+
+    	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+		currState.hide();
+		
+		var stateInfo = {};
+		stateInfo.state = currState;
+		
+		if (currState.hasAttribute("parentTag"))
 		{
-			var currStateName = currState.getAttribute("state");
-	    	currState.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-			currState.hide();
-			this.itemStates[currStateName] = {};
-			this.itemStates[currStateName].state = currState;
-
-			// Also setup the directions for this state
-			var directionSet = {};
-	        for (var j = 0; j < currState.childNodes.length; ++j)
-	        {
-	            var currDirn = currState.childNodes[j];
-	            if (currDirn.hasAttribute("direction"))
-	            {
-					var directionStrings = currDirn.getAttribute("direction");
-	            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
-	            	currDirn.hide();
-					for (var k = 0; k < directionStrings.length; ++k)
-					{
-						directionSet[directionStrings[k]] = currDirn;
-					}
-	            }
-	        }
-			this.itemStates[currStateName].directions = directionSet;
+			stateInfo.parentTag = currState.getAttribute("parentTag");
 		}
-    }
 
-    this.setState(stateName, directionName);
+		if (currState.hasAttribute("myTag"))
+		{
+			stateInfo.myTag = currState.getAttribute("myTag");
+		}
+
+		// Also setup the directions for this state
+		var directionSet = {};
+        for (var j = 0; j < currState.childNodes.length; ++j)
+        {
+            var currDirn = currState.childNodes[j];
+            if (currDirn.hasAttribute("direction"))
+            {
+				var directionStrings = currDirn.getAttribute("direction");
+            	currDirn.removeAttribute("style"); // Hack - Inkscape will include "display=none" in the style attribute, so we need to remove it.
+            	currDirn.hide();
+				for (var k = 0; k < directionStrings.length; ++k)
+				{
+					directionSet[directionStrings[k]] = currDirn;
+				}
+            }
+        }
+		stateInfo.directions = directionSet;
+		this.itemStates.push(stateInfo);
+	}
 }
 
 KevLinDev.extend(StateDirectionShadowElement, ShadowElement);
 
-// Show the graphics corresponding to the state based on what our parent is
-StateDirectionShadowElement.prototype.setStateBasedOnParentTag = function(parentTags)
-{
-	// Try to find a match between the parent tags and the possible states of this item
-	for (var i = 0; i < parentTags.length; ++i)
-	{
-		for (var j in this.itemStates)
-		{
-			if (this.itemStates[j].state.hasAttribute("parentTag") && this.itemStates[j].state.getAttribute("parentTag") == parentTags[i])
-			{
-				// Change to this state
-				this.setState(j);
-				break;
-			}
-		}
-	}
-}
-
 // Show the graphics corresponding to the state, and hide the others.
 // If you don't specify directionName, the existing direction will be used.
-StateDirectionShadowElement.prototype.setState = function(stateName, directionName)
+StateDirectionShadowElement.prototype.setState = function(directionName, parentTags, myTags)
 {
 	// If a direction name isn't provided, use the current direction
+	// If no current direction has been set, choose the default of "f"
 	if (directionName == null)
-		directionName = this.directionName;
+	{
+		if (this.directionName == null)
+		{
+			directionName = "f";
+		}
+		else
+		{
+			directionName = this.directionName;
+		}
+	}
+		
 	
-	// Update the state based on the name
-	if (this.stateName != stateName) 
+	// Update the state based on myTags and parentTags.
+	// Find a state whose parentTag is in our parentTags list, 
+	// and whose myTags is in our myTags list (provided the parentTag matches)
+	// If there's no parentTag requirement, try to find a match with myTags.
+	// If there's no requirements, choose the first state with no requirements.
+	var itemTagMatched = false;
+	var parentTagMatched = false;
+	var result = null;
+
+	for (var i = 0; i < this.itemStates.length; ++i)
+	{
+		// Item state's parentTag and myTag must be matched.
+		if (this.itemStates[i].parentTag == null && this.itemStates[i].myTag == null && result == null)
+		{
+			// This state has no requisite tag matches.
+			// Only set the result if nothing else has claimed it.
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag != null && this.itemStates[i].myTag == null && !parentTagMatched && parentTags != null && parentTags.indexOf(this.itemStates[i].parentTag) >= 0)
+		{
+			// This state requires a parentTag match, but no myTag match.
+			parentTagMatched = true;
+			itemTagMatched = false; // A previous match may have been made with just an item tag.
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag == null && this.itemStates[i].myTag != null && !parentTagMatched && !itemTagMatched && myTags != null && myTags.indexOf(this.itemStates[i].myTag) >= 0)
+		{
+			// This state requires a myTag match, but no parentTag match.
+			// Ignore this if there's already a parentTag match. ParentTags matches
+			// are always preferable to myTag matches.
+			itemTagMatched = true;
+			result = this.itemStates[i];
+		}
+		else if (this.itemStates[i].parentTag != null && this.itemStates[i].myTag != null && !(parentTagMatched && itemTagMatched) && parentTags != null && myTags != null && parentTags.indexOf(this.itemStates[i].parentTag) >= 0 && myTags.indexOf(this.itemStates[i].myTag) >= 0)
+		{
+			// This state requires both a parentTag and a myTag match.
+			itemTagMatched = true;
+			parentTagMatched = true;
+			result = this.itemStates[i];
+		}
+	}
+	
+	// Update the state
+	if (this.itemState != result) 
 	{
 		if (this.itemState != null)
 		{
@@ -6805,12 +6931,9 @@ StateDirectionShadowElement.prototype.setState = function(stateName, directionNa
 				this.itemDirection.hide();
 		}
 		
-	    this.stateName = stateName;
-	    this.itemState = null;
-    
-	    if (this.itemStates[this.stateName] != null)
+	    this.itemState = result;    
+	    if (this.itemState != null)
 	    {
-	        this.itemState = this.itemStates[this.stateName];
 	    	this.itemState.state.show();
 	    }
 	
@@ -6821,13 +6944,29 @@ StateDirectionShadowElement.prototype.setState = function(stateName, directionNa
 	this.setDirection(directionName);
 }
 
+StateDirectionShadowElement.prototype.stateMatchesTags = function(currTag, tagList)
+{
+	if (currTag != null && tagList != null)
+	{
+		for (var i = 0; i < tagList.length; ++i)
+		{
+			if (tagList[i] == currTag)
+			{
+				// Found a perfect match
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 // Show the graphics corresponding to the direction, and hide the others.
 // Show the first direction that is contained in the direction string.
 // The intention is that if the direction requested is "f" for forward, 
 // a graphic with direction "fb" (eg. a door) would match.
 StateDirectionShadowElement.prototype.setDirection = function(directionName)
 {
-	if (this.directionName == directionName)
+	if (this.directionName == directionName && this.directionName != null)
 		return;
 	
 	if (this.directionName != null)
@@ -6854,9 +6993,7 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
         (this, modelItem, viewItemFactory, this.stateItem);   
 
 	this.updateElevation();
-	
-	if (this.modelItem.owner != null && this.modelItem.owner.params != null && this.modelItem.owner.params.itemTags != null)
-		this.stateItem.setStateBasedOnParentTag(this.modelItem.owner.params.itemTags);
+	this.updateState();
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
@@ -6869,17 +7006,21 @@ StateGridViewItem.prototype.updateElevation = function()
     this.itemGraphics.setAttribute("transform", "translate(0, " + translateHeight + ")");
 }
 
+StateGridViewItem.prototype.updateState = function()
+{
+	var parentTags = (this.modelItem.owner != null && this.modelItem.owner.params != null) ?
+	 	this.modelItem.owner.params.itemTags : null;
+	
+	this.stateItem.setState(this.modelItem.params.direction, parentTags, this.modelItem.params.itemTags);
+}
+
 StateGridViewItem.prototype.doAction = function(src, evt)
 {
     StateGridViewItem.superClass.doAction.call(this, src, evt);   
 
     if (evt.type == "paramChanged")
     {
-        if (evt.name == "state")
-        {
-            this.stateItem.setState(evt.value);
-        }
-        else if (evt.name == "direction")
+        if (evt.name == "direction")
         {
             this.stateItem.setDirection(evt.value);
         }
@@ -6888,6 +7029,10 @@ StateGridViewItem.prototype.doAction = function(src, evt)
 			this.updateElevation();
 		}
     }
+    else if (evt.type == "tagAdded")
+    {
+		this.updateState();
+	}
 }
 
 // A view item that can be clicked on (used in the content layout view)
@@ -7150,8 +7295,7 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
     	        showInvisible = false;
     	    
     	    // Set a default state and direction
-    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible, false);
-    	    
+    	    var stateItem = new StateDirectionShadowElement(currItem, showInvisible, false);
             return new StateGridViewItem(modelItem, this, stateItem);
         }
     }
@@ -7245,11 +7389,11 @@ ACItemHandler.prototype.setItem = function(item)
 // - "tag" - the items must have at least one tag in common.
 ACItemHandler.prototype.setItemMatchCriterion = function(matchCriterion, itemTag)
 {
-	if (matchCriterion == this.matchCriterion && (itemTag == null || (this.item.params.itemTags != null && this.item.params.itemTags[0] == itemTag)))
+	if (matchCriterion == this.matchCriterion && (itemTag == null || this.item.params.itemTags[0] == itemTag))
 		return;
 
 	if (itemTag != null)
-		this.item.params.itemTags = [itemTag];
+		this.item.params.itemTags.push(itemTag);
 		
 	this.matchCriterion = matchCriterion;
 	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
@@ -7273,15 +7417,12 @@ ACItemHandler.prototype.matchesItem = function(item)
 	}
 	else if (this.matchCriterion == "tag")
 	{
-		if (item.params.itemTags != null && this.item.params.itemTags != null)
+		for (var i = 0; i < item.params.itemTags.length; ++i)
 		{
-			for (var i = 0; i < item.params.itemTags.length; ++i)
+			for (var j = 0; j < this.item.params.itemTags.length; ++j)
 			{
-				for (var j = 0; j < this.item.params.itemTags.length; ++j)
-				{
-					if (item.params.itemTags[i] == this.item.params.itemTags[j])
-						return true;
-				}
+				if (item.params.itemTags[i] == this.item.params.itemTags[j])
+					return true;
 			}
 		}
 	}
@@ -7339,7 +7480,7 @@ ACItemHandler.prototype.fromXML = function(xml)
 			{
 				this.matchCriterion = "tag";
 				item = this.model.itemFactory.makeItem("t");
-				item.params.itemTags = [itemTag];
+				item.params.itemTags.push(itemTag);
 			}			
 		}
 	}
@@ -11073,8 +11214,6 @@ function AvatarController(controller, avatarIndex, avatarCode)
     this.avatarItem = this.controller.itemFactory.makeItem(avatarCode);
     this.avatarItem.params.isTemporary = true;
 
-	if (this.avatarItem.params.itemTags == null)
-		this.avatarItem.params.itemTags = [];
 	this.avatarItem.params.itemTags.push("avatar"); 
 	
     this.avatarItem.id = "avatar_" + this.avatarIndex;
@@ -11170,7 +11309,16 @@ AvatarController.prototype.attemptMoveAvatar = function(direction)
                 }
             }
         }
-    }        
+    }   
+    else
+	{
+		// Attempt to use the topData
+		if (this.weildedItem == null || !this.weildedItem.useItemWith(topData))
+		{
+			// If the weilded item failed to do anything, try with the avatar directly.
+			this.avatarItem.useItemWith(topData);
+		}
+	}
 }
 
 AvatarController.prototype.moveAvatar = function(destItem)
@@ -11608,11 +11756,14 @@ AvatarGroupController.prototype.resetInventoryFromXML = function()
 function InventoryViewItem(inventoryWindow, gridItem)
 {
 	this.gridItem = gridItem;
+	this.gridItem.addActionListener(this);
+	
 	this.inventoryWindow = inventoryWindow;
 	this.inventorySlot = null;
 	
-	var itemCopy = this.inventoryWindow.controller.itemFactory.makeItem(this.gridItem.params.itemCode);
-	var currEl = this.inventoryWindow.controller.itemFactory.makeSimpleViewItem(itemCopy);
+	this.itemCopy = this.inventoryWindow.controller.itemFactory.makeItem(this.gridItem.params.itemCode);
+	var currEl = this.inventoryWindow.controller.itemFactory.makeViewItem(this.itemCopy);
+	this.itemCopy.addActionListener(currEl);
 
     InventoryViewItem.baseConstructor.call(this, "dragItem", 0, 0, currEl, {fill:"none", stroke:"none", rx:2, width:40, height:40});
 
@@ -11649,7 +11800,18 @@ InventoryViewItem.prototype.resetSlotPosition = function()
 	{
 		this.setPosition(this.inventorySlot.x, this.inventorySlot.y);
 	}
-}// InventorySlot holds a single inventory item
+}
+
+InventoryViewItem.prototype.doAction = function(src, evt)
+{
+    InventoryViewItem.superClass.doAction.call(this, src, evt);   
+
+    if (evt.type == "tagAdded")
+    {
+		this.itemCopy.setItemTag(evt.value);
+	}
+}
+// InventorySlot holds a single inventory item
 function InventorySlot(inventoryWindow, x, y, slotIndex)
 {
     InventorySlot.baseConstructor.call(this);
@@ -11793,9 +11955,9 @@ InventoryWindow.prototype.tryToCarryItem = function(item)
 {
 	// Find an empty slot
 	// Slots 0 and 1 are reserved for left and right hand.
-	for (var i = 2; i < this.inventorySlots.length; ++i)
+	for (var i = 1; i < this.inventorySlots.length; ++i)
 	{
-		if (this.inventorySlots[i].isEmpty())
+		if (this.inventorySlots[slot].canAcceptItem(item))
 		{
 			var newInventoryItem = new InventoryViewItem(this, item);
 			
@@ -11879,8 +12041,8 @@ InventoryWindow.prototype.tryToPlaceItemInSlot = function(slot, viewItem)
 {
 	var result = false;
 	
-	// Ask the slot if its okay for this item to be placed there
-	if (this.inventorySlots[slot].canAcceptItem(viewItem))
+	// Ask the slot if it's okay for this item to be placed there
+	if (this.inventorySlots[slot].canAcceptItem(viewItem.gridItem))
 	{
 		viewItem.setSlot(this.inventorySlots[slot]);
 		result = true;
@@ -13189,10 +13351,10 @@ function init()
         x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true},
         X:{itemName:"tree01", fullname:"Palm Tree", itemCode:"X", ht:30, wt:400},
         ".":{itemName:"pebbles01", fullname:"Pebbles", itemCode:".", canStandOn:true},
-        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, lightStrength:1, lightRadius:3},
+        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, itemTags:["burning"], tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
         i:{itemName:"coin01", fullname:"Coin", itemCode:"i", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
         k:{itemName:"key01", fullname:"Key", itemCode:"k", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
-        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true},
+        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
         j:{itemName:"ghost01", fullname:"Ghost", itemCode:"j", ht:10, povRange:4},
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
@@ -13200,7 +13362,7 @@ function init()
         Y:{itemName:"zombie02", fullname:"Ghoul", itemCode:"Y", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
         T:{itemName:"teleport01", fullname:"Teleport", itemCode:"T", canStandOn:true, doesTeleport:true},
         S:{itemName:"start01", fullname:"Start Square", itemCode:"S", canStandOn:true, isInvisible:true},
-        b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, lightStrength:1, lightRadius:4, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
+        b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
         t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t", noEdit:true},
         B:{itemName:"barrel01", fullname:"Barrel", itemCode:"B", ht:20, wt:1000, isPushable:true, blockView:true, canStandOn:true}
        };

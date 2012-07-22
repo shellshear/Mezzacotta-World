@@ -8,9 +8,7 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
         (this, modelItem, viewItemFactory, this.stateItem);   
 
 	this.updateElevation();
-	
-	if (this.modelItem.owner != null && this.modelItem.owner.params != null && this.modelItem.owner.params.itemTags != null)
-		this.stateItem.setStateBasedOnParentTag(this.modelItem.owner.params.itemTags);
+	this.updateState();
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
@@ -23,17 +21,21 @@ StateGridViewItem.prototype.updateElevation = function()
     this.itemGraphics.setAttribute("transform", "translate(0, " + translateHeight + ")");
 }
 
+StateGridViewItem.prototype.updateState = function()
+{
+	var parentTags = (this.modelItem.owner != null && this.modelItem.owner.params != null) ?
+	 	this.modelItem.owner.params.itemTags : null;
+	
+	this.stateItem.setState(this.modelItem.params.direction, parentTags, this.modelItem.params.itemTags);
+}
+
 StateGridViewItem.prototype.doAction = function(src, evt)
 {
     StateGridViewItem.superClass.doAction.call(this, src, evt);   
 
     if (evt.type == "paramChanged")
     {
-        if (evt.name == "state")
-        {
-            this.stateItem.setState(evt.value);
-        }
-        else if (evt.name == "direction")
+        if (evt.name == "direction")
         {
             this.stateItem.setDirection(evt.value);
         }
@@ -42,5 +44,9 @@ StateGridViewItem.prototype.doAction = function(src, evt)
 			this.updateElevation();
 		}
     }
+    else if (evt.type == "tagAdded")
+    {
+		this.updateState();
+	}
 }
 

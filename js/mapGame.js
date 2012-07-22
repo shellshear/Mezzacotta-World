@@ -30,10 +30,10 @@ function init()
         x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true},
         X:{itemName:"tree01", fullname:"Palm Tree", itemCode:"X", ht:30, wt:400},
         ".":{itemName:"pebbles01", fullname:"Pebbles", itemCode:".", canStandOn:true},
-        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, lightStrength:1, lightRadius:3},
+        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, itemTags:["burning"], tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
         i:{itemName:"coin01", fullname:"Coin", itemCode:"i", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
         k:{itemName:"key01", fullname:"Key", itemCode:"k", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
-        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true},
+        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
         j:{itemName:"ghost01", fullname:"Ghost", itemCode:"j", ht:10, povRange:4},
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
@@ -41,7 +41,7 @@ function init()
         Y:{itemName:"zombie02", fullname:"Ghoul", itemCode:"Y", ht:20, wt:100, povRange:4, climbHeight:0, moveTowards:["b"]},
         T:{itemName:"teleport01", fullname:"Teleport", itemCode:"T", canStandOn:true, doesTeleport:true},
         S:{itemName:"start01", fullname:"Start Square", itemCode:"S", canStandOn:true, isInvisible:true},
-        b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, lightStrength:1, lightRadius:4, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
+        b:{itemName:"avatar02", fullname:"Avatar", itemCode:"b", ht:20, wt:100, povRange:9, climbHeight:10, dropHeight:20, noEdit:true},
         t:{itemName:"tag01", fullname:"Item Tag", itemCode:"t", noEdit:true},
         B:{itemName:"barrel01", fullname:"Barrel", itemCode:"B", ht:20, wt:1000, isPushable:true, blockView:true, canStandOn:true}
        };

@@ -97,9 +97,9 @@ InventoryWindow.prototype.tryToCarryItem = function(item)
 {
 	// Find an empty slot
 	// Slots 0 and 1 are reserved for left and right hand.
-	for (var i = 2; i < this.inventorySlots.length; ++i)
+	for (var i = 1; i < this.inventorySlots.length; ++i)
 	{
-		if (this.inventorySlots[i].isEmpty())
+		if (this.inventorySlots[i].canAcceptItem(item))
 		{
 			var newInventoryItem = new InventoryViewItem(this, item);
 			
@@ -183,8 +183,8 @@ InventoryWindow.prototype.tryToPlaceItemInSlot = function(slot, viewItem)
 {
 	var result = false;
 	
-	// Ask the slot if its okay for this item to be placed there
-	if (this.inventorySlots[slot].canAcceptItem(viewItem))
+	// Ask the slot if it's okay for this item to be placed there
+	if (this.inventorySlots[slot].canAcceptItem(viewItem.gridItem))
 	{
 		viewItem.setSlot(this.inventorySlots[slot]);
 		result = true;

@@ -17,10 +17,10 @@ InventorySlot.prototype.isEmpty = function()
 	return (this.viewItem == null);
 }
 
-InventorySlot.prototype.canAcceptItem = function(viewItem)
+InventorySlot.prototype.canAcceptItem = function(gridItem)
 {
 	// If this is the "weild item" slot, refuse items that can't be weilded.
-	if (this.slotIndex == 1 && !viewItem.gridItem.params.canWeild)
+	if (this.slotIndex == 1 && !gridItem.params.canWeild)
 		return false;
 		
 	// Otherwise, we can accept an item as long as there isn't an item already here.

@@ -207,8 +207,7 @@ PerspectiveItemFactory.prototype.makeViewItem = function(modelItem)
     	        showInvisible = false;
     	    
     	    // Set a default state and direction
-    	    var stateItem = new StateDirectionShadowElement(currItem, state, dirn, showInvisible, false);
-    	    
+    	    var stateItem = new StateDirectionShadowElement(currItem, showInvisible, false);
             return new StateGridViewItem(modelItem, this, stateItem);
         }
     }

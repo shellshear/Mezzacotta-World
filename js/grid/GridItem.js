@@ -37,11 +37,19 @@ function GridItem(params)
         this.params.isInvisible = false; 
 	if (this.params.isHighlighted == null)
 		this.params.isHighlighted = false;
+	if (this.params.itemTags == null)
+		this.params.itemTags = [];
 	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
 
 	this.dirns = ['r', 'b', 'l', 'f']; // default directions
+
+	// Initialise all the item tag params
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		this.setItemTagParam(this.params.itemTags[i]);
+	}
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -478,6 +486,50 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
+GridItem.prototype.setItemTag = function(tagName)
+{
+    // If there's already an itemTag with this name, don't do anything.
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		if (this.params.itemTags[i] == tagName)
+			return;
+	}
+	
+    this.params.itemTags.push(tagName);
+
+    // Tell our listeners
+    this.tellActionListeners(this, {type:"tagAdded", value:tagName});
+
+	this.setItemTagParam(tagName);
+}
+
+// An itemTagParam is an item parameter associated with a particular tag.
+// Whenever you set the tag, the associated itemTagParams get set as well.
+// Whenever you remove the tag, the original values of the params are restored.
+GridItem.prototype.setItemTagParam = function(tagName)
+{
+	// check if there are any tagParams to set
+	if (this.params.tagParams[tagName] != null)
+	{
+		for (var j in this.params.tagParams[tagName])
+		{
+			// We're going to set an item param using the tagParams
+			
+			// Save the original item parameter away for later use
+			if (this.params.tagParamOriginals == null)
+			{
+				this.params.tagParamOriginals = {};
+				this.params.tagParamOriginals[tagName] = {};
+			}
+			
+			this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
+			
+			// Update the item param with the tag param.
+			this.setItemParam(j, this.params.tagParams[tagName][j]);
+		}
+	}
+}
+
 // Update the elevation based on our owner's height and elevation
 GridItem.prototype.updateElev = function()
 {
@@ -584,6 +636,34 @@ GridItem.prototype.setHeight = function(height, doSave)
 	
 	// Update any items with a POV that touches this cellContents
 	this.updateAffectedPOV();
+}
+
+// Attempt to use this item with another item.
+// Any item that has one or more useAction params affects other items,
+// adding, updating, or removing tags on the other item.
+// e.g. useActions:[{otherTag:"fire", addTag:"burning"}]
+GridItem.prototype.useItemWith = function(item)
+{
+	var result = false;
+	if (this.params.useActions != null)
+	{
+		for (var i = 0; i < this.params.useActions.length; ++i)
+		{
+			var currUseAction = this.params.useActions[i];
+			
+			// Does the other item have the appropriate tag?
+			for (var j = 0; j < item.params.itemTags.length; ++j)
+			{
+				if (currUseAction.otherTag == item.params.itemTags[j])
+				{
+					// Found a match
+					this.setItemTag(currUseAction.addTag);
+					result = true;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 // Return true if the item can be moved to the destination cellContents

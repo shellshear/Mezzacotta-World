@@ -46,11 +46,11 @@ ACItemHandler.prototype.setItem = function(item)
 // - "tag" - the items must have at least one tag in common.
 ACItemHandler.prototype.setItemMatchCriterion = function(matchCriterion, itemTag)
 {
-	if (matchCriterion == this.matchCriterion && (itemTag == null || (this.item.params.itemTags != null && this.item.params.itemTags[0] == itemTag)))
+	if (matchCriterion == this.matchCriterion && (itemTag == null || this.item.params.itemTags[0] == itemTag))
 		return;
 
 	if (itemTag != null)
-		this.item.params.itemTags = [itemTag];
+		this.item.params.itemTags.push(itemTag);
 		
 	this.matchCriterion = matchCriterion;
 	this.tellActionListeners(this, {type:"itemUpdated", item:this.item});
@@ -74,15 +74,12 @@ ACItemHandler.prototype.matchesItem = function(item)
 	}
 	else if (this.matchCriterion == "tag")
 	{
-		if (item.params.itemTags != null && this.item.params.itemTags != null)
+		for (var i = 0; i < item.params.itemTags.length; ++i)
 		{
-			for (var i = 0; i < item.params.itemTags.length; ++i)
+			for (var j = 0; j < this.item.params.itemTags.length; ++j)
 			{
-				for (var j = 0; j < this.item.params.itemTags.length; ++j)
-				{
-					if (item.params.itemTags[i] == this.item.params.itemTags[j])
-						return true;
-				}
+				if (item.params.itemTags[i] == this.item.params.itemTags[j])
+					return true;
 			}
 		}
 	}
@@ -140,7 +137,7 @@ ACItemHandler.prototype.fromXML = function(xml)
 			{
 				this.matchCriterion = "tag";
 				item = this.model.itemFactory.makeItem("t");
-				item.params.itemTags = [itemTag];
+				item.params.itemTags.push(itemTag);
 			}			
 		}
 	}
