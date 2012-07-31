@@ -9,6 +9,7 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
 
 	this.updateElevation();
 	this.updateState();
+	this.updateColor();
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
@@ -29,6 +30,12 @@ StateGridViewItem.prototype.updateState = function()
 	this.stateItem.setState(this.modelItem.params.direction, parentTags, this.modelItem.params.itemTags);
 }
 
+StateGridViewItem.prototype.updateColor = function()
+{
+	if (this.modelItem.params.itemColor !== undefined)
+		this.stateItem.setColor(this.modelItem.params.itemColor);
+}
+
 StateGridViewItem.prototype.doAction = function(src, evt)
 {
     StateGridViewItem.superClass.doAction.call(this, src, evt);   
@@ -43,10 +50,16 @@ StateGridViewItem.prototype.doAction = function(src, evt)
 		{
 			this.updateElevation();
 		}
+		else if (evt.name == "itemColor")
+		{
+			// User has asked to change color of the item
+			this.updateColor();
+		}
     }
-    else if (evt.type == "tagAdded")
+    else if (evt.type == "tagAdded" || evt.type == "tagRemoved")
     {
 		this.updateState();
+		this.updateColor();
 	}
 }
 
