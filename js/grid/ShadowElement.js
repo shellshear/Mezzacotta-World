@@ -77,3 +77,14 @@ ShadowElement.prototype.setLightLevel2 = function(lightLevel)
 		setLightLevel(this.base.svg, {r:lightLevel, g:lightLevel, b:lightLevel}, "shadow" + this.shadowID);
     }
 }
+
+ShadowElement.prototype.setColor = function(color)
+{
+	setChangeableColor(this.base.svg, color, "shadow" + this.shadowID);
+    
+	// Now that the new color is set, need to redo the light levels
+	if (this.isVisible)
+    {
+		this.setLightLevel2(this.lightLevel);
+	}
+}
