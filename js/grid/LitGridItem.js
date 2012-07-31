@@ -28,6 +28,10 @@ LitGridItem.prototype.updatePOV = function()
             }
         }
     }
+	else
+	{
+	    this.clearSeenBy("light");
+	}
 }
 
 LitGridItem.prototype.setItemParam = function(name, value, doSave)
