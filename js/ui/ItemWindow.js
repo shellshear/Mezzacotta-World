@@ -85,6 +85,7 @@ ItemWindow.prototype.setItem = function(itemCode)
 	
 	var currEl = this.controller.itemFactory.makeViewItem(this.item);
     currEl.setLightLevel(1.0); // Hack to set the light level directly
+	this.item.addActionListener(currEl);
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
     this.itemAppearanceLabel.setContents(elHolder);
@@ -92,6 +93,7 @@ ItemWindow.prototype.setItem = function(itemCode)
 
 	var currEl2 = this.controller.itemFactory.makeViewItem(this.item);
     currEl2.setLightLevel(1.0); // Hack to set the light level directly
+	this.item.addActionListener(currEl2);
 	var elHolder2 = new SVGElement("g");
 	elHolder2.appendChild(currEl2);
     this.itemAppearanceButton.setContents(elHolder2);
@@ -103,19 +105,38 @@ ItemWindow.prototype.setItem = function(itemCode)
         this.extrasArea.appendChild(this.selectTeleportButton);
     }
     
-    if (this.item.params.lightStrength)
-    {
-        
-    }
+	if (this.item.params.tagParams != null)
+	{
+		// tagParams change parameters if those tags are attached to the item.
+		// Give the user a chance to set those tags.
+	    for (var i = 0; i < this.item.params.tagParams.length; ++i)
+	    {
+			// The tagParams are broken up into groups of mutually exclusive tags
+			var radioGroup = new RadioButtonGroup();
+			for (var j in this.item.params.tagParams[i])
+			{
+			    var currRow = new FlowLayout(0, 0, {minSpacing:3});
+			    this.extrasArea.appendChild(currRow);
+				var checkboxParams = makeSimpleCheckboxParamButtonIdSet();
+				checkboxParams.width = 10;
+				checkboxParams.height = 10;
+				currCheckbox = new ParamButton2("tagCheckbox_" + j, checkboxParams);
+				currCheckbox.setToggle(true);
+				radioGroup.addButton(currCheckbox);
+				currRow.appendChild(currCheckbox);
+				currRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, j));
+				currCheckbox.addActionListener(this);
+			}
+	    }
+	}
 }
 
 ItemWindow.prototype.doAction = function(src, evt)
 {
     ItemWindow.superClass.doAction.call(this, src, evt);
 
-	if (evt.type == "click")
+	if (evt.type == "selection")
 	{
-	    
 	    if (src.src.substring(0, 2) == "i_")
 	    {
     	    this.setItem(src.src.substring(2));
@@ -127,8 +148,17 @@ ItemWindow.prototype.doAction = function(src, evt)
 	    {
 	        this.teleportWindow.show();
 	    }
+		else if (src.src.substring(0, 12) == "tagCheckbox_")
+	    {
+			// User has checked or unchecked a tag
+			var tag = src.src.substring(12);
+			if (src.isSelected)
+				this.item.setItemTag(tag, true);
+			else
+				this.item.removeItemTag(tag, true);
+		}
     }
-    else if (evt.type == "worldSelected")
+	else if (evt.type == "worldSelected")
     {
         this.item.params.doTeleport = evt.value;
         var destName = this.controller.visitedWorlds[evt.value].map_name;
