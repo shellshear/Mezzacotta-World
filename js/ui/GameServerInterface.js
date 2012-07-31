@@ -79,7 +79,7 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
     //updateLayout();
     
     // Finally, load the starting map, also loading any saved items
-    this.submitLoadMap(this.controller.loginController.curr_map, true);
+    this.submitLoadMap(this.controller.loginController.curr_map);
 }
 
 // Save items, and optionally teleport to a new map. Set teleportDestination to null
@@ -123,7 +123,7 @@ GameServerInterface.prototype.receiveSaveItemsResultFromServer = function(xml, t
 		
 		this.controller.avatarGroupController.updateFromXML(xml);
 		
-        this.submitLoadMap(teleportDestination, false);
+        this.submitLoadMap(teleportDestination);
     }
     else
     {
@@ -131,7 +131,7 @@ GameServerInterface.prototype.receiveSaveItemsResultFromServer = function(xml, t
     }
 }
 
-GameServerInterface.prototype.submitLoadMap = function(map_id, doGetItems)
+GameServerInterface.prototype.submitLoadMap = function(map_id)
 {
     if (map_id == null)
         return;
@@ -149,16 +149,13 @@ GameServerInterface.prototype.submitLoadMap = function(map_id, doGetItems)
     this.controller.setActive(false);
 
     var http_string = "update.php";
-    var params = "load=" + escape(map_id) + "&save_level=1&" + this.controller.loginController.getHTTPLoginString();
+    var params = "load=" + escape(map_id) + "&save_level=1&get_items=1&" + this.controller.loginController.getHTTPLoginString();
     
     if (!this.controller.hasLoadedVisitedWorlds)
     {
         params += "&get_visit=1";
         this.controller.hasLoadedVisitedWorlds = true;
     }
-    
-    if (doGetItems)
-        params += "&get_items=1";
     
 	if (g_config.showServerTransactions)
 	{
