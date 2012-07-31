@@ -67,7 +67,7 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
 	{
 		result.setDirection(xml.getAttribute("d"), true);
 	}
-
+	
     // Update all the child items of this item as well
     for (var i = 0; i < xml.childNodes.length; i++)
     {
@@ -82,6 +82,17 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
             model.addToMoveableItems(currItem);
         }
     }
+
+	// deal with tags last, so that the template item tags get processed first.
+	if (xml.hasAttribute("tags"))
+	{
+		var tags = xml.getAttribute("tags").split(";");
+		for (var i = 0; i < tags.length; ++i)
+		{
+			// Set the tag, and indicate that the tag is to be saved.
+			result.setItemTag(tags[i], true); 
+		}
+	}
 
 	return result;
 }
