@@ -19,7 +19,6 @@ function GridItem(params)
     this.src = "GridItem";
 
     this.params = (params == null) ? {} : params;
-	this.params.saveVals = {};
 	
     if (this.params.ht == null)
         this.params.ht = 0; 
@@ -39,6 +38,12 @@ function GridItem(params)
 		this.params.isHighlighted = false;
 	if (this.params.itemTags == null)
 		this.params.itemTags = [];
+	if (this.params.saveTags == null)
+		this.params.saveTags = [];
+	if (this.params.saveVals == null)
+		this.params.saveVals = {};
+	if (this.params.direction == null)
+		this.params.direction = "f";
 	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
@@ -46,10 +51,7 @@ function GridItem(params)
 	this.dirns = ['r', 'b', 'l', 'f']; // default directions
 
 	// Initialise all the item tag params
-	for (var i = 0; i < this.params.itemTags.length; ++i)
-	{
-		this.setItemTagParam(this.params.itemTags[i]);
-	}
+	this.updateItemTagParams();
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -142,6 +144,11 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
 	else
     	xmlItem.setAttribute("h", this.params.ht);
 
+	if (this.params.saveTags.length > 0)
+	{
+	    xmlItem.setAttribute("tags", this.params.saveTags.join(";"));
+	}
+	
 	// Lots of items can have directions that don't need to be saved - only
 	// save if the user specifically set the initial direction.
 	if (this.params.saveVals.direction != null)
@@ -486,14 +493,16 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
-GridItem.prototype.setItemTag = function(tagName)
+GridItem.prototype.setItemTag = function(tagName, doSave)
 {
-    // If there's already an itemTag with this name, don't do anything.
-	for (var i = 0; i < this.params.itemTags.length; ++i)
+	if (doSave)
 	{
-		if (this.params.itemTags[i] == tagName)
-			return;
+		this.params.saveTags.push(tagName);
 	}
+	
+    // If there's already an itemTag with this name, don't do anything.
+	if (this.params.itemTags.indexOf(tagName) >= 0)
+		return;
 	
     this.params.itemTags.push(tagName);
 
@@ -503,29 +512,91 @@ GridItem.prototype.setItemTag = function(tagName)
 	this.setItemTagParam(tagName);
 }
 
+GridItem.prototype.removeItemTag = function(tagName, doSave)
+{
+	if (doSave)
+	{
+		var tagIndex = this.params.saveTags.indexOf(tagName);
+		if (tagIndex >= 0)
+			this.params.saveTags.splice(tagIndex, 1);
+	}
+	
+	var tagIndex = this.params.itemTags.indexOf(tagName);
+	
+    // If there's no itemTag with this name, don't do anything.
+	if (tagIndex < 0)
+		return;
+	
+	// Remove the tag
+    this.params.itemTags.splice(tagIndex, 1);
+
+	// Update corresponding parameters
+	this.updateItemTagParams();
+
+    // Tell our listeners
+    this.tellActionListeners(this, {type:"tagRemoved", value:tagName});
+}
+
+GridItem.prototype.updateItemTagParams = function()
+{
+	// Remove effects of inactive tags
+	for (var i in this.params.tagParamOriginals)
+	{
+		if (this.params.itemTags.indexOf(i) < 0)
+		{
+			this.revertItemTagOriginals(i);
+		}
+	}
+	
+	// Add the effects of all the active tags
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		this.setItemTagParam(this.params.itemTags[i]);
+	}
+}
+
+// Revert params to the set in the originalTag, then remove the originalTag
+GridItem.prototype.revertItemTagOriginals = function(originalTagIndex)
+{
+	for (var i in this.params.tagParamOriginals[originalTagIndex])
+	{
+		this.setItemParam(i, this.params.tagParamOriginals[originalTagIndex][i]);
+	}
+}
+
 // An itemTagParam is an item parameter associated with a particular tag.
 // Whenever you set the tag, the associated itemTagParams get set as well.
 // Whenever you remove the tag, the original values of the params are restored.
 GridItem.prototype.setItemTagParam = function(tagName)
 {
 	// check if there are any tagParams to set
-	if (this.params.tagParams[tagName] != null)
+	for (var i = 0; i < this.params.tagParams.length; ++i)
 	{
-		for (var j in this.params.tagParams[tagName])
+		var tagParamData = this.params.tagParams[i][tagName];
+		if (tagParamData != null)
 		{
-			// We're going to set an item param using the tagParams
-			
-			// Save the original item parameter away for later use
-			if (this.params.tagParamOriginals == null)
+			for (var j in tagParamData)
 			{
-				this.params.tagParamOriginals = {};
-				this.params.tagParamOriginals[tagName] = {};
+				// We're going to set an item param using the tagParams
+			
+				// Save the original item parameter away for later use
+				if (this.params.tagParamOriginals == null)
+				{
+					this.params.tagParamOriginals = {};
+				}
+				
+				if (this.params.tagParamOriginals[tagName] == null)
+				{
+					this.params.tagParamOriginals[tagName] = {};
+				}
+			
+				this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
+			
+				// Update the item param with the tag param.
+				this.setItemParam(j, tagParamData[j]);
 			}
 			
-			this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
-			
-			// Update the item param with the tag param.
-			this.setItemParam(j, this.params.tagParams[tagName][j]);
+			break;
 		}
 	}
 }
@@ -593,12 +664,6 @@ GridItem.prototype.getDirectionDelta = function(src, dest)
 // Rotate the specified item to the right, by the specified amount (-1 to turn left)
 GridItem.prototype.rotateItem = function(rotation, doSave)
 {
-	// Check if the item has no direction specified
-	if (this.params.direction == null)
-	{
-		this.params.direction = "f";
-	}
-	
 	for (var i = 0; i < this.dirns.length; ++i)
 	{
 		if (this.dirns[i] == this.params.direction)
@@ -641,7 +706,7 @@ GridItem.prototype.setHeight = function(height, doSave)
 // Attempt to use this item with another item.
 // Any item that has one or more useAction params affects other items,
 // adding, updating, or removing tags on the other item.
-// e.g. useActions:[{otherTag:"fire", addTag:"burning"}]
+// e.g. useActions:[{otherTag:"burning", addTag:"burning"}]
 GridItem.prototype.useItemWith = function(item)
 {
 	var result = false;
