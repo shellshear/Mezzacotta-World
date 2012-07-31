@@ -146,6 +146,18 @@ function createXMLDoc(elementName)
 	return result;
 }
 
+function cloneObject(obj)
+{
+	if (obj == null || typeof(obj) != 'object')
+		return obj;
+	
+	var tmp = obj.constructor();
+	
+	for (var i in obj)
+		tmp[i] = cloneObject(obj[i]);
+	
+	return tmp;
+}
 // Action Listeners respond to any SVG events via the handleEvent
 // method.  They can also be passed on by tellActionListeners.
 function ActionObject()
@@ -1191,7 +1203,8 @@ function setLightLevel(svgNode, level, groupId)
 			var newStyle = "";
 			for (var i = 0; i < styleArr.length; ++i)
 			{
-				newStyle += styleArr[i] + ";"
+				if (styleArr[i].length > 0)
+					newStyle += styleArr[i] + ";"
 			}
 			svgNode.setAttribute("style", newStyle);
 		}
@@ -1322,6 +1335,122 @@ function adjustLightLevel(currColor, level, groupId)
 	}
 	
 	return "rgb(" + red + "," + green + "," + blue + ")";
+}
+
+// Search through the specified node and its children, and replace any changeable colors.
+// Also take into account any setLightLevel() that have been done on these nodes -
+// i.e. if there is a [groupId]orig_* version, change that as well, so that lighting
+// corrections apply to the new colors.
+// 
+// svgNode - the root node from which to change the levels
+// newColor - the color to replace. Fill or stroke colors will be replaced for any nodes 
+//            that have the attributes "fillChange" or "strokeChange" set to 1, respectively.
+// groupId - used to check whether we should be changing the [groupId]orig_* version of the color.
+function setChangeableColor(svgNode, newColor, groupId)
+{
+	changeColorAttribute("fill", svgNode, newColor, groupId);
+	changeColorAttribute("stroke", svgNode, newColor, groupId);
+
+	var currStyle = svgNode.getAttribute("style");
+	if (currStyle != null)
+	{
+		var origStyle = svgNode.getAttribute(groupId + "orig_style");
+		if (origStyle != null)
+		{
+			currStyle = origStyle;
+		}
+
+		var styleArr = currStyle.split(";");
+		
+		// find any stroke or fill and update if the *Change attribute is set
+		var isModified = false;
+		for (var i = 0; i < styleArr.length; ++i)
+		{
+			var currStyleEl = styleArr[i].split(":");
+			var currStyleElName = currStyleEl[0].replace(/\s+/g, "").toLowerCase();
+			if (currStyleElName == "fill" && svgNode.getAttribute("fillChange") == 1)
+			{
+				styleArr[i] = currStyleElName + ":" + newColor;
+				isModified = true;
+			}
+			else if (currStyleElName == "stroke" && svgNode.getAttribute("strokeChange") == 1)
+			{
+				styleArr[i] = currStyleElName + ":" + newColor;
+				isModified = true;
+			}
+		}
+
+		if (isModified)
+		{
+			// Recreate the style string
+			var newStyle = "";
+			for (var i = 0; i < styleArr.length; ++i)
+			{
+				if (styleArr[i].length > 0)
+					newStyle += styleArr[i] + ";"
+			}
+			
+			// Save the original color style (taking into account orig_style)
+			var origColorStyle = svgNode.getAttribute(groupId + "origColor_style");
+			if (origColorStyle == null && newColor != null)
+			{
+				svgNode.setAttribute(groupId + "origColor_style", currStyle);
+			}
+			else if (origColorStyle != null && newColor == null)
+			{
+				newStyle = origColorStyle;
+			}
+			
+			// Save the style
+			if (origStyle != null)
+			{
+				// Update the orig_style so that lighting corrections now
+				// use the correct color
+				svgNode.setAttribute(groupId + "orig_style", newStyle);
+			}
+			svgNode.setAttribute("style", newStyle);
+		}
+	}
+
+	for (var i = 0; i < svgNode.children.length; ++i)
+	{
+		setChangeableColor(svgNode.children[i], newColor, groupId);
+	}
+}
+
+function changeColorAttribute(attr, svgNode, color, groupId)
+{
+	// Check that we have permission to change this attribute's color
+	if (svgNode.getAttribute(attr + "Change") != 1)
+		return;
+
+	var currAttr = svgNode.getAttribute(attr);
+	if (currAttr != null && currAttr != "none")
+	{
+		// original value before color changes and lighting have been applied
+		var origColorAttr = svgNode.getAttribute(groupId + "origColor_" + attr);
+		if (origColorAttr == null && color != null)
+		{
+			// Save the original color
+			svgNode.setAttribute(groupId + "origColor_" + attr, currAttr);
+		}
+		else if (origColorAttr != null && color == null)
+		{
+			// restore the original color
+			color = origColorAttr;
+			svgNode.removeAttribute(groupId + "origColor_" + attr);
+		}
+	
+		// original value before lighting is applied
+		var origAttr = svgNode.getAttribute(groupId + "orig_" + attr);
+		if (origAttr != null)
+		{
+			// Update the original to our color before lighting is applied
+			svgNode.setAttribute(groupId + "orig_" + attr, color);
+		}
+
+		svgNode.setAttribute(attr, color);
+	}
 }
 
 // SimpleButton.js
@@ -1611,16 +1740,19 @@ ParamButton.prototype.doAction = function(src, evt)
              if (this.toggleState == true)
              {                        
                  this.svg_select.show();
+		 		 this.tellActionListeners(this, {type:"selection", value:true});
              }
              else
              {
                  this.svg_select.hide();
+		 		 this.tellActionListeners(this, {type:"selection", value:false});
              }
              
          }
          else
          {
              this.svg_select.show();
+	 		 this.tellActionListeners(this, {type:"selection", value:true});
          }
      }
      else if (evt.type == "mouseup" && !this.doToggle)
@@ -1660,6 +1792,7 @@ ParamButton.prototype.setSelected = function(isSelected)
        if (this.doToggle)
            this.toggleState = false;
     }
+	this.tellActionListeners(this, {type:"selection", value:isSelected});
 }
 
 ParamButton.prototype.setToggle = function(doToggle)
@@ -1840,28 +1973,29 @@ ParamButton2.prototype.doAction = function(src, evt)
         if (evt.type == "mouseover")
         {
             this.isMouseover = true;
-        }
+            this.updateAppearance();
+	    }
         else if (evt.type == "mouseout")
         {
             this.isMouseover = false;
-        }
+            this.updateAppearance();
+	    }
         else if (evt.type == "mousedown")
         {
             if (this.doToggle)
             {
-                this.isSelected = !this.isSelected;
+                this.setSelected(!this.isSelected);
             }
             else
             {
-                this.isSelected = true;
+                this.setSelected(true);
             }
         }
         else if (evt.type == "mouseup")
         {
             //this.isSelected = false;
-        }
-
-        this.updateAppearance();
+            this.updateAppearance();
+	    }
     }
 };
 
@@ -1872,11 +2006,15 @@ ParamButton2.prototype.setAble = function(isAble)
     this.updateAppearance();
 };
 
+// Set whether this button is selected or not
 ParamButton2.prototype.setSelected = function(isSelected)
 {
-    // Set whether this button is selected or not
+	if (this.isSelected == isSelected)
+		return;
+		
     this.isSelected = isSelected;
     this.updateAppearance();
+	this.tellActionListeners(this, {type:"selection", value:this.isSelected});
 };
 
 ParamButton2.prototype.setToggle = function(doToggle)
@@ -1927,10 +2065,15 @@ function makeSimpleCheckboxParamButtonIdSet()
 }
 
 // Radio button group ensures only one button can be in "selected" state.
-function RadioButtonGroup()
+function RadioButtonGroup(params)
 {
     this.buttons = [];
     this.currentSelection = null;
+	this.params = params;
+	if (this.params == null)
+		this.params = {};
+	if (this.params.allowNoSelection == null)
+		this.params.allowNoSelection = true;
 }
 
 RadioButtonGroup.prototype.addButton = function(button)
@@ -1950,8 +2093,12 @@ RadioButtonGroup.prototype.doAction = function(src, evt)
 RadioButtonGroup.prototype.setSelected = function(src)
 {
     this.currentSelection = src;
-    src.setSelected(true);
-    
+
+	if (!this.params.allowNoSelection)
+	{
+    	src.setSelected(true);
+    }
+
     // Unselect all the other buttons
     for (var i in this.buttons)
     {
@@ -4334,7 +4481,6 @@ function GridItem(params)
     this.src = "GridItem";
 
     this.params = (params == null) ? {} : params;
-	this.params.saveVals = {};
 	
     if (this.params.ht == null)
         this.params.ht = 0; 
@@ -4354,6 +4500,12 @@ function GridItem(params)
 		this.params.isHighlighted = false;
 	if (this.params.itemTags == null)
 		this.params.itemTags = [];
+	if (this.params.saveTags == null)
+		this.params.saveTags = [];
+	if (this.params.saveVals == null)
+		this.params.saveVals = {};
+	if (this.params.direction == null)
+		this.params.direction = "f";
 	
     this.cellContents = null; // doesn't belong to anything yet
     this.canSee = {}; // Can't see anything yet
@@ -4361,10 +4513,7 @@ function GridItem(params)
 	this.dirns = ['r', 'b', 'l', 'f']; // default directions
 
 	// Initialise all the item tag params
-	for (var i = 0; i < this.params.itemTags.length; ++i)
-	{
-		this.setItemTagParam(this.params.itemTags[i]);
-	}
+	this.updateItemTagParams();
 }
 
 KevLinDev.extend(GridItem, ItemContainer);
@@ -4457,6 +4606,11 @@ GridItem.prototype.toXML = function(xmlDoc, showAll)
 	else
     	xmlItem.setAttribute("h", this.params.ht);
 
+	if (this.params.saveTags.length > 0)
+	{
+	    xmlItem.setAttribute("tags", this.params.saveTags.join(";"));
+	}
+	
 	// Lots of items can have directions that don't need to be saved - only
 	// save if the user specifically set the initial direction.
 	if (this.params.saveVals.direction != null)
@@ -4801,14 +4955,16 @@ GridItem.prototype.setItemParam = function(name, value, doSave)
     this.tellActionListeners(this, {type:"paramChanged", name:name, value:value});
 }
 
-GridItem.prototype.setItemTag = function(tagName)
+GridItem.prototype.setItemTag = function(tagName, doSave)
 {
-    // If there's already an itemTag with this name, don't do anything.
-	for (var i = 0; i < this.params.itemTags.length; ++i)
+	if (doSave)
 	{
-		if (this.params.itemTags[i] == tagName)
-			return;
+		this.params.saveTags.push(tagName);
 	}
+	
+    // If there's already an itemTag with this name, don't do anything.
+	if (this.params.itemTags.indexOf(tagName) >= 0)
+		return;
 	
     this.params.itemTags.push(tagName);
 
@@ -4818,29 +4974,91 @@ GridItem.prototype.setItemTag = function(tagName)
 	this.setItemTagParam(tagName);
 }
 
+GridItem.prototype.removeItemTag = function(tagName, doSave)
+{
+	if (doSave)
+	{
+		var tagIndex = this.params.saveTags.indexOf(tagName);
+		if (tagIndex >= 0)
+			this.params.saveTags.splice(tagIndex, 1);
+	}
+	
+	var tagIndex = this.params.itemTags.indexOf(tagName);
+	
+    // If there's no itemTag with this name, don't do anything.
+	if (tagIndex < 0)
+		return;
+	
+	// Remove the tag
+    this.params.itemTags.splice(tagIndex, 1);
+
+	// Update corresponding parameters
+	this.updateItemTagParams();
+
+    // Tell our listeners
+    this.tellActionListeners(this, {type:"tagRemoved", value:tagName});
+}
+
+GridItem.prototype.updateItemTagParams = function()
+{
+	// Remove effects of inactive tags
+	for (var i in this.params.tagParamOriginals)
+	{
+		if (this.params.itemTags.indexOf(i) < 0)
+		{
+			this.revertItemTagOriginals(i);
+		}
+	}
+	
+	// Add the effects of all the active tags
+	for (var i = 0; i < this.params.itemTags.length; ++i)
+	{
+		this.setItemTagParam(this.params.itemTags[i]);
+	}
+}
+
+// Revert params to the set in the originalTag, then remove the originalTag
+GridItem.prototype.revertItemTagOriginals = function(originalTagIndex)
+{
+	for (var i in this.params.tagParamOriginals[originalTagIndex])
+	{
+		this.setItemParam(i, this.params.tagParamOriginals[originalTagIndex][i]);
+	}
+}
+
 // An itemTagParam is an item parameter associated with a particular tag.
 // Whenever you set the tag, the associated itemTagParams get set as well.
 // Whenever you remove the tag, the original values of the params are restored.
 GridItem.prototype.setItemTagParam = function(tagName)
 {
 	// check if there are any tagParams to set
-	if (this.params.tagParams[tagName] != null)
+	for (var i = 0; i < this.params.tagParams.length; ++i)
 	{
-		for (var j in this.params.tagParams[tagName])
+		var tagParamData = this.params.tagParams[i][tagName];
+		if (tagParamData != null)
 		{
-			// We're going to set an item param using the tagParams
-			
-			// Save the original item parameter away for later use
-			if (this.params.tagParamOriginals == null)
+			for (var j in tagParamData)
 			{
-				this.params.tagParamOriginals = {};
-				this.params.tagParamOriginals[tagName] = {};
+				// We're going to set an item param using the tagParams
+			
+				// Save the original item parameter away for later use
+				if (this.params.tagParamOriginals == null)
+				{
+					this.params.tagParamOriginals = {};
+				}
+				
+				if (this.params.tagParamOriginals[tagName] == null)
+				{
+					this.params.tagParamOriginals[tagName] = {};
+				}
+			
+				this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
+			
+				// Update the item param with the tag param.
+				this.setItemParam(j, tagParamData[j]);
 			}
 			
-			this.params.tagParamOriginals[tagName][j] = (this.params[j] == null) ? null : this.params[j];
-			
-			// Update the item param with the tag param.
-			this.setItemParam(j, this.params.tagParams[tagName][j]);
+			break;
 		}
 	}
 }
@@ -4908,12 +5126,6 @@ GridItem.prototype.getDirectionDelta = function(src, dest)
 // Rotate the specified item to the right, by the specified amount (-1 to turn left)
 GridItem.prototype.rotateItem = function(rotation, doSave)
 {
-	// Check if the item has no direction specified
-	if (this.params.direction == null)
-	{
-		this.params.direction = "f";
-	}
-	
 	for (var i = 0; i < this.dirns.length; ++i)
 	{
 		if (this.dirns[i] == this.params.direction)
@@ -4956,7 +5168,7 @@ GridItem.prototype.setHeight = function(height, doSave)
 // Attempt to use this item with another item.
 // Any item that has one or more useAction params affects other items,
 // adding, updating, or removing tags on the other item.
-// e.g. useActions:[{otherTag:"fire", addTag:"burning"}]
+// e.g. useActions:[{otherTag:"burning", addTag:"burning"}]
 GridItem.prototype.useItemWith = function(item)
 {
 	var result = false;
@@ -5812,9 +6024,20 @@ LitGridItem.prototype.updatePOV = function()
             }
         }
     }
+	else
+	{
+	    this.clearSeenBy("light");
+	}
 }
 
-// LitGridViewItem handles the lighting effects on this item.
+LitGridItem.prototype.setItemParam = function(name, value, doSave)
+{
+    LitGridItem.superClass.setItemParam.call(this, name, value, doSave);   
+
+	// If the user is setting lightRadius, we'll need to update pov
+	if (name == "lightRadius" || name == "lightStrength")
+		this.updatePOV();
+}// LitGridViewItem handles the lighting effects on this item.
 function LitGridViewItem(modelItem, viewItemFactory, itemGraphics)
 {
     LitGridViewItem.baseConstructor.call(this, modelItem, viewItemFactory, itemGraphics);
@@ -6042,7 +6265,19 @@ ShadowElement.prototype.setLightLevel2 = function(lightLevel)
 	    lightLevel = lightLevel + (1.0 - lightLevel) * (1.0 - gLightLevelScaleFactor);
 		setLightLevel(this.base.svg, {r:lightLevel, g:lightLevel, b:lightLevel}, "shadow" + this.shadowID);
     }
-}// A grid model where the layout is hexagonal.
+}
+
+ShadowElement.prototype.setColor = function(color)
+{
+	setChangeableColor(this.base.svg, color, "shadow" + this.shadowID);
+    
+	// Now that the new color is set, need to redo the light levels
+	if (this.isVisible)
+    {
+		this.setLightLevel2(this.lightLevel);
+	}
+}
+// A grid model where the layout is hexagonal.
 function HexGridModel(ambientLight, itemProperties)
 {
     HexGridModel.baseConstructor.call(this, ambientLight, itemProperties);
@@ -6994,6 +7229,7 @@ function StateGridViewItem(modelItem, viewItemFactory, stateItem)
 
 	this.updateElevation();
 	this.updateState();
+	this.updateColor();
 }
 
 KevLinDev.extend(StateGridViewItem, LitGridViewItem);
@@ -7014,6 +7250,12 @@ StateGridViewItem.prototype.updateState = function()
 	this.stateItem.setState(this.modelItem.params.direction, parentTags, this.modelItem.params.itemTags);
 }
 
+StateGridViewItem.prototype.updateColor = function()
+{
+	if (this.modelItem.params.itemColor !== undefined)
+		this.stateItem.setColor(this.modelItem.params.itemColor);
+}
+
 StateGridViewItem.prototype.doAction = function(src, evt)
 {
     StateGridViewItem.superClass.doAction.call(this, src, evt);   
@@ -7028,10 +7270,16 @@ StateGridViewItem.prototype.doAction = function(src, evt)
 		{
 			this.updateElevation();
 		}
+		else if (evt.name == "itemColor")
+		{
+			// User has asked to change color of the item
+			this.updateColor();
+		}
     }
-    else if (evt.type == "tagAdded")
+    else if (evt.type == "tagAdded" || evt.type == "tagRemoved")
     {
 		this.updateState();
+		this.updateColor();
 	}
 }
 
@@ -7155,7 +7403,7 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
 	{
 		result.setDirection(xml.getAttribute("d"), true);
 	}
-
+	
     // Update all the child items of this item as well
     for (var i = 0; i < xml.childNodes.length; i++)
     {
@@ -7170,6 +7418,17 @@ PerspectiveItemFactory.prototype.makeItemFromXML = function(xml, model)
             model.addToMoveableItems(currItem);
         }
     }
+
+	// deal with tags last, so that the template item tags get processed first.
+	if (xml.hasAttribute("tags"))
+	{
+		var tags = xml.getAttribute("tags").split(";");
+		for (var i = 0; i < tags.length; ++i)
+		{
+			// Set the tag, and indicate that the tag is to be saved.
+			result.setItemTag(tags[i], true); 
+		}
+	}
 
 	return result;
 }
@@ -9203,6 +9462,8 @@ function makeActionEditor(controller, action)
 	return result;
 }
 
+// Factory for creating conditions
+
 function MyConditionFactory(model, controller, clock)
 {
     this.model = model;
@@ -9240,6 +9501,7 @@ MyConditionFactory.prototype.fromXML = function(xml)
     return result;
 }
 
+// Parent class for conditions.
 function GameCondition(model, controller)
 {
     GameCondition.baseConstructor.call(this);
@@ -9438,6 +9700,98 @@ HasItemCondition.prototype.onDelete = function()
 {
 	this.heldItem.onDelete();
 	this.containerItem.onDelete();
+}
+
+// True if the nominated item is part of a group with the same tag, of size groupSize or greater
+// To be part of a group, the items with itemTag must be in adjacent cells or 
+// the same cell.
+function TagGroupCondition(model, controller, seedItem, itemTag, minGroupSize)
+{
+    TagGroupCondition.baseConstructor.call(this, model, controller);
+    this.type = "TagGroup";
+
+    this.seedItem = new ACItemHandler(this.model, seedItem, "seedItem");
+	this.seedItem.addActionListener(this);
+	
+	this.itemTag = itemTag;
+	this.minGroupSize = minGroupSize;
+}
+
+KevLinDev.extend(TagGroupCondition, GameCondition);
+
+// Return the tag count for this and adjacent cells, and update the cellList.
+function countNearbyTags(currCell, itemTag, cellParams)
+{
+	// Ensure this cell hasn't already been counted
+	if (cellParams.visitedCells[currCell.getLocationString()] != null)
+		return cellParams;
+		
+	// Get the count for the current cell
+    var tree = currCell.getFlattenedTree();
+    for (var i = 0; i < tree.length; ++i)
+    {
+        if (tree[i].params != null && tree[i].params.itemTags.indexOf(itemTag) >= 0)
+            cellParams.tagCount++;
+    }
+
+	// Set the current cell as being visited
+	cellParams.visitedCells[currCell.getLocationString()] = 1;
+	
+	// Get the count for adjacent cells
+	for (var i = 0; i < currCell.model.adjList.length; ++i)
+	{
+		var adjParams = currCell.model.adjList[i];
+		cellParams = countNearbyTags(currCell.model.getContents(currCell.x + adjParams.x, currCell.y + adjParams.y), itemTag, cellParams);
+	}
+	
+	return cellParams;
+}
+
+// Search for the tag
+TagGroupCondition.prototype.isMet = function()
+{
+    if (this.seedItem.item == null)
+        return false;
+	
+	// Check that the seed item actually has the tag
+	if (this.seedItem.item.params.itemTags.indexOf(this.itemTag) < 0)
+		return false;
+
+	// Count the tags in adjacent cells
+	var cellParams = {visitedCells:{}, tagCount:0};
+	cellParams = countNearbyTags(this.seedItem.item.cellContents, this.itemTag, cellParams);
+	if (cellParams.tagCount >= minGroupSize)
+		return true;
+
+    return false;
+}
+
+TagGroupCondition.prototype.toXML = function()
+{
+    var result = TagGroupCondition.superClass.toXML.call(this);   
+
+    this.seedItem.addToXML(result);
+	this.seedItem.addActionListener(this);
+
+    result.setAttribute("itemTag", this.itemTag);
+    result.setAttribute("minGroupSize", this.minGroupSize);
+
+    return result;
+}
+
+TagGroupCondition.prototype.fromXML = function(xml)
+{
+    TagGroupCondition.superClass.fromXML.call(this, xml);    
+
+    this.seedItem.fromXML(xml);
+
+	this.itemTag = xml.getAttribute('itemTag');
+	this.minGroupSize = parseInt(xml.getAttribute('minGroupSize'));
+}
+
+TagGroupCondition.prototype.onDelete = function()
+{
+	this.seedItem.onDelete();
 }
 
 // The condition summary allows the user to view a single condition
@@ -10623,6 +10977,7 @@ ItemWindow.prototype.setItem = function(itemCode)
 	
 	var currEl = this.controller.itemFactory.makeViewItem(this.item);
     currEl.setLightLevel(1.0); // Hack to set the light level directly
+	this.item.addActionListener(currEl);
 	var elHolder = new SVGElement("g");
 	elHolder.appendChild(currEl);
     this.itemAppearanceLabel.setContents(elHolder);
@@ -10630,6 +10985,7 @@ ItemWindow.prototype.setItem = function(itemCode)
 
 	var currEl2 = this.controller.itemFactory.makeViewItem(this.item);
     currEl2.setLightLevel(1.0); // Hack to set the light level directly
+	this.item.addActionListener(currEl2);
 	var elHolder2 = new SVGElement("g");
 	elHolder2.appendChild(currEl2);
     this.itemAppearanceButton.setContents(elHolder2);
@@ -10641,19 +10997,38 @@ ItemWindow.prototype.setItem = function(itemCode)
         this.extrasArea.appendChild(this.selectTeleportButton);
     }
     
-    if (this.item.params.lightStrength)
-    {
-        
-    }
+	if (this.item.params.tagParams != null)
+	{
+		// tagParams change parameters if those tags are attached to the item.
+		// Give the user a chance to set those tags.
+	    for (var i = 0; i < this.item.params.tagParams.length; ++i)
+	    {
+			// The tagParams are broken up into groups of mutually exclusive tags
+			var radioGroup = new RadioButtonGroup();
+			for (var j in this.item.params.tagParams[i])
+			{
+			    var currRow = new FlowLayout(0, 0, {minSpacing:3});
+			    this.extrasArea.appendChild(currRow);
+				var checkboxParams = makeSimpleCheckboxParamButtonIdSet();
+				checkboxParams.width = 10;
+				checkboxParams.height = 10;
+				currCheckbox = new ParamButton2("tagCheckbox_" + j, checkboxParams);
+				currCheckbox.setToggle(true);
+				radioGroup.addButton(currCheckbox);
+				currRow.appendChild(currCheckbox);
+				currRow.appendChild(new SVGElement("text", {"font-size":12, fill:"black", x:5, y:12}, j));
+				currCheckbox.addActionListener(this);
+			}
+	    }
+	}
 }
 
 ItemWindow.prototype.doAction = function(src, evt)
 {
     ItemWindow.superClass.doAction.call(this, src, evt);
 
-	if (evt.type == "click")
+	if (evt.type == "selection")
 	{
-	    
 	    if (src.src.substring(0, 2) == "i_")
 	    {
     	    this.setItem(src.src.substring(2));
@@ -10665,8 +11040,17 @@ ItemWindow.prototype.doAction = function(src, evt)
 	    {
 	        this.teleportWindow.show();
 	    }
+		else if (src.src.substring(0, 12) == "tagCheckbox_")
+	    {
+			// User has checked or unchecked a tag
+			var tag = src.src.substring(12);
+			if (src.isSelected)
+				this.item.setItemTag(tag, true);
+			else
+				this.item.removeItemTag(tag, true);
+		}
     }
-    else if (evt.type == "worldSelected")
+	else if (evt.type == "worldSelected")
     {
         this.item.params.doTeleport = evt.value;
         var destName = this.controller.visitedWorlds[evt.value].map_name;
@@ -11313,10 +11697,11 @@ AvatarController.prototype.attemptMoveAvatar = function(direction)
     else
 	{
 		// Attempt to use the topData
-		if (this.weildedItem == null || !this.weildedItem.useItemWith(topData))
+		if (this.weildedItem == null || (!this.weildedItem.useItemWith(topData) && !topData.useItemWith(this.weildedItem)))
 		{
 			// If the weilded item failed to do anything, try with the avatar directly.
 			this.avatarItem.useItemWith(topData);
+			topData.useItemWith(this.avatarItem);
 		}
 	}
 }
@@ -11787,8 +12172,18 @@ InventoryViewItem.prototype.setSlot = function(slot)
 {
 	// If this item already has a slot, tell that slot it's now empty.
 	if (this.inventorySlot != null)
-		this.inventorySlot.setViewItem(null);
+	{
+		if (this.inventorySlot.slotIndex == 1)
+		{
+			// Removing from the weilded slot.
+			// If it has tag "burning", remove that tag, because
+			// you can't keep a burning item in the inventory.
+			this.gridItem.removeItemTag("burning");
+		}
 		
+		// Tell the slot it's empty
+		this.inventorySlot.setViewItem(null);
+	}	
 	this.inventorySlot = slot;
 	this.inventorySlot.setViewItem(this);
 	this.resetSlotPosition();
@@ -11810,6 +12205,10 @@ InventoryViewItem.prototype.doAction = function(src, evt)
     {
 		this.itemCopy.setItemTag(evt.value);
 	}
+    else if (evt.type == "tagRemoved")
+    {
+		this.itemCopy.removeItemTag(evt.value);
+	}
 }
 // InventorySlot holds a single inventory item
 function InventorySlot(inventoryWindow, x, y, slotIndex)
@@ -11830,10 +12229,10 @@ InventorySlot.prototype.isEmpty = function()
 	return (this.viewItem == null);
 }
 
-InventorySlot.prototype.canAcceptItem = function(viewItem)
+InventorySlot.prototype.canAcceptItem = function(gridItem)
 {
 	// If this is the "weild item" slot, refuse items that can't be weilded.
-	if (this.slotIndex == 1 && !viewItem.gridItem.params.canWeild)
+	if (this.slotIndex == 1 && !gridItem.params.canWeild)
 		return false;
 		
 	// Otherwise, we can accept an item as long as there isn't an item already here.
@@ -11957,7 +12356,7 @@ InventoryWindow.prototype.tryToCarryItem = function(item)
 	// Slots 0 and 1 are reserved for left and right hand.
 	for (var i = 1; i < this.inventorySlots.length; ++i)
 	{
-		if (this.inventorySlots[slot].canAcceptItem(item))
+		if (this.inventorySlots[i].canAcceptItem(item))
 		{
 			var newInventoryItem = new InventoryViewItem(this, item);
 			
@@ -12137,7 +12536,7 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
     //updateLayout();
     
     // Finally, load the starting map, also loading any saved items
-    this.submitLoadMap(this.controller.loginController.curr_map, true);
+    this.submitLoadMap(this.controller.loginController.curr_map);
 }
 
 // Save items, and optionally teleport to a new map. Set teleportDestination to null
@@ -12181,7 +12580,7 @@ GameServerInterface.prototype.receiveSaveItemsResultFromServer = function(xml, t
 		
 		this.controller.avatarGroupController.updateFromXML(xml);
 		
-        this.submitLoadMap(teleportDestination, false);
+        this.submitLoadMap(teleportDestination);
     }
     else
     {
@@ -12189,7 +12588,7 @@ GameServerInterface.prototype.receiveSaveItemsResultFromServer = function(xml, t
     }
 }
 
-GameServerInterface.prototype.submitLoadMap = function(map_id, doGetItems)
+GameServerInterface.prototype.submitLoadMap = function(map_id)
 {
     if (map_id == null)
         return;
@@ -12207,16 +12606,13 @@ GameServerInterface.prototype.submitLoadMap = function(map_id, doGetItems)
     this.controller.setActive(false);
 
     var http_string = "update.php";
-    var params = "load=" + escape(map_id) + "&save_level=1&" + this.controller.loginController.getHTTPLoginString();
+    var params = "load=" + escape(map_id) + "&save_level=1&get_items=1&" + this.controller.loginController.getHTTPLoginString();
     
     if (!this.controller.hasLoadedVisitedWorlds)
     {
         params += "&get_visit=1";
         this.controller.hasLoadedVisitedWorlds = true;
     }
-    
-    if (doGetItems)
-        params += "&get_items=1";
     
 	if (g_config.showServerTransactions)
 	{
@@ -12623,7 +13019,7 @@ GameController.prototype.doAction = function(src, evt)
     }
     else if (evt.type == "worldSelected")
     {
-        this.gameServerInterface.submitLoadMap(evt.value, false);
+        this.gameServerInterface.submitLoadMap(evt.value);
     }
     else if (src.src == "adminExpand" && evt.type == "click")
     {
@@ -13062,9 +13458,7 @@ GameController.prototype.contentSelected = function(src, evt)
 
 GameController.prototype.appendItem = function(topData, item)
 {
-    var params = {};
-    for (var i in item.params)
-        params[i] = item.params[i];
+    var params = cloneObject(item.params);
     
     var itemCopy = new PerspectiveGridItem(params);
 
@@ -13348,13 +13742,13 @@ function init()
     // itemName, itemCode, ht, wt, lightStrength, lightRadius, povRange, blockView, canStandOn, isPushable, isTakeable, isVisible
 
     var itemTemplates = {
-        x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true},
+        x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true, tagParams:[{red:{itemColor:"red"}, green:{itemColor:"green"}, blue:{itemColor:"blue"}}]},
         X:{itemName:"tree01", fullname:"Palm Tree", itemCode:"X", ht:30, wt:400},
         ".":{itemName:"pebbles01", fullname:"Pebbles", itemCode:".", canStandOn:true},
-        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, itemTags:["burning"], tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
+        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, tagParams:[{burning:{lightStrength:0.7, lightRadius:4}}], useActions:[{otherTag:"burning", addTag:"burning"}]},
         i:{itemName:"coin01", fullname:"Coin", itemCode:"i", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
         k:{itemName:"key01", fullname:"Key", itemCode:"k", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
-        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
+        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:[{burning:{lightStrength:0.7, lightRadius:4}}], useActions:[{otherTag:"burning", addTag:"burning"}]},
         j:{itemName:"ghost01", fullname:"Ghost", itemCode:"j", ht:10, povRange:4},
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},

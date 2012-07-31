@@ -52,7 +52,12 @@ cat \
 	actions/HeightActionEditor.js \
 	actions/TeleportActionEditor.js \
 	actions/ActionViewWindow.js \
+	conditions/MyConditionFactory.js \
 	conditions/GameCondition.js \
+	conditions/TimestampCondition.js \
+	conditions/WeightCondition.js \
+	conditions/HasItemCondition.js \
+	conditions/TagGroupCondition.js \
 	conditions/ConditionSummary.js \
 	conditions/TimestampConditionSummary.js \
 	conditions/WeightConditionSummary.js \

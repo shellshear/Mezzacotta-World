@@ -72,6 +72,18 @@ function createXMLDoc(elementName)
 	return result;
 }
 
+function cloneObject(obj)
+{
+	if (obj == null || typeof(obj) != 'object')
+		return obj;
+	
+	var tmp = obj.constructor();
+	
+	for (var i in obj)
+		tmp[i] = cloneObject(obj[i]);
+	
+	return tmp;
+}
 // Action Listeners respond to any SVG events via the handleEvent
 // method.  They can also be passed on by tellActionListeners.
 function ActionObject()
@@ -1117,7 +1129,8 @@ function setLightLevel(svgNode, level, groupId)
 			var newStyle = "";
 			for (var i = 0; i < styleArr.length; ++i)
 			{
-				newStyle += styleArr[i] + ";"
+				if (styleArr[i].length > 0)
+					newStyle += styleArr[i] + ";"
 			}
 			svgNode.setAttribute("style", newStyle);
 		}
@@ -1248,6 +1261,122 @@ function adjustLightLevel(currColor, level, groupId)
 	}
 	
 	return "rgb(" + red + "," + green + "," + blue + ")";
+}
+
+// Search through the specified node and its children, and replace any changeable colors.
+// Also take into account any setLightLevel() that have been done on these nodes -
+// i.e. if there is a [groupId]orig_* version, change that as well, so that lighting
+// corrections apply to the new colors.
+// 
+// svgNode - the root node from which to change the levels
+// newColor - the color to replace. Fill or stroke colors will be replaced for any nodes 
+//            that have the attributes "fillChange" or "strokeChange" set to 1, respectively.
+// groupId - used to check whether we should be changing the [groupId]orig_* version of the color.
+function setChangeableColor(svgNode, newColor, groupId)
+{
+	changeColorAttribute("fill", svgNode, newColor, groupId);
+	changeColorAttribute("stroke", svgNode, newColor, groupId);
+
+	var currStyle = svgNode.getAttribute("style");
+	if (currStyle != null)
+	{
+		var origStyle = svgNode.getAttribute(groupId + "orig_style");
+		if (origStyle != null)
+		{
+			currStyle = origStyle;
+		}
+
+		var styleArr = currStyle.split(";");
+		
+		// find any stroke or fill and update if the *Change attribute is set
+		var isModified = false;
+		for (var i = 0; i < styleArr.length; ++i)
+		{
+			var currStyleEl = styleArr[i].split(":");
+			var currStyleElName = currStyleEl[0].replace(/\s+/g, "").toLowerCase();
+			if (currStyleElName == "fill" && svgNode.getAttribute("fillChange") == 1)
+			{
+				styleArr[i] = currStyleElName + ":" + newColor;
+				isModified = true;
+			}
+			else if (currStyleElName == "stroke" && svgNode.getAttribute("strokeChange") == 1)
+			{
+				styleArr[i] = currStyleElName + ":" + newColor;
+				isModified = true;
+			}
+		}
+
+		if (isModified)
+		{
+			// Recreate the style string
+			var newStyle = "";
+			for (var i = 0; i < styleArr.length; ++i)
+			{
+				if (styleArr[i].length > 0)
+					newStyle += styleArr[i] + ";"
+			}
+			
+			// Save the original color style (taking into account orig_style)
+			var origColorStyle = svgNode.getAttribute(groupId + "origColor_style");
+			if (origColorStyle == null && newColor != null)
+			{
+				svgNode.setAttribute(groupId + "origColor_style", currStyle);
+			}
+			else if (origColorStyle != null && newColor == null)
+			{
+				newStyle = origColorStyle;
+			}
+			
+			// Save the style
+			if (origStyle != null)
+			{
+				// Update the orig_style so that lighting corrections now
+				// use the correct color
+				svgNode.setAttribute(groupId + "orig_style", newStyle);
+			}
+			svgNode.setAttribute("style", newStyle);
+		}
+	}
+
+	for (var i = 0; i < svgNode.children.length; ++i)
+	{
+		setChangeableColor(svgNode.children[i], newColor, groupId);
+	}
+}
+
+function changeColorAttribute(attr, svgNode, color, groupId)
+{
+	// Check that we have permission to change this attribute's color
+	if (svgNode.getAttribute(attr + "Change") != 1)
+		return;
+
+	var currAttr = svgNode.getAttribute(attr);
+	if (currAttr != null && currAttr != "none")
+	{
+		// original value before color changes and lighting have been applied
+		var origColorAttr = svgNode.getAttribute(groupId + "origColor_" + attr);
+		if (origColorAttr == null && color != null)
+		{
+			// Save the original color
+			svgNode.setAttribute(groupId + "origColor_" + attr, currAttr);
+		}
+		else if (origColorAttr != null && color == null)
+		{
+			// restore the original color
+			color = origColorAttr;
+			svgNode.removeAttribute(groupId + "origColor_" + attr);
+		}
+	
+		// original value before lighting is applied
+		var origAttr = svgNode.getAttribute(groupId + "orig_" + attr);
+		if (origAttr != null)
+		{
+			// Update the original to our color before lighting is applied
+			svgNode.setAttribute(groupId + "orig_" + attr, color);
+		}
+
+		svgNode.setAttribute(attr, color);
+	}
 }
 
 // SimpleButton.js
@@ -1537,16 +1666,19 @@ ParamButton.prototype.doAction = function(src, evt)
              if (this.toggleState == true)
              {                        
                  this.svg_select.show();
+		 		 this.tellActionListeners(this, {type:"selection", value:true});
              }
              else
              {
                  this.svg_select.hide();
+		 		 this.tellActionListeners(this, {type:"selection", value:false});
              }
              
          }
          else
          {
              this.svg_select.show();
+	 		 this.tellActionListeners(this, {type:"selection", value:true});
          }
      }
      else if (evt.type == "mouseup" && !this.doToggle)
@@ -1586,6 +1718,7 @@ ParamButton.prototype.setSelected = function(isSelected)
        if (this.doToggle)
            this.toggleState = false;
     }
+	this.tellActionListeners(this, {type:"selection", value:isSelected});
 }
 
 ParamButton.prototype.setToggle = function(doToggle)
@@ -1766,28 +1899,29 @@ ParamButton2.prototype.doAction = function(src, evt)
         if (evt.type == "mouseover")
         {
             this.isMouseover = true;
-        }
+            this.updateAppearance();
+	    }
         else if (evt.type == "mouseout")
         {
             this.isMouseover = false;
-        }
+            this.updateAppearance();
+	    }
         else if (evt.type == "mousedown")
         {
             if (this.doToggle)
             {
-                this.isSelected = !this.isSelected;
+                this.setSelected(!this.isSelected);
             }
             else
             {
-                this.isSelected = true;
+                this.setSelected(true);
             }
         }
         else if (evt.type == "mouseup")
         {
             //this.isSelected = false;
-        }
-
-        this.updateAppearance();
+            this.updateAppearance();
+	    }
     }
 };
 
@@ -1798,11 +1932,15 @@ ParamButton2.prototype.setAble = function(isAble)
     this.updateAppearance();
 };
 
+// Set whether this button is selected or not
 ParamButton2.prototype.setSelected = function(isSelected)
 {
-    // Set whether this button is selected or not
+	if (this.isSelected == isSelected)
+		return;
+		
     this.isSelected = isSelected;
     this.updateAppearance();
+	this.tellActionListeners(this, {type:"selection", value:this.isSelected});
 };
 
 ParamButton2.prototype.setToggle = function(doToggle)
@@ -1853,10 +1991,15 @@ function makeSimpleCheckboxParamButtonIdSet()
 }
 
 // Radio button group ensures only one button can be in "selected" state.
-function RadioButtonGroup()
+function RadioButtonGroup(params)
 {
     this.buttons = [];
     this.currentSelection = null;
+	this.params = params;
+	if (this.params == null)
+		this.params = {};
+	if (this.params.allowNoSelection == null)
+		this.params.allowNoSelection = true;
 }
 
 RadioButtonGroup.prototype.addButton = function(button)
@@ -1876,8 +2019,12 @@ RadioButtonGroup.prototype.doAction = function(src, evt)
 RadioButtonGroup.prototype.setSelected = function(src)
 {
     this.currentSelection = src;
-    src.setSelected(true);
-    
+
+	if (!this.params.allowNoSelection)
+	{
+    	src.setSelected(true);
+    }
+
     // Unselect all the other buttons
     for (var i in this.buttons)
     {

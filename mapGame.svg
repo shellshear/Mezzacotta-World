@@ -57,7 +57,12 @@
 <script type="text/ecmascript" xlink:href="js/actions/HeightActionEditor.js"/>
 <script type="text/ecmascript" xlink:href="js/actions/TeleportActionEditor.js"/>
 <script type="text/ecmascript" xlink:href="js/actions/ActionViewWindow.js"/>
+<script type="text/ecmascript" xlink:href="js/conditions/MyConditionFactory.js"/>
 <script type="text/ecmascript" xlink:href="js/conditions/GameCondition.js"/>
+<script type="text/ecmascript" xlink:href="js/conditions/TimestampCondition.js"/>
+<script type="text/ecmascript" xlink:href="js/conditions/WeightCondition.js"/>
+<script type="text/ecmascript" xlink:href="js/conditions/HasItemCondition.js"/>
+<script type="text/ecmascript" xlink:href="js/conditions/TagGroupCondition.js"/>
 <script type="text/ecmascript" xlink:href="js/conditions/ConditionSummary.js"/>
 <script type="text/ecmascript" xlink:href="js/conditions/TimestampConditionSummary.js"/>
 <script type="text/ecmascript" xlink:href="js/conditions/WeightConditionSummary.js"/>
