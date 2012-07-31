@@ -289,7 +289,7 @@ GameController.prototype.doAction = function(src, evt)
     }
     else if (evt.type == "worldSelected")
     {
-        this.gameServerInterface.submitLoadMap(evt.value, false);
+        this.gameServerInterface.submitLoadMap(evt.value);
     }
     else if (src.src == "adminExpand" && evt.type == "click")
     {
@@ -728,9 +728,7 @@ GameController.prototype.contentSelected = function(src, evt)
 
 GameController.prototype.appendItem = function(topData, item)
 {
-    var params = {};
-    for (var i in item.params)
-        params[i] = item.params[i];
+    var params = cloneObject(item.params);
     
     var itemCopy = new PerspectiveGridItem(params);
 
