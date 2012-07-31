@@ -33,8 +33,18 @@ InventoryViewItem.prototype.setSlot = function(slot)
 {
 	// If this item already has a slot, tell that slot it's now empty.
 	if (this.inventorySlot != null)
-		this.inventorySlot.setViewItem(null);
+	{
+		if (this.inventorySlot.slotIndex == 1)
+		{
+			// Removing from the weilded slot.
+			// If it has tag "burning", remove that tag, because
+			// you can't keep a burning item in the inventory.
+			this.gridItem.removeItemTag("burning");
+		}
 		
+		// Tell the slot it's empty
+		this.inventorySlot.setViewItem(null);
+	}	
 	this.inventorySlot = slot;
 	this.inventorySlot.setViewItem(this);
 	this.resetSlotPosition();
@@ -55,5 +65,9 @@ InventoryViewItem.prototype.doAction = function(src, evt)
     if (evt.type == "tagAdded")
     {
 		this.itemCopy.setItemTag(evt.value);
+	}
+    else if (evt.type == "tagRemoved")
+    {
+		this.itemCopy.removeItemTag(evt.value);
 	}
 }
