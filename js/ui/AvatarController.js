@@ -109,10 +109,11 @@ AvatarController.prototype.attemptMoveAvatar = function(direction)
     else
 	{
 		// Attempt to use the topData
-		if (this.weildedItem == null || !this.weildedItem.useItemWith(topData))
+		if (this.weildedItem == null || (!this.weildedItem.useItemWith(topData) && !topData.useItemWith(this.weildedItem)))
 		{
 			// If the weilded item failed to do anything, try with the avatar directly.
 			this.avatarItem.useItemWith(topData);
+			topData.useItemWith(this.avatarItem);
 		}
 	}
 }
