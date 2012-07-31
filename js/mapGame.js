@@ -27,13 +27,13 @@ function init()
     // itemName, itemCode, ht, wt, lightStrength, lightRadius, povRange, blockView, canStandOn, isPushable, isTakeable, isVisible
 
     var itemTemplates = {
-        x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true},
+        x:{itemName:"boulder01", fullname:"Large Boulder", itemCode:"x", ht:20, wt:1000, isPushable:true, blockView:true, tagParams:[{red:{itemColor:"red"}, green:{itemColor:"green"}, blue:{itemColor:"blue"}}]},
         X:{itemName:"tree01", fullname:"Palm Tree", itemCode:"X", ht:30, wt:400},
         ".":{itemName:"pebbles01", fullname:"Pebbles", itemCode:".", canStandOn:true},
-        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, itemTags:["burning"], tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
+        z:{itemName:"brazier01", fullname:"Brazier", itemCode:"z", ht:10, wt:20, tagParams:[{burning:{lightStrength:0.7, lightRadius:4}}], useActions:[{otherTag:"burning", addTag:"burning"}]},
         i:{itemName:"coin01", fullname:"Coin", itemCode:"i", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
         k:{itemName:"key01", fullname:"Key", itemCode:"k", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true},
-        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:{burning:{lightStrength:0.7, lightRadius:4}}, useActions:[{otherTag:"burning", addTag:"burning"}]},
+        I:{itemName:"stick01", fullname:"Stick", itemCode:"I", wt:0.1, canStandOn:true, isTakeable:true, isSaveable:true, canWeild:true, tagParams:[{burning:{lightStrength:0.7, lightRadius:4}}], useActions:[{otherTag:"burning", addTag:"burning"}]},
         j:{itemName:"ghost01", fullname:"Ghost", itemCode:"j", ht:10, povRange:4},
         G:{itemName:"golem01", fullname:"Golem", itemCode:"G", ht:20, wt:500, povRange:4, climbHeight:0},
         L:{itemName:"goblin01", fullname:"Goblin", itemCode:"L", ht:10, wt:30, povRange:4, climbHeight:5, moveTowards:["b"], scaredOf:["b"]},
