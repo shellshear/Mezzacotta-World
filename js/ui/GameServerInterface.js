@@ -64,9 +64,13 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
     var dest = document.getElementById("defs_external");
     for (var i = 0; i < defs.length; i++)
     {
-        for (var j = 0; j < defs[i].children.length; j++)
+        for (var j = 0; j < defs[i].childNodes.length; j++)
         {
-            dest.appendChild(defs[i].children[j].cloneNode(true));
+			var currChild = defs[i].childNodes[j];
+			if (currChild.nodeType != 1)
+				continue;
+
+            dest.appendChild(currChild.cloneNode(true));
         }
     }
     this.controller.itemFactory.artwork = xmlDoc;
@@ -185,16 +189,20 @@ GameServerInterface.prototype.receiveMapFromServer = function(xml)
 		this.controller.avatarGroupController.setInventoryXML(null);
 
 		// Load map and inventory from xml
-		for (var i = 0; i < xml.children.length; ++i)
+		for (var i = 0; i < xml.childNodes.length; ++i)
 		{
-			switch (xml.children[i].nodeName)
+			var currChild = xml.childNodes[i];
+			if (currChild.nodeType != 1)
+				continue;
+				
+			switch (currChild.nodeName)
 			{
 			case "m":
-        		this.controller.currentMap = xml.children[i];
+        		this.controller.currentMap = currChild;
 				break;
 				
 			case "items":
-				this.controller.avatarGroupController.setInventoryXML(xml.children[i]);
+				this.controller.avatarGroupController.setInventoryXML(currChild);
 				break;
 			}
 		}
