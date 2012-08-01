@@ -87,12 +87,13 @@ function updateLayout()
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);
 
     // Set the loading notification
-    var loadingNotification = document.getElementById("loadingNotification");
-    loadingNotification.children[0].setAttribute("x", bbox.width / 2 - 40);
-    loadingNotification.children[0].setAttribute("y", bbox.height / 2 - 20);
+    var lnRect = document.getElementById("loadingNotificationRect");
+    lnRect.setAttribute("x", bbox.width / 2 - 40);
+    lnRect.setAttribute("y", bbox.height / 2 - 20);
 
-    loadingNotification.children[1].setAttribute("x", bbox.width / 2 - 30);
-    loadingNotification.children[1].setAttribute("y", bbox.height / 2);
+    var lnText = document.getElementById("loadingNotificationText");
+    lnText.setAttribute("x", bbox.width / 2 - 30);
+    lnText.setAttribute("y", bbox.height / 2);
 
 }
 
