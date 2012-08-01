@@ -54,11 +54,6 @@ function ajax_post(myurl, myCallback, params)
 
         //Send the proper header information along with the request
         xmlRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        
-        if (params != null)
-            xmlRequest.setRequestHeader("Content-length", params.length);
-        xmlRequest.setRequestHeader("Connection", "close");
-
         xmlRequest.onreadystatechange = XMLHttpRequestCallback;
         xmlRequest.send(params);
 
