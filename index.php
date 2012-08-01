@@ -46,8 +46,8 @@ echo "<?xml version='1.0' encoding='UTF-8'?>";
 <g id="overLayer">
 </g>
 <g id="loadingNotification" display="none">
-    <rect width="100" height="30" fill="lightGreen" stroke="white"/>
-    <text font-size="20" fill="black">Loading...</text>
+    <rect id="loadingNotificationRect" width="100" height="30" fill="lightGreen" stroke="white"/>
+    <text id="loadingNotificationText" font-size="20" fill="black">Loading...</text>
 </g>
 
 </svg>
