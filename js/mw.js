@@ -1,5 +1,5 @@
 // Version of Mezzacotta World
-g_mwVersion = "0.4";// Global configuration parameters
+g_mwVersion = "0.5";// Global configuration parameters
 var g_config = new MW_Config();
 
 function MW_Config()
@@ -62,11 +62,6 @@ function ajax_post(myurl, myCallback, params)
 
         //Send the proper header information along with the request
         xmlRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        
-        if (params != null)
-            xmlRequest.setRequestHeader("Content-length", params.length);
-        xmlRequest.setRequestHeader("Connection", "close");
-
         xmlRequest.onreadystatechange = XMLHttpRequestCallback;
         xmlRequest.send(params);
 
@@ -284,10 +279,14 @@ SVGElement.prototype.wrapElement = function(existingElement)
         this.showing = false;
     
     // Also wrap all the children
-    for (var i = 0; i < existingElement.children.length; i++)
+    for (var i = 0; i < existingElement.childNodes.length; i++)
     {
+		var currChild = existingElement.childNodes[i];
+		if (currChild.nodeType != 1)
+			continue;
+			
         var child = new SVGElement();
-        child.wrapElement(existingElement.children[i]);
+        child.wrapElement(currChild);
 
         // We wish to append the child, but the svg structure already
         // exists, so we don't mess with that.
@@ -543,9 +542,12 @@ function replaceClipPaths(el)
 		return;
 	
 	// Handle children first
-	for (var i = 0; i < el.children.length; i++)
+	for (var i = 0; i < el.childNodes.length; i++)
 	{
-		var testEl = el.children[i];
+		var testEl = el.childNodes[i];
+		if (testEl.nodeType != 1)
+			continue;
+
 		var newChild = replaceClipPaths(testEl);
 		if (newChild != testEl)
 		{
@@ -1211,9 +1213,12 @@ function setLightLevel(svgNode, level, groupId)
 		
 	}
 
-	for (var i = 0; i < svgNode.children.length; ++i)
+	for (var i = 0; i < svgNode.childNodes.length; ++i)
 	{
-		setLightLevel(svgNode.children[i], level, groupId);
+		if (svgNode.childNodes[i].nodeType != 1)
+			continue;
+		
+		setLightLevel(svgNode.childNodes[i], level, groupId);
 	}
 }
 
@@ -1412,9 +1417,11 @@ function setChangeableColor(svgNode, newColor, groupId)
 		}
 	}
 
-	for (var i = 0; i < svgNode.children.length; ++i)
+	for (var i = 0; i < svgNode.childNodes.length; ++i)
 	{
-		setChangeableColor(svgNode.children[i], newColor, groupId);
+		if (svgNode.childNodes[i].nodeType != 1)
+			continue;
+		setChangeableColor(svgNode.childNodes[i], newColor, groupId);
 	}
 }
 
@@ -12521,9 +12528,13 @@ GameServerInterface.prototype.receiveArtworkFromServer = function(xmlDoc)
     var dest = document.getElementById("defs_external");
     for (var i = 0; i < defs.length; i++)
     {
-        for (var j = 0; j < defs[i].children.length; j++)
+        for (var j = 0; j < defs[i].childNodes.length; j++)
         {
-            dest.appendChild(defs[i].children[j].cloneNode(true));
+			var currChild = defs[i].childNodes[j];
+			if (currChild.nodeType != 1)
+				continue;
+
+            dest.appendChild(currChild.cloneNode(true));
         }
     }
     this.controller.itemFactory.artwork = xmlDoc;
@@ -12642,16 +12653,20 @@ GameServerInterface.prototype.receiveMapFromServer = function(xml)
 		this.controller.avatarGroupController.setInventoryXML(null);
 
 		// Load map and inventory from xml
-		for (var i = 0; i < xml.children.length; ++i)
+		for (var i = 0; i < xml.childNodes.length; ++i)
 		{
-			switch (xml.children[i].nodeName)
+			var currChild = xml.childNodes[i];
+			if (currChild.nodeType != 1)
+				continue;
+				
+			switch (currChild.nodeName)
 			{
 			case "m":
-        		this.controller.currentMap = xml.children[i];
+        		this.controller.currentMap = currChild;
 				break;
 				
 			case "items":
-				this.controller.avatarGroupController.setInventoryXML(xml.children[i]);
+				this.controller.avatarGroupController.setInventoryXML(currChild);
 				break;
 			}
 		}
@@ -13802,12 +13817,13 @@ function updateLayout()
     gController.loginController.loginGroup.setPosition((bbox.width - 300) / 2, (bbox.height - 150) / 2);
 
     // Set the loading notification
-    var loadingNotification = document.getElementById("loadingNotification");
-    loadingNotification.children[0].setAttribute("x", bbox.width / 2 - 40);
-    loadingNotification.children[0].setAttribute("y", bbox.height / 2 - 20);
+    var lnRect = document.getElementById("loadingNotificationRect");
+    lnRect.setAttribute("x", bbox.width / 2 - 40);
+    lnRect.setAttribute("y", bbox.height / 2 - 20);
 
-    loadingNotification.children[1].setAttribute("x", bbox.width / 2 - 30);
-    loadingNotification.children[1].setAttribute("y", bbox.height / 2);
+    var lnText = document.getElementById("loadingNotificationText");
+    lnText.setAttribute("x", bbox.width / 2 - 30);
+    lnText.setAttribute("y", bbox.height / 2);
 
 }
 
